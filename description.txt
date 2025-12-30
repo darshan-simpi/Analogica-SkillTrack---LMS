@@ -1,0 +1,1 @@
+Analogica SkillTrack is a smart learning and internship management system that enables organizations to monitor student progress, mentor assignments, and project activities. It provides centralized control over courses, workshops, and evaluations while ensuring transparency and efficient performance tracking.
