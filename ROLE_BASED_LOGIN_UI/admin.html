@@ -1,0 +1,270 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Admin Dashboard | Analogica SkillTrack — LMS</title>
+  <link rel="stylesheet" href="admin.css">
+</head>
+<body>
+
+<!-- 🔐 ROLE PROTECTION -->
+<script>
+  const role = localStorage.getItem("role");
+  if (!role || role !== "ADMIN") {
+    window.location.href = "login.html";
+  }
+</script>
+
+<div class="layout">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar">
+    <h2>SkillTrack</h2>
+    <ul>
+      <li onclick="showSection('dashboard')" class="active">Dashboard</li>
+      <li onclick="showSection('users')">Users</li>
+      <li onclick="showSection('courses')">Courses</li>
+      <li onclick="showSection('workshops')">Workshops</li>
+      <li onclick="showSection('internships')">Internships</li>
+      <li onclick="logout()">Logout</li>
+    </ul>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+
+    <!-- TOP BAR -->
+    <header class="topbar">
+      <h3 id="adminName"></h3>
+    </header>
+
+    <!-- ================= DASHBOARD ================= -->
+    <section id="dashboard" class="section">
+
+      <section class="cards">
+        <div class="card"><h4>Total Students</h4><p>120</p></div>
+        <div class="card"><h4>Total Trainers</h4><p>8</p></div>
+        <div class="card"><h4>Total Interns</h4><p>35</p></div>
+        <div class="card"><h4>Total Courses</h4><p id="courseCount">0</p></div>
+      </section>
+
+      <section class="content">
+        <h3>📚 Upcoming Courses</h3>
+
+        <div class="table-scroll">
+          <table>
+            <thead>
+              <tr>
+                <th>Course</th>
+                <th>Start Date</th>
+              </tr>
+            </thead>
+            <tbody id="courseTable"></tbody>
+          </table>
+        </div>
+      </section>
+    </section>
+
+    <!-- ================= USERS ================= -->
+    <section id="users" class="section hidden">
+      <h3>👥 Users</h3>
+      <p>Users are managed via backend authentication (Register/Login).</p>
+    </section>
+
+    <!-- ================= COURSES ================= -->
+    <section id="courses" class="section hidden">
+      <h3>📘 Course Management</h3>
+
+      <input id="courseName" placeholder="Course Name">
+      <input id="courseDate" placeholder="Start Date">
+      <button onclick="addCourse()">Add Course</button>
+
+      <table>
+        <thead>
+          <tr><th>Name</th><th>Date</th><th>Action</th></tr>
+        </thead>
+        <tbody id="courseManageTable"></tbody>
+      </table>
+    </section>
+
+    <!-- ================= WORKSHOPS ================= -->
+    <section id="workshops" class="section hidden">
+      <h3>🧑‍🏫 Workshops</h3>
+
+      <input id="workshopTitle" placeholder="Workshop Title">
+      <input id="workshopTrainer" placeholder="Trainer Name">
+      <input id="workshopDate" placeholder="Date">
+      <button onclick="addWorkshop()">Add Workshop</button>
+
+      <table>
+        <thead>
+          <tr><th>Title</th><th>Trainer</th><th>Date</th><th>Action</th></tr>
+        </thead>
+        <tbody id="workshopTable"></tbody>
+      </table>
+    </section>
+
+    <!-- ================= INTERNSHIPS ================= -->
+    <section id="internships" class="section hidden">
+      <h3>🎓 Internships</h3>
+
+      <input id="internName" placeholder="Intern Name">
+      <input id="mentorName" placeholder="Mentor Name">
+      <input id="duration" placeholder="Duration">
+      <button onclick="addIntern()">Add Internship</button>
+
+      <table>
+        <thead>
+          <tr><th>Intern</th><th>Mentor</th><th>Duration</th><th>Action</th></tr>
+        </thead>
+        <tbody id="internTable"></tbody>
+      </table>
+    </section>
+
+  </main>
+</div>
+
+<!-- ================= SCRIPT ================= -->
+<script>
+  document.getElementById("adminName").innerText =
+    "Welcome, " + localStorage.getItem("name");
+
+  function showSection(id) {
+    document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
+    document.getElementById(id).classList.remove('hidden');
+  }
+
+  // ✅ FIXED LOGOUT (DO NOT CLEAR APP DATA)
+  function logout() {
+    localStorage.removeItem("token");
+    localStorage.removeItem("role");
+    localStorage.removeItem("name");
+    window.location.href = "login.html";
+  }
+
+  /* ---------- COURSES ---------- */
+  let courses = [];
+
+  const courseTable = document.getElementById("courseTable");
+  const courseManageTable = document.getElementById("courseManageTable");
+
+  function renderCourses() {
+    courses = JSON.parse(localStorage.getItem("courses")) || [];
+
+    courseTable.innerHTML = "";
+    courseManageTable.innerHTML = "";
+    document.getElementById("courseCount").innerText = courses.length;
+
+    courses.forEach((c, i) => {
+      courseTable.innerHTML += `<tr><td>${c.name}</td><td>${c.date}</td></tr>`;
+      courseManageTable.innerHTML += `
+        <tr>
+          <td>${c.name}</td>
+          <td>${c.date}</td>
+          <td>
+            <button onclick="editCourse(${i})">Edit</button>
+            <button onclick="deleteCourse(${i})">Delete</button>
+          </td>
+        </tr>`;
+    });
+  }
+
+  function addCourse() {
+    courses.push({ name: courseName.value, date: courseDate.value });
+    localStorage.setItem("courses", JSON.stringify(courses));
+    renderCourses();
+    courseName.value = courseDate.value = "";
+  }
+
+  function deleteCourse(i) {
+    courses.splice(i, 1);
+    localStorage.setItem("courses", JSON.stringify(courses));
+    renderCourses();
+  }
+
+  function editCourse(i) {
+    courseName.value = courses[i].name;
+    courseDate.value = courses[i].date;
+    deleteCourse(i);
+  }
+
+  /* ---------- WORKSHOPS ---------- */
+  let workshops = [];
+
+  function renderWorkshops() {
+    workshops = JSON.parse(localStorage.getItem("workshops")) || [];
+    workshopTable.innerHTML = "";
+
+    workshops.forEach((w, i) => {
+      workshopTable.innerHTML += `
+        <tr>
+          <td>${w.title}</td>
+          <td>${w.trainer}</td>
+          <td>${w.date}</td>
+          <td><button onclick="deleteWorkshop(${i})">Delete</button></td>
+        </tr>`;
+    });
+  }
+
+  function addWorkshop() {
+    workshops.push({
+      title: workshopTitle.value,
+      trainer: workshopTrainer.value,
+      date: workshopDate.value
+    });
+    localStorage.setItem("workshops", JSON.stringify(workshops));
+    renderWorkshops();
+    workshopTitle.value = workshopTrainer.value = workshopDate.value = "";
+  }
+
+  function deleteWorkshop(i) {
+    workshops.splice(i, 1);
+    localStorage.setItem("workshops", JSON.stringify(workshops));
+    renderWorkshops();
+  }
+
+  /* ---------- INTERNSHIPS ---------- */
+  let internships = [];
+
+  function renderInterns() {
+    internships = JSON.parse(localStorage.getItem("internships")) || [];
+    internTable.innerHTML = "";
+
+    internships.forEach((x, i) => {
+      internTable.innerHTML += `
+        <tr>
+          <td>${x.intern}</td>
+          <td>${x.mentor}</td>
+          <td>${x.duration}</td>
+          <td><button onclick="deleteIntern(${i})">Delete</button></td>
+        </tr>`;
+    });
+  }
+
+  function addIntern() {
+    internships.push({
+      intern: internName.value,
+      mentor: mentorName.value,
+      duration: duration.value
+    });
+    localStorage.setItem("internships", JSON.stringify(internships));
+    renderInterns();
+    internName.value = mentorName.value = duration.value = "";
+  }
+
+  function deleteIntern(i) {
+    internships.splice(i, 1);
+    localStorage.setItem("internships", JSON.stringify(internships));
+    renderInterns();
+  }
+
+  // ✅ LOAD DATA ON PAGE LOAD
+  document.addEventListener("DOMContentLoaded", () => {
+    renderCourses();
+    renderWorkshops();
+    renderInterns();
+  });
+</script>
+
+</body>
+</html>
