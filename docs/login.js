@@ -1,14 +1,24 @@
 const courseList = document.getElementById("courseList");
 
-/* ================= LOAD COURSES (READ ONLY) ================= */
-function renderCourses() {
-  const courses = JSON.parse(localStorage.getItem("courses")) || [];
-  courseList.innerHTML = "";
+/* ================= DEFAULT COURSES (READ ONLY) ================= */
+const DEFAULT_COURSES = [
+  { name: "Full Stack Web Development", date: "15 Jan 2026" },
+  { name: "AI & Machine Learning", date: "22 Jan 2026" },
+  { name: "Flutter App Development", date: "01 Feb 2026" },
+  { name: "Python for Data Science", date: "10 Feb 2026" }
+];
 
-  if (courses.length === 0) {
-    courseList.innerHTML = "<p>No upcoming courses</p>";
-    return;
+/* ================= LOAD COURSES ================= */
+function renderCourses() {
+  let courses = JSON.parse(localStorage.getItem("courses"));
+
+  // ✅ If no courses in storage, use defaults
+  if (!courses || courses.length === 0) {
+    courses = DEFAULT_COURSES;
+    localStorage.setItem("courses", JSON.stringify(courses));
   }
+
+  courseList.innerHTML = "";
 
   courses.forEach(course => {
     const div = document.createElement("div");
@@ -34,7 +44,9 @@ function login() {
     return;
   }
 
-  fetch("http://127.0.0.1:5000/api/auth/login", {
+  const API_BASE = "https://analogica-skilltrack-api.onrender.com";
+
+  fetch(`${API_BASE}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password })
@@ -56,5 +68,9 @@ function login() {
       document.getElementById("error").innerText =
         "Invalid role or credentials";
     }
+  })
+  .catch(() => {
+    document.getElementById("error").innerText =
+      "Server not reachable. Please try again later.";
   });
 }
