@@ -5,34 +5,29 @@ from flask_mail import Message
 from itsdangerous import URLSafeTimedSerializer
 
 from models import User
-from database import db
+from extensions import db, mail   # ✅ IMPORT FROM extensions
 
-auth_bp = Blueprint('auth', __name__)
+auth_bp = Blueprint("auth", __name__)
 
-# 🔐 TOKEN GENERATOR
 def get_serializer():
-    return URLSafeTimedSerializer(current_app.config['SECRET_KEY'])
-
+    return URLSafeTimedSerializer(current_app.config["SECRET_KEY"])
 
 # ================= REGISTER =================
-@auth_bp.route('/register', methods=['POST'])
+@auth_bp.route("/register", methods=["POST"])
 def register():
     data = request.get_json()
 
     if not data:
         return jsonify({"error": "No data received"}), 400
 
-    if not all(k in data for k in ("name", "email", "password", "role")):
-        return jsonify({"error": "Missing fields"}), 400
-
-    if User.query.filter_by(email=data['email']).first():
+    if User.query.filter_by(email=data["email"]).first():
         return jsonify({"error": "User already exists"}), 400
 
     user = User(
-        name=data['name'],
-        email=data['email'],
-        password=generate_password_hash(data['password']),
-        role=data['role']
+        name=data["name"],
+        email=data["email"],
+        password=generate_password_hash(data["password"]),
+        role=data["role"]
     )
 
     db.session.add(user)
@@ -42,16 +37,12 @@ def register():
 
 
 # ================= LOGIN =================
-@auth_bp.route('/login', methods=['POST'])
+@auth_bp.route("/login", methods=["POST"])
 def login():
     data = request.get_json()
+    user = User.query.filter_by(email=data["email"]).first()
 
-    if not data:
-        return jsonify({"error": "No data received"}), 400
-
-    user = User.query.filter_by(email=data['email']).first()
-
-    if not user or not check_password_hash(user.password, data['password']):
+    if not user or not check_password_hash(user.password, data["password"]):
         return jsonify({"error": "Invalid credentials"}), 401
 
     token = create_access_token(
@@ -63,18 +54,13 @@ def login():
         "token": token,
         "role": user.role,
         "name": user.name
-    }), 200
+    })
 
 
 # ================= FORGOT PASSWORD =================
-@auth_bp.route('/forgot-password', methods=['POST'])
+@auth_bp.route("/forgot-password", methods=["POST"])
 def forgot_password():
-    data = request.get_json()
-
-    if not data or "email" not in data:
-        return jsonify({"error": "Email required"}), 400
-
-    email = data["email"]
+    email = request.get_json().get("email")
     user = User.query.filter_by(email=email).first()
 
     if not user:
@@ -83,41 +69,32 @@ def forgot_password():
     serializer = get_serializer()
     token = serializer.dumps(email, salt="reset-password")
 
-    # ✅ IMPORTANT: FRONTEND URL (GitHub Pages)
-    FRONTEND_URL = current_app.config.get(
-        "FRONTEND_URL",
-        "http://127.0.0.1:5500/ROLE_BASED_LOGIN_UI"
+    reset_link = (
+        f"{current_app.config['FRONTEND_URL']}"
+        f"/reset-password.html?token={token}"
     )
-
-    reset_link = f"{FRONTEND_URL}/reset-password.html?token={token}"
 
     msg = Message(
         subject="Reset Your Password - Analogica SkillTrack LMS",
         recipients=[email],
+        sender=current_app.config["MAIL_DEFAULT_SENDER"],
         body=f"""
 Hello {user.name},
 
-You requested to reset your password.
-
-Click the link below to reset it:
+Click the link below to reset your password:
 {reset_link}
 
 This link is valid for 15 minutes.
-
-If you did not request this, please ignore this email.
-
-Regards,
-Analogica SkillTrack LMS
 """
     )
 
-    current_app.extensions["mail"].send(msg)
+    mail.send(msg)
 
     return jsonify({"message": "Reset link sent to email"}), 200
 
 
 # ================= RESET PASSWORD =================
-@auth_bp.route('/reset-password', methods=['POST'])
+@auth_bp.route("/reset-password", methods=["POST"])
 def reset_password():
     data = request.get_json()
 
@@ -130,11 +107,7 @@ def reset_password():
     serializer = get_serializer()
 
     try:
-        email = serializer.loads(
-            token,
-            salt="reset-password",
-            max_age=900  # 15 minutes
-        )
+        email = serializer.loads(token, salt="reset-password", max_age=900)
     except Exception:
         return jsonify({"error": "Invalid or expired token"}), 400
 
@@ -143,7 +116,9 @@ def reset_password():
     if not user:
         return jsonify({"error": "User not found"}), 404
 
+    # 🔐 UPDATE PASSWORD
     user.password = generate_password_hash(new_password)
-    db.session.commit()
+    db.session.add(user)          # ✅ REQUIRED
+    db.session.commit()           # ✅ REQUIRED
 
     return jsonify({"message": "Password reset successful"}), 200
