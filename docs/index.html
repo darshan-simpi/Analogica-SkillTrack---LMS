@@ -9,7 +9,7 @@
 
 <div class="container">
 
-  <!-- LEFT SIDE (LOGIN) -->
+  <!-- LEFT SIDE -->
   <div class="login-panel">
     <img src="logo.png" class="logo" alt="Analogica Logo">
 
@@ -27,19 +27,59 @@
     <input type="email" id="email" placeholder="Email address">
     <input type="password" id="password" placeholder="Password">
 
-    <button onclick="login()">Login</button>
+    <button type="button" onclick="login()">Login</button>
 
     <p id="error"></p>
+
+    <p class="register-text">
+      <span onclick="openForgot()">Forgot password?</span>
+    </p>
+
+    <p class="register-text">
+      New user?
+      <span onclick="openRegister()">Register here</span>
+    </p>
   </div>
 
-  <!-- RIGHT SIDE (COURSES – READ ONLY) -->
+  <!-- RIGHT SIDE -->
   <div class="info-panel">
     <h3>📢 Upcoming Courses</h3>
-
-    <!-- SCROLLABLE COURSE LIST -->
     <div id="courseList" class="course-scroll"></div>
   </div>
 
+</div>
+
+<!-- REGISTER MODAL -->
+<div id="registerModal" class="modal">
+  <div class="modal-content">
+    <h3>Register</h3>
+
+    <input id="regName" placeholder="Full Name">
+    <input id="regEmail" placeholder="Email">
+    <input id="regPassword" type="password" placeholder="Password">
+
+    <select id="regRole">
+      <option value="">Select Role</option>
+      <option value="STUDENT">Student</option>
+      <option value="TRAINER">Trainer</option>
+      <option value="INTERN">Intern</option>
+    </select>
+
+    <button type="button" onclick="register()">Register</button>
+    <button type="button" class="cancel-btn" onclick="closeRegister()">Cancel</button>
+  </div>
+</div>
+
+<!-- FORGOT PASSWORD MODAL -->
+<div id="forgotModal" class="modal">
+  <div class="modal-content">
+    <h3>Forgot Password</h3>
+
+    <input type="email" id="fpEmail" placeholder="Enter registered email">
+
+    <button type="button" onclick="sendResetLink()">Send Reset Link</button>
+    <button type="button" class="cancel-btn" onclick="closeForgot()">Cancel</button>
+  </div>
 </div>
 
 <script src="login.js"></script>

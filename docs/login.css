@@ -1,4 +1,3 @@
-/* ================= GLOBAL ================= */
 * {
   box-sizing: border-box;
   font-family: "Segoe UI", sans-serif;
@@ -12,7 +11,7 @@ body {
   align-items: center;
 }
 
-/* ================= CONTAINER ================= */
+/* CONTAINER */
 .container {
   width: 900px;
   display: flex;
@@ -22,7 +21,7 @@ body {
   box-shadow: 0 10px 30px rgba(0,0,0,0.15);
 }
 
-/* ================= LEFT PANEL ================= */
+/* LOGIN PANEL */
 .login-panel {
   width: 50%;
   padding: 40px;
@@ -30,7 +29,7 @@ body {
 }
 
 .logo {
-  width: 380px;
+  width: 300px;
   margin-bottom: 10px;
 }
 
@@ -56,59 +55,51 @@ body {
   border: none;
   border-radius: 5px;
   cursor: pointer;
-  margin-top: 10px;
 }
 
 .login-panel button:hover {
   background: #1d4ed8;
 }
 
-#error {
-  color: red;
-  margin-top: 10px;
+.register-text {
+  margin-top: 12px;
+  font-size: 14px;
 }
 
-/* ================= RIGHT PANEL ================= */
+.register-text span {
+  color: #2563eb;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+#error {
+  color: red;
+  margin-top: 8px;
+}
+
+/* INFO PANEL */
 .info-panel {
   width: 50%;
   background: #1e293b;
   color: white;
   padding: 40px;
-  display: flex;
-  flex-direction: column;
 }
 
-.info-panel h3 {
-  margin-bottom: 15px;
-}
-
-/* ================= AUTO SCROLL COURSES ================= */
-
-/* Scroll container */
 .course-scroll {
-  max-height: 360px;          /* shows ~4 courses */
-  overflow: hidden;           /* hide scrollbar */
-  position: relative;
+  max-height: 320px;
+  overflow-y: auto;
+  margin-top: 15px;
 }
 
-/* Inner animation wrapper */
-.course-scroll:hover {
-  overflow-y: auto;           /* allow manual scroll on hover */
-  animation-play-state: paused;
-}
-
-/* Course card */
 .course-card {
   background: #334155;
-  padding: 10px;
+  padding: 12px;
   border-radius: 8px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .course-card h4 {
   font-size: 14px;
-  margin-bottom: 4px;
-  color: #e2e8f0;
 }
 
 .course-card p {
@@ -116,32 +107,41 @@ body {
   color: #cbd5f5;
 }
 
-/* AUTO SCROLL ANIMATION */
-.course-scroll {
-  animation: autoScroll 18s linear infinite;
+/* MODALS */
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.5);
+  justify-content: center;
+  align-items: center;
+  z-index: 1000;
 }
 
-/* Pause scrolling when hovered */
-.course-scroll:hover {
-  animation-play-state: paused;
-}
-
-/* Keyframes */
-@keyframes autoScroll {
-  0% {
-    transform: translateY(0);
-  }
-  100% {
-    transform: translateY(-50%);
-  }
-}
-
-/* ================= OPTIONAL SCROLLBAR (ON HOVER) ================= */
-.course-scroll:hover::-webkit-scrollbar {
-  width: 6px;
-}
-
-.course-scroll:hover::-webkit-scrollbar-thumb {
-  background: #64748b;
+.modal-content {
+  background: white;
+  padding: 30px;
+  width: 320px;
   border-radius: 10px;
+  text-align: center;
+}
+
+.modal-content input,
+.modal-content select {
+  width: 100%;
+  padding: 10px;
+  margin: 8px 0;
+  border: 1px solid #cbd5e1;
+  border-radius: 5px;
+}
+
+.cancel-btn {
+  margin-top: 10px;
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 10px;
+  width: 100%;
+  border-radius: 5px;
+  cursor: pointer;
 }

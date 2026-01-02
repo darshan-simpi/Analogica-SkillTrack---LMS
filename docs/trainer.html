@@ -1,1 +1,167 @@
-<h1>Welcome Trainer Dashboard</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trainer Dashboard - LMS</title>
+
+  <!-- Correct CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+<!-- Chart.js FIRST -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Your script SECOND -->
+<script src="script.js"></script>
+
+<!-- DASHBOARD -->
+<div id="dashboardSection" style="display:none;">
+
+  <!-- HEADER -->
+  <header class="header">
+    <div class="container">
+      <div class="header-content">
+        <div>
+          <h1 class="header-title">Trainer Dashboard</h1>
+          <p class="header-subtitle" id="trainerInfo">Welcome, Trainer</p>
+        </div>
+        <button class="btn-logout" onclick="handleLogout()">Logout</button>
+      </div>
+    </div>
+  </header>
+
+  <div class="container">
+
+    <!-- STATS -->
+    <div class="stats-grid">
+      <div class="stat-card">
+        <div class="stat-content">
+          <div>
+            <p class="stat-label">Total Students</p>
+            <p class="stat-value" id="totalStudents">0</p>
+          </div>
+          <div class="stat-icon stat-icon-blue">👥</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-content">
+          <div>
+            <p class="stat-label">On Track</p>
+            <p class="stat-value stat-value-green" id="onTrackCount">0</p>
+          </div>
+          <div class="stat-icon stat-icon-green">✓</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-content">
+          <div>
+            <p class="stat-label">Behind</p>
+            <p class="stat-value stat-value-red" id="behindCount">0</p>
+          </div>
+          <div class="stat-icon stat-icon-red">⚠</div>
+        </div>
+      </div>
+
+      <div class="stat-card">
+        <div class="stat-content">
+          <div>
+            <p class="stat-label">Avg Progress</p>
+            <p class="stat-value stat-value-purple" id="avgProgress">0%</p>
+          </div>
+          <div class="stat-icon stat-icon-purple">📊</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CHARTS -->
+    <div class="charts-grid">
+      <div class="chart-card">
+        <h3 class="chart-title">Status Distribution</h3>
+        <canvas id="statusChart"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3 class="chart-title">Course Completion %</h3>
+        <canvas id="progressChart"></canvas>
+      </div>
+
+      <div class="chart-card">
+        <h3 class="chart-title">Assignment Submission %</h3>
+        <canvas id="assignmentChart"></canvas>
+      </div>
+    </div>
+
+    <!-- FILTERS -->
+    <div class="filter-section">
+      <div class="filter-grid">
+        <div class="filter-item">
+          <label class="filter-label">Search Students</label>
+          <div class="search-wrapper">
+            <input id="searchInput" class="search-input" placeholder="Search by name or email">
+            <span class="search-icon">🔍</span>
+          </div>
+        </div>
+
+        <div class="filter-item">
+          <label class="filter-label">Filter by Course</label>
+          <select id="courseFilter" class="filter-select">
+            <option value="all">All Courses</option>
+          </select>
+        </div>
+
+        <div class="filter-item">
+          <label class="filter-label">Filter by Status</label>
+          <select id="statusFilter" class="filter-select">
+            <option value="all">All Status</option>
+            <option value="On Track">On Track</option>
+            <option value="Behind">Behind</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <!-- TABLE -->
+    <div class="table-card">
+      <div class="table-header">
+        <h2 class="table-title">My Students (<span id="studentCount">0</span>)</h2>
+      </div>
+      <div class="table-wrapper">
+        <table class="students-table">
+          <thead>
+            <tr>
+              <th>Student</th>
+              <th>Course</th>
+              <th>Progress</th>
+              <th>Assignments</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="studentsTableBody"></tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL -->
+  <div id="studentModal" class="modal">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h2 class="modal-title">Student Details</h2>
+        <button class="modal-close" onclick="closeModal()">×</button>
+      </div>
+      <div class="modal-body" id="modalBody"></div>
+      <div class="modal-footer">
+        <button class="btn-primary" onclick="closeModal()">Close</button>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<script src="script.js"></script>
+</body>
+</html>
