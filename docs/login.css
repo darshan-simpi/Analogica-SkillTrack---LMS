@@ -1,147 +1,245 @@
+/* ================= ROOT COLOR SYSTEM ================= */
+:root {
+  --bg-main:  #020617;        /* Page background */
+  --card-dark: #111827;     /* Right panel & course cards */
+  --card-blue: #1F3A5F;     /* Login panel */
+  --input-bg: #1E293B;      /* Input fields */
+
+  --primary: #2563EB;       /* Buttons */
+  --primary-hover: #1D4ED8;
+
+  --accent: #38BDF8;        /* Course titles, links */
+
+  --text-main: #F8FAFC;     /* Headings */
+  --text-muted: #CBD5E1;    /* Labels & secondary text */
+}
+
+/* ================= RESET ================= */
 * {
+  margin: 0;
+  padding: 0;
   box-sizing: border-box;
-  font-family: "Segoe UI", sans-serif;
 }
 
+/* ================= BODY ================= */
 body {
-  background: #f1f5f9;
   height: 100vh;
+  background: var(--bg-main);
   display: flex;
-  justify-content: center;
   align-items: center;
+  justify-content: center;
+  color: var(--text-main);
+  font-family: 'Inter', 'Roboto', sans-serif;
 }
 
-/* CONTAINER */
+/* ================= MAIN CONTAINER ================= */
 .container {
-  width: 900px;
+  width: 1100px;
   display: flex;
-  background: white;
-  border-radius: 10px;
+  border-radius: 22px;
   overflow: hidden;
-  box-shadow: 0 10px 30px rgba(0,0,0,0.15);
+  box-shadow: 0 30px 70px rgba(0,0,0,0.6);
+  animation: containerIn 0.8s ease;
 }
 
-/* LOGIN PANEL */
+/* ================= LEFT LOGIN PANEL ================= */
 .login-panel {
-  width: 50%;
-  padding: 40px;
+  width: 45%;
+  padding: 50px;
   text-align: center;
+  background: var(--card-blue);
 }
 
 .logo {
-  width: 300px;
-  margin-bottom: 10px;
+  width: 260px;
+  margin-bottom: 15px;
+}
+
+.login-panel h2 {
+  color: var(--text-main);
 }
 
 .subtitle {
-  color: #64748b;
-  margin-bottom: 20px;
+  color: var(--text-muted);
+  margin-bottom: 25px;
 }
 
-.login-panel input,
-.login-panel select {
+/* ================= INPUTS ================= */
+.login-panel select,
+.login-panel input {
   width: 100%;
-  padding: 12px;
-  margin: 10px 0;
-  border: 1px solid #cbd5e1;
-  border-radius: 5px;
+  padding: 14px;
+  margin-top: 15px;
+  border-radius: 12px;
+  border: 1px solid #334155;
+  background: var(--input-bg);
+  color: var(--text-main);
+  font-size: 14px;
+  transition: border 0.2s, box-shadow 0.2s;
 }
 
+.login-panel input::placeholder {
+  color: var(--text-muted);
+}
+
+/* 🔥 PREMIUM FOCUS EFFECT */
+input:focus,
+select:focus {
+  outline: none;
+  border: 1px solid var(--accent);
+  box-shadow: 0 0 0 2px rgba(56, 189, 248, 0.25);
+}
+
+/* ================= LOGIN BUTTON ================= */
 .login-panel button {
   width: 100%;
-  padding: 12px;
-  background: #2563eb;
-  color: white;
+  padding: 14px;
+  margin-top: 25px;
+  border-radius: 12px;
   border: none;
-  border-radius: 5px;
   cursor: pointer;
+
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: var(--text-main);
+  font-size: 16px;
+  font-weight: 600;
+
+  transition: transform 0.15s, box-shadow 0.15s;
 }
 
 .login-panel button:hover {
-  background: #1d4ed8;
+  transform: translateY(-1px);
+  box-shadow: 0 8px 20px rgba(37, 99, 235, 0.35);
 }
 
-.register-text {
-  margin-top: 12px;
+/* ================= LINKS ================= */
+.links {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 15px;
   font-size: 14px;
 }
 
-.register-text span {
-  color: #2563eb;
+.links span {
   cursor: pointer;
-  font-weight: 600;
+  color: var(--accent);
+  font-weight: 500;
+}
+
+.reset-note {
+  margin-top: 15px;
+  font-size: 12px;
+  color: var(--text-muted);
 }
 
 #error {
-  color: red;
-  margin-top: 8px;
+  margin-top: 10px;
+  color: #F87171;
 }
 
-/* INFO PANEL */
+/* ================= RIGHT COURSES PANEL ================= */
 .info-panel {
-  width: 50%;
-  background: #1e293b;
-  color: white;
-  padding: 40px;
+  width: 55%;
+  padding: 60px;
+  background: var(--card-dark);
 }
 
+.info-panel h3 {
+  color: var(--text-main);
+}
+
+.info-sub {
+  color: var(--text-muted);
+  margin-bottom: 20px;
+}
+
+/* ================= COURSE LIST ================= */
 .course-scroll {
-  max-height: 320px;
+  max-height: 360px;
   overflow-y: auto;
-  margin-top: 15px;
 }
 
+/* ================= COURSE CARD ================= */
 .course-card {
-  background: #334155;
-  padding: 12px;
-  border-radius: 8px;
-  margin-bottom: 12px;
+  background: var(--card-dark);
+  padding: 18px;
+  border-radius: 14px;
+  margin-bottom: 15px;
+
+  border-left: 3px solid var(--accent);
+
+  opacity: 0;
+  transform: translateY(20px);
+  animation: courseIn 0.5s ease forwards;
+
+  transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.course-card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 10px 20px rgba(0,0,0,0.4);
 }
 
 .course-card h4 {
-  font-size: 14px;
+  margin-bottom: 6px;
+  color: var(--accent);
+  font-weight: 600;
 }
 
 .course-card p {
-  font-size: 12px;
-  color: #cbd5f5;
+  font-size: 13px;
+  color: var(--text-muted);
 }
 
-/* MODALS */
+/* ================= MODALS ================= */
 .modal {
   display: none;
   position: fixed;
   inset: 0;
-  background: rgba(0,0,0,0.5);
+  background: rgba(15, 23, 42, 0.75);
   justify-content: center;
   align-items: center;
   z-index: 1000;
 }
 
 .modal-content {
-  background: white;
+  width: 340px;
   padding: 30px;
-  width: 320px;
-  border-radius: 10px;
+  border-radius: 18px;
+  background: var(--card-dark);
+  color: var(--text-main);
   text-align: center;
+  animation: scaleIn 0.3s ease;
 }
 
 .modal-content input,
 .modal-content select {
   width: 100%;
-  padding: 10px;
-  margin: 8px 0;
-  border: 1px solid #cbd5e1;
-  border-radius: 5px;
+  padding: 12px;
+  margin-top: 12px;
+  border-radius: 8px;
+  border: 1px solid #334155;
+  background: var(--input-bg);
+  color: var(--text-main);
 }
 
 .cancel-btn {
-  margin-top: 10px;
-  background: #ef4444;
-  color: white;
-  border: none;
-  padding: 10px;
-  width: 100%;
-  border-radius: 5px;
-  cursor: pointer;
+  margin-top: 12px;
+  background: #EF4444;
+  color: var(--text-main);
+}
+
+/* ================= ANIMATIONS ================= */
+@keyframes containerIn {
+  from { opacity: 0; transform: scale(0.96); }
+  to   { opacity: 1; transform: scale(1); }
+}
+
+@keyframes courseIn {
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes scaleIn {
+  from { opacity: 0; transform: scale(0.9); }
+  to   { opacity: 1; transform: scale(1); }
 }

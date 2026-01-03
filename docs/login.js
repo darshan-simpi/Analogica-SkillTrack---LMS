@@ -1,6 +1,6 @@
 const courseList = document.getElementById("courseList");
 
-/* ================= LOAD COURSES ================= */
+/* ================= LOAD COURSES WITH ANIMATION ================= */
 function renderCourses() {
   const courses = JSON.parse(localStorage.getItem("courses")) || [];
   courseList.innerHTML = "";
@@ -10,13 +10,18 @@ function renderCourses() {
     return;
   }
 
-  courses.forEach(course => {
+  courses.forEach((course, index) => {
     const div = document.createElement("div");
     div.className = "course-card";
+
+    /* staggered animation delay */
+    div.style.animationDelay = `${index * 0.15}s`;
+
     div.innerHTML = `
       <h4>${course.name}</h4>
       <p>Starts: ${course.date}</p>
     `;
+
     courseList.appendChild(div);
   });
 }
@@ -28,9 +33,12 @@ function login() {
   const role = document.getElementById("role").value;
   const email = document.getElementById("email").value;
   const password = document.getElementById("password").value;
+  const error = document.getElementById("error");
+
+  error.innerText = "";
 
   if (!role || !email || !password) {
-    document.getElementById("error").innerText = "Please fill all fields";
+    error.innerText = "Please fill all fields";
     return;
   }
 
@@ -51,12 +59,11 @@ function login() {
         else if (role === "TRAINER") location.href = "trainer.html";
         else if (role === "INTERN") location.href = "intern.html";
       } else {
-        document.getElementById("error").innerText = "Invalid credentials";
+        error.innerText = "Invalid credentials";
       }
     })
     .catch(() => {
-      document.getElementById("error").innerText =
-        "Server not reachable. Try again later.";
+      error.innerText = "Server not reachable. Try again later.";
     });
 }
 
