@@ -1,32 +1,41 @@
+const API_BASE = "http://127.0.0.1:5000"; // change to Render URL later
 const courseList = document.getElementById("courseList");
 
-/* ================= LOAD COURSES WITH ANIMATION ================= */
-function renderCourses() {
-  const courses = JSON.parse(localStorage.getItem("courses")) || [];
-  courseList.innerHTML = "";
+async function renderCourses() {
+  if (!courseList) return;
 
-  if (courses.length === 0) {
-    courseList.innerHTML = "<p>No upcoming courses</p>";
-    return;
+  courseList.innerHTML = "Loading courses...";
+
+  try {
+    const res = await fetch(`${API_BASE}/api/courses`);
+    const courses = await res.json();
+
+    courseList.innerHTML = "";
+
+    if (!courses.length) {
+      courseList.innerHTML = "<p>No upcoming courses</p>";
+      return;
+    }
+
+    courses.forEach((course, index) => {
+      const div = document.createElement("div");
+      div.className = "course-card";
+      div.style.animationDelay = `${index * 0.1}s`;
+      div.innerHTML = `
+        <h4>${course.name}</h4>
+        <p>Starts: ${course.date}</p>
+      `;
+      courseList.appendChild(div);
+    });
+
+  } catch (err) {
+    console.error(err);
+    courseList.innerHTML = "<p style='color:red'>Failed to load courses</p>";
   }
-
-  courses.forEach((course, index) => {
-    const div = document.createElement("div");
-    div.className = "course-card";
-
-    /* staggered animation delay */
-    div.style.animationDelay = `${index * 0.15}s`;
-
-    div.innerHTML = `
-      <h4>${course.name}</h4>
-      <p>Starts: ${course.date}</p>
-    `;
-
-    courseList.appendChild(div);
-  });
 }
 
 document.addEventListener("DOMContentLoaded", renderCourses);
+
 
 /* ================= LOGIN ================= */
 function login() {
@@ -42,7 +51,7 @@ function login() {
     return;
   }
 
-  fetch("http://127.0.0.1:5000/api/auth/login", {
+  fetch(`${API_BASE}/api/auth/login`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email, password })
@@ -59,7 +68,7 @@ function login() {
         else if (role === "TRAINER") location.href = "trainer.html";
         else if (role === "INTERN") location.href = "intern.html";
       } else {
-        error.innerText = "Invalid credentials";
+        error.innerText = "Invalid credentials or role mismatch";
       }
     })
     .catch(() => {
@@ -87,7 +96,7 @@ function register() {
     return;
   }
 
-  fetch("http://127.0.0.1:5000/api/auth/register", {
+  fetch(`${API_BASE}/api/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ name, email, password, role })
@@ -121,7 +130,7 @@ function sendResetLink() {
     return;
   }
 
-  fetch("http://127.0.0.1:5000/api/auth/forgot-password", {
+  fetch(`${API_BASE}/api/auth/forgot-password`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ email })

@@ -126,144 +126,182 @@
 
 <!-- ================= SCRIPT ================= -->
 <script>
-  document.getElementById("adminName").innerText =
-    "Welcome, " + localStorage.getItem("name");
+/* ================= AUTH & BASE ================= */
+const API = "http://127.0.0.1:5000/api";
+const token = localStorage.getItem("token");
 
-  function showSection(id) {
-    document.querySelectorAll('.section').forEach(s => s.classList.add('hidden'));
-    document.getElementById(id).classList.remove('hidden');
-  }
+document.getElementById("adminName").innerText =
+  "Welcome, " + localStorage.getItem("name");
 
-  // ✅ FIXED LOGOUT (DO NOT CLEAR APP DATA)
-  function logout() {
-    localStorage.removeItem("token");
-    localStorage.removeItem("role");
-    localStorage.removeItem("name");
-    window.location.href = "login.html";
-  }
+/* ================= NAV ================= */
+function showSection(id) {
+  document.querySelectorAll(".section").forEach(s => s.classList.add("hidden"));
+  document.getElementById(id).classList.remove("hidden");
+}
 
-  /* ---------- COURSES ---------- */
-  let courses = [];
+function logout() {
+  localStorage.clear();
+  window.location.href = "login.html";
+}
 
-  const courseTable = document.getElementById("courseTable");
-  const courseManageTable = document.getElementById("courseManageTable");
+/* ================= COURSES ================= */
+const courseTable = document.getElementById("courseTable");
+const courseManageTable = document.getElementById("courseManageTable");
 
-  function renderCourses() {
-    courses = JSON.parse(localStorage.getItem("courses")) || [];
+async function loadCourses() {
+  const res = await fetch(`${API}/courses`);
+  const courses = await res.json();
 
-    courseTable.innerHTML = "";
-    courseManageTable.innerHTML = "";
-    document.getElementById("courseCount").innerText = courses.length;
+  courseTable.innerHTML = "";
+  courseManageTable.innerHTML = "";
+  document.getElementById("courseCount").innerText = courses.length;
 
-    courses.forEach((c, i) => {
-      courseTable.innerHTML += `<tr><td>${c.name}</td><td>${c.date}</td></tr>`;
-      courseManageTable.innerHTML += `
-        <tr>
-          <td>${c.name}</td>
-          <td>${c.date}</td>
-          <td>
-            <button onclick="editCourse(${i})">Edit</button>
-            <button onclick="deleteCourse(${i})">Delete</button>
-          </td>
-        </tr>`;
-    });
-  }
+  courses.forEach(c => {
+    courseTable.innerHTML += `
+      <tr><td>${c.name}</td><td>${c.date}</td></tr>
+    `;
 
-  function addCourse() {
-    courses.push({ name: courseName.value, date: courseDate.value });
-    localStorage.setItem("courses", JSON.stringify(courses));
-    renderCourses();
-    courseName.value = courseDate.value = "";
-  }
+    courseManageTable.innerHTML += `
+      <tr>
+        <td>${c.name}</td>
+        <td>${c.date}</td>
+        <td>
+          <button onclick="deleteCourse(${c.id})">Delete</button>
+        </td>
+      </tr>
+    `;
+  });
+}
 
-  function deleteCourse(i) {
-    courses.splice(i, 1);
-    localStorage.setItem("courses", JSON.stringify(courses));
-    renderCourses();
-  }
+async function addCourse() {
+  await fetch(`${API}/courses`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      name: courseName.value,
+      date: courseDate.value
+    })
+  });
 
-  function editCourse(i) {
-    courseName.value = courses[i].name;
-    courseDate.value = courses[i].date;
-    deleteCourse(i);
-  }
+  courseName.value = courseDate.value = "";
+  loadCourses();
+}
 
-  /* ---------- WORKSHOPS ---------- */
-  let workshops = [];
+async function deleteCourse(id) {
+  await fetch(`${API}/courses/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Authorization": `Bearer ${token}`
+    }
+  });
+  loadCourses();
+}
 
-  function renderWorkshops() {
-    workshops = JSON.parse(localStorage.getItem("workshops")) || [];
-    workshopTable.innerHTML = "";
+/* ================= WORKSHOPS ================= */
+const workshopTable = document.getElementById("workshopTable");
 
-    workshops.forEach((w, i) => {
-      workshopTable.innerHTML += `
-        <tr>
-          <td>${w.title}</td>
-          <td>${w.trainer}</td>
-          <td>${w.date}</td>
-          <td><button onclick="deleteWorkshop(${i})">Delete</button></td>
-        </tr>`;
-    });
-  }
+async function loadWorkshops() {
+  const res = await fetch(`${API}/workshops`);
+  const data = await res.json();
+  workshopTable.innerHTML = "";
 
-  function addWorkshop() {
-    workshops.push({
+  data.forEach(w => {
+    workshopTable.innerHTML += `
+      <tr>
+        <td>${w.title}</td>
+        <td>${w.trainer}</td>
+        <td>${w.date}</td>
+        <td><button onclick="deleteWorkshop(${w.id})">Delete</button></td>
+      </tr>
+    `;
+  });
+}
+
+async function addWorkshop() {
+  await fetch(`${API}/workshops`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({
       title: workshopTitle.value,
       trainer: workshopTrainer.value,
       date: workshopDate.value
-    });
-    localStorage.setItem("workshops", JSON.stringify(workshops));
-    renderWorkshops();
-    workshopTitle.value = workshopTrainer.value = workshopDate.value = "";
-  }
-
-  function deleteWorkshop(i) {
-    workshops.splice(i, 1);
-    localStorage.setItem("workshops", JSON.stringify(workshops));
-    renderWorkshops();
-  }
-
-  /* ---------- INTERNSHIPS ---------- */
-  let internships = [];
-
-  function renderInterns() {
-    internships = JSON.parse(localStorage.getItem("internships")) || [];
-    internTable.innerHTML = "";
-
-    internships.forEach((x, i) => {
-      internTable.innerHTML += `
-        <tr>
-          <td>${x.intern}</td>
-          <td>${x.mentor}</td>
-          <td>${x.duration}</td>
-          <td><button onclick="deleteIntern(${i})">Delete</button></td>
-        </tr>`;
-    });
-  }
-
-  function addIntern() {
-    internships.push({
-      intern: internName.value,
-      mentor: mentorName.value,
-      duration: duration.value
-    });
-    localStorage.setItem("internships", JSON.stringify(internships));
-    renderInterns();
-    internName.value = mentorName.value = duration.value = "";
-  }
-
-  function deleteIntern(i) {
-    internships.splice(i, 1);
-    localStorage.setItem("internships", JSON.stringify(internships));
-    renderInterns();
-  }
-
-  // ✅ LOAD DATA ON PAGE LOAD
-  document.addEventListener("DOMContentLoaded", () => {
-    renderCourses();
-    renderWorkshops();
-    renderInterns();
+    })
   });
+
+  workshopTitle.value = workshopTrainer.value = workshopDate.value = "";
+  loadWorkshops();
+}
+
+async function deleteWorkshop(id) {
+  await fetch(`${API}/workshops/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Authorization": `Bearer ${token}`
+    }
+  });
+  loadWorkshops();
+}
+
+/* ================= INTERNSHIPS ================= */
+const internTable = document.getElementById("internTable");
+
+async function loadInternships() {
+  const res = await fetch(`${API}/internships`);
+  const data = await res.json();
+  internTable.innerHTML = "";
+
+  data.forEach(i => {
+    internTable.innerHTML += `
+      <tr>
+        <td>${i.intern_name}</td>
+        <td>${i.mentor_name}</td>
+        <td>${i.duration}</td>
+        <td><button onclick="deleteIntern(${i.id})">Delete</button></td>
+      </tr>
+    `;
+  });
+}
+
+async function addIntern() {
+  await fetch(`${API}/internships`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      intern_name: internName.value,
+      mentor_name: mentorName.value,
+      duration: duration.value
+    })
+  });
+
+  internName.value = mentorName.value = duration.value = "";
+  loadInternships();
+}
+
+async function deleteIntern(id) {
+  await fetch(`${API}/internships/${id}`, {
+    method: "DELETE",
+    headers: {
+      "Authorization": `Bearer ${token}`
+    }
+  });
+  loadInternships();
+}
+
+/* ================= INIT ================= */
+document.addEventListener("DOMContentLoaded", () => {
+  loadCourses();
+  loadWorkshops();
+  loadInternships();
+});
 </script>
 
 </body>
