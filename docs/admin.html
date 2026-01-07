@@ -11,7 +11,7 @@
 <script>
   const role = localStorage.getItem("role");
   if (!role || role !== "ADMIN") {
-    window.location.href = "login.html";
+    window.location.href = "index.html";
   }
 </script>
 
@@ -126,9 +126,12 @@
 
 <!-- ================= SCRIPT ================= -->
 <script>
-/* ================= AUTH & BASE ================= */
 const API = "http://127.0.0.1:5000/api";
 const token = localStorage.getItem("token");
+
+if (!token || localStorage.getItem("role") !== "ADMIN") {
+  window.location.href = "index.html";
+}
 
 document.getElementById("adminName").innerText =
   "Welcome, " + localStorage.getItem("name");
@@ -141,35 +144,38 @@ function showSection(id) {
 
 function logout() {
   localStorage.clear();
-  window.location.href = "login.html";
+  window.location.href = "index.html";
+}
+
+/* ================= DASHBOARD ================= */
+async function loadDashboard() {
+  const res = await fetch(`${API}/admin/stats`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const d = await res.json();
+
+  document.querySelector(".card:nth-child(1) p").innerText = d.students;
+  document.querySelector(".card:nth-child(2) p").innerText = d.trainers;
+  document.querySelector(".card:nth-child(3) p").innerText = d.interns;
+  document.getElementById("courseCount").innerText = d.courses;
 }
 
 /* ================= COURSES ================= */
-const courseTable = document.getElementById("courseTable");
-const courseManageTable = document.getElementById("courseManageTable");
-
 async function loadCourses() {
   const res = await fetch(`${API}/courses`);
-  const courses = await res.json();
+  const data = await res.json();
 
   courseTable.innerHTML = "";
   courseManageTable.innerHTML = "";
-  document.getElementById("courseCount").innerText = courses.length;
 
-  courses.forEach(c => {
-    courseTable.innerHTML += `
-      <tr><td>${c.name}</td><td>${c.date}</td></tr>
-    `;
-
+  data.forEach(c => {
+    courseTable.innerHTML += `<tr><td>${c.name}</td><td>${c.date}</td></tr>`;
     courseManageTable.innerHTML += `
       <tr>
         <td>${c.name}</td>
         <td>${c.date}</td>
-        <td>
-          <button onclick="deleteCourse(${c.id})">Delete</button>
-        </td>
-      </tr>
-    `;
+        <td><button onclick="deleteCourse(${c.id})">Delete</button></td>
+      </tr>`;
   });
 }
 
@@ -185,24 +191,21 @@ async function addCourse() {
       date: courseDate.value
     })
   });
-
   courseName.value = courseDate.value = "";
   loadCourses();
+  loadDashboard();
 }
 
 async function deleteCourse(id) {
   await fetch(`${API}/courses/${id}`, {
     method: "DELETE",
-    headers: {
-      "Authorization": `Bearer ${token}`
-    }
+    headers: { Authorization: `Bearer ${token}` }
   });
   loadCourses();
+  loadDashboard();
 }
 
 /* ================= WORKSHOPS ================= */
-const workshopTable = document.getElementById("workshopTable");
-
 async function loadWorkshops() {
   const res = await fetch(`${API}/workshops`);
   const data = await res.json();
@@ -212,11 +215,10 @@ async function loadWorkshops() {
     workshopTable.innerHTML += `
       <tr>
         <td>${w.title}</td>
-        <td>${w.trainer}</td>
+        <td>${w.trainer_name}</td>
         <td>${w.date}</td>
         <td><button onclick="deleteWorkshop(${w.id})">Delete</button></td>
-      </tr>
-    `;
+      </tr>`;
   });
 }
 
@@ -229,7 +231,7 @@ async function addWorkshop() {
     },
     body: JSON.stringify({
       title: workshopTitle.value,
-      trainer: workshopTrainer.value,
+      trainer_name: workshopTrainer.value,
       date: workshopDate.value
     })
   });
@@ -241,16 +243,12 @@ async function addWorkshop() {
 async function deleteWorkshop(id) {
   await fetch(`${API}/workshops/${id}`, {
     method: "DELETE",
-    headers: {
-      "Authorization": `Bearer ${token}`
-    }
+    headers: { Authorization: `Bearer ${token}` }
   });
   loadWorkshops();
 }
 
 /* ================= INTERNSHIPS ================= */
-const internTable = document.getElementById("internTable");
-
 async function loadInternships() {
   const res = await fetch(`${API}/internships`);
   const data = await res.json();
@@ -263,8 +261,7 @@ async function loadInternships() {
         <td>${i.mentor_name}</td>
         <td>${i.duration}</td>
         <td><button onclick="deleteIntern(${i.id})">Delete</button></td>
-      </tr>
-    `;
+      </tr>`;
   });
 }
 
@@ -289,15 +286,14 @@ async function addIntern() {
 async function deleteIntern(id) {
   await fetch(`${API}/internships/${id}`, {
     method: "DELETE",
-    headers: {
-      "Authorization": `Bearer ${token}`
-    }
+    headers: { Authorization: `Bearer ${token}` }
   });
   loadInternships();
 }
 
 /* ================= INIT ================= */
 document.addEventListener("DOMContentLoaded", () => {
+  loadDashboard();
   loadCourses();
   loadWorkshops();
   loadInternships();

@@ -145,7 +145,7 @@ function sendResetLink() {
         closeForgot();
         openRegister();
       } else {
-        alert(data.error || "Something went wrong");
+        alert(data.error || "Something went wrong with your request");
       }
     })
     .catch(() => alert("Server error"));

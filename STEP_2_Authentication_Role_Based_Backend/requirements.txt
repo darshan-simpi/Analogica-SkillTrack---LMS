@@ -5,4 +5,5 @@ Flask-Cors
 Werkzeug
 gunicorn
 flask-mail
+pymysql
 

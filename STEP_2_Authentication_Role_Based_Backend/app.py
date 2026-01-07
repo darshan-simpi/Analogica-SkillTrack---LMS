@@ -7,7 +7,6 @@ from config import Config
 from extensions import db, mail
 from models import User
 from auth import auth_bp
-from protected import protected_bp
 from course_api import course_bp
 
 def create_default_admin():
@@ -27,18 +26,25 @@ def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
 
-    CORS(app)
+    # 🔥 IMPORTANT CORS FIX
+    CORS(
+        app,
+        supports_credentials=True,
+        resources={r"/api/*": {"origins": "*"}},
+        allow_headers=["Authorization", "Content-Type"],
+        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+    )
+
     db.init_app(app)
     mail.init_app(app)
     JWTManager(app)
 
     app.register_blueprint(auth_bp, url_prefix="/api/auth")
-    app.register_blueprint(protected_bp, url_prefix="/api")
     app.register_blueprint(course_bp, url_prefix="/api")
 
     @app.route("/")
     def home():
-        return {"message": "Authentication & Role Based APIs Running"}
+        return {"message": "Analogica LMS Backend Running"}
 
     with app.app_context():
         db.create_all()

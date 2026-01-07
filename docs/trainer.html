@@ -8,36 +8,41 @@
 </head>
 <body>
 
-  <!-- Header -->
+  <!-- 🔐 ROLE PROTECTION -->
+  <script>
+    const role = localStorage.getItem("role");
+    if (!role || role !== "TRAINER") {
+      window.location.href = "login.html";
+    }
+  </script>
+
   <header class="header">
     <div>
       <h1>Trainer Dashboard</h1>
-      <p>Welcome, <strong>Darshan Trainer</strong> • Computer Science</p>
+      <p id="welcome">Welcome, <strong>Trainer</strong> • Computer Science</p>
     </div>
     <button class="logout">Logout</button>
   </header>
 
-  <!-- Summary Cards -->
   <section class="cards">
     <div class="card">
       <h4>Total Students</h4>
-      <p class="number">5</p>
+      <p id="total" class="number">0</p>
     </div>
     <div class="card green">
       <h4>On Track</h4>
-      <p class="number">3</p>
+      <p id="onTrack" class="number">0</p>
     </div>
     <div class="card red">
       <h4>Behind Schedule</h4>
-      <p class="number">2</p>
+      <p id="behind" class="number">0</p>
     </div>
     <div class="card blue">
       <h4>Avg. Progress</h4>
-      <p class="number">60%</p>
+      <p id="avg" class="number">0%</p>
     </div>
   </section>
 
-  <!-- Charts -->
   <section class="charts">
     <div class="chart-box">
       <h3>Status Distribution</h3>
@@ -53,42 +58,13 @@
     </div>
   </section>
 
-  <!-- Filters -->
-  <section class="filters">
-    <input type="text" id="search" placeholder="Search by name or email...">
-    
-    <select id="courseFilter">
-      <option value="all">All Courses</option>
-      <option value="Web Development">Web Development</option>
-      <option value="Data Science">Data Science</option>
-      <option value="Machine Learning">Machine Learning</option>
-    </select>
-
-    <select id="statusFilter">
-      <option value="all">All Status</option>
-      <option value="On Track">On Track</option>
-      <option value="Behind">Behind</option>
-    </select>
+  <section class="course-list-section">
+    <h2>Courses</h2>
+    <div id="courseCards" class="course-cards"></div>
   </section>
 
-  <!-- Students Table -->
-  <section class="table-section">
-    <h2>My Students (5)</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>Student</th>
-          <th>Course</th>
-          <th>Progress</th>
-          <th>Assignments</th>
-          <th>Status</th>
-          <th>Actions</th>
-        </tr>
-      </thead>
-      <tbody id="studentTable"></tbody>
-    </table>
-  </section>
+  <div id="modal" class="hidden"></div>
 
   <script src="trainer.js"></script>
 </body>
-</html>
+</html> ....

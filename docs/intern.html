@@ -16,11 +16,13 @@
     <a class="nav" data-target="tasks">Tasks</a>
     <a class="nav" data-target="progress">Progress</a>
     <a class="nav" data-target="mentor">Mentor</a>
+    <a class="nav" data-target="internships">Internships</a>
+    <a class="nav" id="logout-link">Logout</a>
   </aside>
 
   <main>
     <header>
-      <h1>Welcome back 👋</h1>
+      <h1 id="welcome-message"></h1>
       <span class="status">Active Intern</span>
     </header>
 
@@ -120,6 +122,14 @@
       <div class="cards">
         <div class="card pastel-green"><p>Last Review</p><h2>2 Days Ago</h2></div>
         <div class="card pastel-lavender"><p>Next Meeting</p><h2>Friday</h2></div>
+      </div>
+    </section>
+
+    <!-- INTERNSHIPS -->
+    <section id="internships" class="page">
+      <h2 class="group-title">Available Internships</h2>
+      <div class="internship-list">
+        <!-- Internships will be loaded here by JavaScript -->
       </div>
     </section>
   </main>

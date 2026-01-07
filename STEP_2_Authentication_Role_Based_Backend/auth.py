@@ -7,6 +7,7 @@ from itsdangerous import URLSafeTimedSerializer
 from models import User
 from extensions import db, mail
 
+# ✅ THIS MUST EXIST AT TOP LEVEL
 auth_bp = Blueprint("auth", __name__)
 
 def get_serializer():
@@ -29,6 +30,7 @@ def register():
         password=generate_password_hash(data["password"]),
         role=data["role"]
     )
+
     db.session.add(user)
     db.session.commit()
 
@@ -48,7 +50,11 @@ def login():
         additional_claims={"role": user.role}
     )
 
-    return jsonify({"token": token, "role": user.role, "name": user.name})
+    return jsonify({
+        "token": token,
+        "role": user.role,
+        "name": user.name
+    }), 200
 
 # ================= FORGOT PASSWORD =================
 @auth_bp.route("/forgot-password", methods=["POST"])
@@ -89,7 +95,9 @@ def reset_password():
 
     try:
         email = get_serializer().loads(
-            data["token"], salt="reset-password", max_age=900
+            data["token"],
+            salt="reset-password",
+            max_age=900
         )
     except:
         return jsonify({"error": "Invalid or expired token"}), 400

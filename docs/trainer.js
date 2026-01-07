@@ -1,268 +1,175 @@
-const students = [
-  {
-    name: "John Doe",
-    email: "john.doe@example.com",
-    course: "Web Development",
-    progress: 75,
-    assignments: "8 / 10",
-    assignedTask: "",
-    taskStatus: "Not Assigned",
-    submission: "",
-    feedback: "",
-    status: "On Track"
-  },
-  {
-    name: "Jane Smith",
-    email: "jane.smith@example.com",
-    course: "Data Science",
-    progress: 90,
-    assignments: "9 / 10",
-    assignedTask: "",
-    taskStatus: "Not Assigned",
-    submission: "",
-    feedback: "",
-    status: "On Track"
-  },
-  {
-    name: "Mike Johnson",
-    email: "mike.j@example.com",
-    course: "Web Development",
-    progress: 45,
-    assignments: "4 / 10",
-    assignedTask: "",
-    taskStatus: "Not Assigned",
-    submission: "",
-    feedback: "",
-    status: "Behind"
-  },
-  {
-    name: "Sarah Williams",
-    email: "sarah.w@example.com",
-    course: "Machine Learning",
-    progress: 60,
-    assignments: "6 / 10",
-    assignedTask: "",
-    taskStatus: "Not Assigned",
-    submission: "",
-    feedback: "",
-    status: "On Track"
-  },
-  {
-    name: "David Brown",
-    email: "david.b@example.com",
-    course: "Data Science",
-    progress: 30,
-    assignments: "3 / 10",
-    assignedTask: "",
-    taskStatus: "Not Assigned",
-    submission: "",
-    feedback: "",
-    status: "Behind"
+/* ================= TRAINER NAME ================= */
+window.addEventListener("DOMContentLoaded", () => {
+
+  // Get trainer name saved during login
+  const name = localStorage.getItem("name") || "Trainer";
+
+  const welcomeEl = document.getElementById("welcome");
+
+  if (welcomeEl) {
+    welcomeEl.innerHTML = `Welcome ${name}`;
   }
+});
+
+/* ================= LOGOUT ================= */
+document.querySelector(".logout").onclick = () => {
+  localStorage.clear();
+  window.location.href = "index.html";
+};
+
+/* ================= STUDENTS ================= */
+const students = [
+  { name: "John", course: "Web Development", progress: 70, status: "On Track", task: "", submitted: false, feedback: "" },
+  { name: "Jane", course: "Data Science", progress: 85, status: "On Track", task: "", submitted: false, feedback: "" },
+  { name: "Mike", course: "Web Development", progress: 40, status: "Behind", task: "", submitted: false, feedback: "" },
+  { name: "Sarah", course: "Machine Learning", progress: 65, status: "On Track", task: "", submitted: false, feedback: "" },
+  { name: "David", course: "Data Science", progress: 30, status: "Behind", task: "", submitted: false, feedback: "" }
 ];
 
-const table = document.getElementById("studentTable");
-const searchInput = document.getElementById("search");
-const courseFilter = document.getElementById("courseFilter");
-const statusFilter = document.getElementById("statusFilter");
+/* ================= CARDS ================= */
+function updateCards() {
+  document.getElementById("total").innerHTML = students.length;
+  document.getElementById("onTrack").innerHTML = students.filter(s => s.status === "On Track").length;
+  document.getElementById("behind").innerHTML = students.filter(s => s.status === "Behind").length;
 
-/* ================= TABLE RENDER ================= */
-function renderTable(data) {
-  table.innerHTML = "";
+  const avg = Math.round(students.reduce((a, b) => a + b.progress, 0) / students.length);
+  document.getElementById("avg").innerHTML = avg + "%";
+}
 
-  if (data.length === 0) {
-    table.innerHTML = `<tr><td colspan="6">No students found</td></tr>`;
-    return;
-  }
+/* ================= COURSE CARDS ================= */
+const courseCards = document.getElementById("courseCards");
+const uniqueCourses = [...new Set(students.map(s => s.course))];
 
-  data.forEach((s, index) => {
-    table.innerHTML += `
-      <tr>
-        <td><strong>${s.name}</strong><br><small>${s.email}</small></td>
-        <td>${s.course}</td>
-        <td>
-          <div class="progress-bar">
-            <div class="progress-fill ${s.status === "Behind" ? "behind" : ""}"
-                 style="width:${s.progress}%"></div>
-          </div>
-          ${s.progress}%
-        </td>
-        <td>
-          ${s.assignments}<br>
-          <small>
-            <strong>Task:</strong> ${s.assignedTask || "Not Assigned"}<br>
-            <strong>Status:</strong> ${s.taskStatus}<br>
-            <strong>Submission:</strong> ${s.submission ? "Submitted" : "Not Submitted"}
-          </small>
-        </td>
-        <td>
-          <span class="status ${s.status === "On Track" ? "on-track" : "behind-tag"}">
-            ${s.status}
-          </span>
-        </td>
-        <td>
-          <button class="view" onclick="viewDetails(${index})">View</button>
-        </td>
-      </tr>
-    `;
+function renderCourses() {
+  courseCards.innerHTML = "";
+  uniqueCourses.forEach(course => {
+    const count = students.filter(s => s.course === course).length;
+
+    courseCards.innerHTML += `
+      <div class="course-card">
+        <h3>${course}</h3>
+        <p>${count} students</p>
+
+        <button onclick="assignTask('${course}')">Assign Task</button>
+        <button onclick="manage('${course}')">Manage Students</button>
+      </div>`;
   });
 }
 
-/* ================= VIEW DETAILS (CLOSE ONLY ON CLOSE BUTTON) ================= */
-function viewDetails(index) {
-  const s = students[index];
-
-  const modal = document.createElement("div");
-  modal.style.position = "fixed";
-  modal.style.top = "0";
-  modal.style.left = "0";
-  modal.style.width = "100%";
-  modal.style.height = "100%";
-  modal.style.background = "rgba(0,0,0,0.5)";
-  modal.style.display = "flex";
-  modal.style.alignItems = "center";
-  modal.style.justifyContent = "center";
-  modal.style.zIndex = "1000";
-
-  modal.innerHTML = `
-    <div style="background:#fff;padding:20px;border-radius:8px;width:420px">
-      <h3>Student Details</h3>
-      <p><strong>Name:</strong> ${s.name}</p>
-      <p><strong>Email:</strong> ${s.email}</p>
-      <p><strong>Course:</strong> ${s.course}</p>
-      <p><strong>Task:</strong> ${s.assignedTask || "Not Assigned"}</p>
-      <p><strong>Status:</strong> ${s.taskStatus}</p>
-      <p><strong>Submission:</strong> ${s.submission ? "Submitted" : "Not Submitted"}</p>
-      <p><strong>Feedback:</strong> ${s.feedback || "No feedback"}</p>
-
-      <div style="margin-top:15px;display:flex;gap:10px;flex-wrap:wrap">
-        <button onclick="assignTask(${index})">Assign Task</button>
-        <button onclick="updateTaskStatus(${index})">Validate Task</button>
-        <button onclick="giveFeedback(${index})">Give Feedback</button>
-        <button onclick="closeModal()">Close</button>
-      </div>
-    </div>
-  `;
-
-  document.body.appendChild(modal);
-
-  window.closeModal = function () {
-    document.body.removeChild(modal);
-  };
-}
-
 /* ================= ASSIGN TASK ================= */
-function assignTask(index) {
-  const task = prompt("Enter assignment for student:");
+function assignTask(course) {
+  const task = prompt("Enter assignment for " + course);
+  if (!task) return;
 
-  if (task && task.trim() !== "") {
-    students[index].assignedTask = task;
-    students[index].taskStatus = "Assigned";
-    students[index].submission = "";
-    students[index].feedback = "";
-    renderTable(students);
-  }
+  students.forEach(s => {
+    if (s.course === course) {
+      s.task = task;
+      s.submitted = false;
+    }
+  });
+
+  alert("Task assigned ✔");
 }
 
-/* ================= TRAINER VALIDATE ================= */
-function updateTaskStatus(index) {
-  if (!students[index].submission) {
-    alert("No submission to validate.");
-    return;
-  }
-
-  const status = prompt(
-    "Validate Task:\nType 'Completed' or 'Rejected'",
-    "Completed"
-  );
-
-  if (status) {
-    students[index].taskStatus = status;
-    renderTable(students);
-  }
+/* ================= MODAL ================= */
+function openModal(html) {
+  const m = document.getElementById("modal");
+  m.classList.remove("hidden");
+  m.innerHTML = `
+    <div class="modal-box">
+      ${html}
+      <button onclick="closeModal()">Close</button>
+    </div>`;
 }
 
-/* ================= FEEDBACK ================= */
-function giveFeedback(index) {
-  if (!students[index].submission) {
-    alert("Student has not submitted work yet.");
-    return;
-  }
-
-  const feedback = prompt("Enter feedback:");
-
-  if (feedback && feedback.trim() !== "") {
-    students[index].feedback = feedback;
-    alert("Feedback saved!");
-  }
+function closeModal() {
+  document.getElementById("modal").classList.add("hidden");
 }
 
-/* ================= FILTER LOGIC ================= */
-function applyFilters() {
-  let filtered = [...students];
+/* ================= MANAGE STUDENTS ================= */
+function manage(course) {
+  const list = students.filter(s => s.course === course);
+  let html = `<h3>${course} Students</h3>`;
 
-  const searchValue = searchInput.value.toLowerCase();
-  const courseValue = courseFilter.value;
-  const statusValue = statusFilter.value;
+  list.forEach(s => {
+    html += `
+      <p>
+        <b>${s.name}</b><br>
+        Task: ${s.task || "Not assigned"}<br>
+        Submitted: ${s.submitted ? "Yes" : "No"}<br>
+        Status: ${s.status}<br>
+        Feedback: ${s.feedback || "None"}<br>
 
-  if (searchValue) {
-    filtered = filtered.filter(s =>
-      s.name.toLowerCase().includes(searchValue) ||
-      s.email.toLowerCase().includes(searchValue)
-    );
-  }
+        <button onclick="mark('${s.name}','On Track')">Mark On-Track</button>
+        <button onclick="mark('${s.name}','Behind')">Mark Behind</button>
+        <button onclick="feedback('${s.name}')">Give Feedback</button>
+        <button onclick="submit('${s.name}')">Mark Submitted</button>
+      </p><hr>`;
+  });
 
-  if (courseValue !== "all") {
-    filtered = filtered.filter(s => s.course === courseValue);
-  }
-
-  if (statusValue !== "all") {
-    filtered = filtered.filter(s => s.status === statusValue);
-  }
-
-  renderTable(filtered);
+  openModal(html);
 }
 
-/* ================= EVENTS ================= */
-searchInput.addEventListener("input", applyFilters);
-courseFilter.addEventListener("change", applyFilters);
-statusFilter.addEventListener("change", applyFilters);
+/* ================= ACTIONS ================= */
+function mark(name, status) {
+  const s = students.find(x => x.name === name);
+  s.status = status;
+  updateCards();
+  updateStatusChart();
+}
 
-/* ================= INITIAL LOAD ================= */
-renderTable(students);
+function feedback(name) {
+  const s = students.find(x => x.name === name);
+  const f = prompt("Enter feedback");
+  if (f) s.feedback = f;
+}
 
-/* ================= CHARTS (UNCHANGED) ================= */
-new Chart(document.getElementById("statusChart"), {
+function submit(name) {
+  const s = students.find(x => x.name === name);
+  s.submitted = true;
+}
+
+/* ================= CHARTS ================= */
+Chart.defaults.maintainAspectRatio = false;
+
+let statusChart = new Chart(document.getElementById("statusChart"), {
   type: "pie",
   data: {
     labels: ["On Track", "Behind"],
     datasets: [{
-      data: [3, 2],
-      backgroundColor: ["#22c55e", "#ef4444"]
+      data: [
+        students.filter(s => s.status === "On Track").length,
+        students.filter(s => s.status === "Behind").length
+      ],
+      backgroundColor: ["#16a34a", "#dc2626"]
     }]
   }
 });
 
+function updateStatusChart() {
+  statusChart.data.datasets[0].data = [
+    students.filter(s => s.status === "On Track").length,
+    students.filter(s => s.status === "Behind").length
+  ];
+  statusChart.update();
+}
+
 new Chart(document.getElementById("completionChart"), {
   type: "bar",
   data: {
-    labels: ["John", "Jane", "Mike", "Sarah", "David"],
-    datasets: [{
-      data: [75, 90, 45, 60, 30],
-      backgroundColor: "#3b82f6"
-    }]
-  },
-  options: { scales: { y: { beginAtZero: true, max: 100 } } }
+    labels: ["Web Dev", "Data Science", "ML"],
+    datasets: [{ data: [75, 60, 55], backgroundColor: "#2563eb" }]
+  }
 });
 
 new Chart(document.getElementById("assignmentChart"), {
   type: "bar",
   data: {
-    labels: ["John", "Jane", "Mike", "Sarah", "David"],
-    datasets: [{
-      data: [80, 90, 40, 60, 30],
-      backgroundColor: "#10b981"
-    }]
-  },
-  options: { scales: { y: { beginAtZero: true, max: 100 } } }
+    labels: ["Web Dev", "Data Science", "ML"],
+    datasets: [{ data: [80, 65, 50], backgroundColor: "#10b981" }]
+  }
 });
+
+/* ================= INIT ================= */
+renderCourses();
+updateCards();

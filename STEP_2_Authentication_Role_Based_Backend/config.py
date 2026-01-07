@@ -2,7 +2,8 @@ class Config:
     SECRET_KEY = "major_project_secret"
     JWT_SECRET_KEY = "jwt-secret-key"
 
-    SQLALCHEMY_DATABASE_URI = "sqlite:///lms.db"
+    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:@localhost/darshan"
+
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # ================= EMAIL CONFIG =================

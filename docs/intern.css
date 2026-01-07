@@ -29,3 +29,7 @@ header{display:flex;justify-content:space-between;margin-bottom:30px}
 .progress-fill{height:100%;background:linear-gradient(90deg,#6366f1,#22c55e)}
 .activity-list{background:#fff;padding:20px;border-radius:18px;box-shadow:0 10px 20px rgba(0,0,0,.12);display:grid;gap:10px}
 .activity{font-size:14px;color:#334155}
+
+#mentor .mentor-card, #mentor .cards {
+    margin-bottom: 20px;
+}
