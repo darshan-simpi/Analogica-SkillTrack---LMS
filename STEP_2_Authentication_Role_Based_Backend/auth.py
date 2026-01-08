@@ -127,3 +127,29 @@ def get_users():
         {"id": u.id, "name": u.name, "email": u.email, "role": u.role}
         for u in users
     ]), 200
+@auth_bp.route("/users/<int:user_id>", methods=["DELETE"])
+@jwt_required()
+def delete_user(user_id):
+    claims = get_jwt()
+    if claims.get("role") != "ADMIN":
+        return jsonify({"error": "Admin access required"}), 403
+
+    user = User.query.get_or_404(user_id)
+    db.session.delete(user)
+    db.session.commit()
+
+    return jsonify({"message": "User deleted"}), 200
+@auth_bp.route("/users/<int:user_id>", methods=["PUT"])
+@jwt_required()
+def update_user_role(user_id):
+    claims = get_jwt()
+    if claims.get("role") != "ADMIN":
+        return jsonify({"error": "Admin access required"}), 403
+
+    data = request.get_json()
+    user = User.query.get_or_404(user_id)
+
+    user.role = data.get("role")
+    db.session.commit()
+
+    return jsonify({"message": "User role updated"}), 200
