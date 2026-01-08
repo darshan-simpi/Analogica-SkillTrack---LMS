@@ -19,7 +19,6 @@ class User(db.Model):
         return f"<User {self.email}>"
 
 # ================= COURSES =================
-# ================= COURSES =================
 class Course(db.Model):
     __tablename__ = "courses"
 
@@ -151,12 +150,13 @@ class Assignment(db.Model):
     )
 
     title = db.Column(db.String(150), nullable=False)
+    week_number = db.Column(db.Integer, default=1)   # ✅ Added week number
     due_date = db.Column(db.String(50))
+    is_released = db.Column(db.Boolean, default=False) # ✅ Added is_released
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
     submissions = db.relationship("Submission", backref="assignment", lazy=True)
 
-# ================= SUBMISSIONS =================
 # ================= SUBMISSIONS =================
 class Submission(db.Model):
     __tablename__ = "submissions"
@@ -179,3 +179,24 @@ class Submission(db.Model):
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
     feedback = db.Column(db.String(255))
 
+
+# ================= COURSE RESOURCES =================
+class CourseResource(db.Model):
+    __tablename__ = "course_resources"
+
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey("courses.id"), nullable=False)
+    title = db.Column(db.String(150), nullable=False)
+    type = db.Column(db.String(50))  # 'book', 'youtube', 'article'
+    url = db.Column(db.String(500))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# ================= CERTIFICATES =================
+class Certificate(db.Model):
+    __tablename__ = "certificates"
+
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    course_id = db.Column(db.Integer, db.ForeignKey("courses.id"), nullable=False)
+    certificate_url = db.Column(db.String(255))
+    issued_at = db.Column(db.DateTime, default=datetime.utcnow)

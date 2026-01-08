@@ -65,6 +65,19 @@
                         <h2>0 Days</h2>
                     </div>
                 </div>
+
+                <!-- Weekly Breakdown moved to Progress Page -->
+
+                <div id="certificateContainer"
+                    style="margin-top: 30px; text-align: center; background: rgba(34, 197, 94, 0.05); padding: 25px; border-radius: 12px; border: 1px dashed #22c55e;">
+                    <h3 id="certHeader" style="color: #64748b; margin-bottom: 10px;">🎓 Course Certification</h3>
+                    <p id="certMsg" style="margin-bottom: 15px; color: #64748b; font-size: 0.9em;">Submit all
+                        assignments to unlock your certificate.</p>
+                    <button id="downloadCertBtn" disabled class="btn-primary"
+                        style="background: #94a3b8; border: none; padding: 12px 24px; border-radius: 6px; color: white; cursor: not-allowed; font-weight: bold; transition: all 0.3s ease;">
+                        <i class="fa-solid fa-lock"></i> Certificate Locked
+                    </button>
+                </div>
             </section>
 
             <section id="courses" class="page fade">
@@ -72,22 +85,20 @@
                 <div class="grid" id="courseList">
                     <p>Loading your courses...</p>
                 </div>
+
+                <!-- Related Resources Section -->
+                <div id="resourceSection" style="margin-top: 40px; display: none;">
+                    <h2 class="section-title">Related Resources</h2>
+                    <div class="grid" id="resourceList">
+                        <!-- Populated via JS -->
+                    </div>
+                </div>
             </section>
 
             <section id="assignments" class="page fade">
                 <h2 class="section-title">Assignments</h2>
                 <div id="assignmentList">
                     <p>Loading assignments...</p>
-                </div>
-
-                <div class="box glow" style="margin-top:30px">
-                    <h3>Submit Assignment</h3>
-                    <form id="assignmentForm" class="submit-form">
-                        <input type="text" placeholder="Project Name" required />
-                        <input type="file" required />
-                        <button type="submit" class="btn-primary">Submit for Grading</button>
-                    </form>
-                    <p id="submitMsg" style="display:none;color:green;margin-top:10px">File uploaded successfully! ✅</p>
                 </div>
             </section>
 
@@ -99,12 +110,50 @@
             </section>
 
             <section id="progress" class="page fade">
-                <h2 class="section-title">Weekly Learning Metrics</h2>
+                <h2 class="section-title">Weekly Course Breakdown</h2>
                 <div class="progress-container" id="progressContainer">
                     <p>Loading progress...</p>
                 </div>
+
             </section>
         </main>
+    </div>
+
+    <!-- Submission Modal -->
+    <div id="submitModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeSubmitModal()">&times;</span>
+            <h3 class="modal-title">Submit Assignment</h3>
+            <p id="modalAssignmentTitle" style="color:#4f46e5; margin-bottom: 20px; font-weight: 600;"></p>
+            <form id="assignmentForm" class="submit-form">
+                <input type="hidden" id="submitAssignmentId" name="assignment_id" />
+                <div style="margin-bottom: 15px;">
+                    <label style="display:block; margin-bottom:8px; font-size:14px; color:#666">Upload your file (PDF,
+                        ZIP, or Document)</label>
+                    <input type="file" id="assignmentFile" required
+                        style="width:100%; padding:10px; border:1px solid #ddd; border-radius:8px" />
+                </div>
+                <button type="submit" class="btn-primary" id="finalSubmitBtn">Submit for Grading</button>
+            </form>
+            <p id="submitMsg" style="display:none; color:green; margin-top:15px; text-align:center"></p>
+        </div>
+    </div>
+
+    <!-- View Submission Modal -->
+    <div id="viewModal" class="modal">
+        <div class="modal-content">
+            <span class="close-modal" onclick="closeViewModal()">&times;</span>
+            <h3 class="modal-title">Assignment Submission</h3>
+            <p id="viewAssignmentTitle" style="color:#4f46e5; margin-bottom: 15px; font-weight: 600;"></p>
+
+            <div class="feedback-box">
+                <p style="font-size:14px; font-weight:600; color:#111827">Status: <span id="viewStatus"
+                        style="color:#22c55e">Submitted</span></p>
+                <div id="feedbackContent" style="margin-top:10px; font-size:14px; color:#4b5563">
+                    <p>Wait for trainer feedback...</p>
+                </div>
+            </div>
+        </div>
     </div>
 
     <script src="student.js"></script>

@@ -36,6 +36,18 @@
     <!-- TOP BAR -->
     <header class="topbar">
       <h3 id="adminName"></h3>
+      <div class="search-box">
+  <span class="search-icon"></span>
+  <input
+    type="text"
+    id="globalSearch"
+    placeholder="Search courses, workshops, internships..."
+    onkeyup="globalSearch()"
+    class="search-input"
+  />
+</div>
+
+
     </header>
 
     <!-- ================= DASHBOARD ================= -->
@@ -614,6 +626,20 @@ async function updateUserRole(userId, newRole) {
   loadUsers("STUDENT", "studentTable");
   loadUsers("TRAINER", "trainerTable");
   loadUsers("INTERN", "internUserTable");
+}
+function globalSearch() {
+  const query = document.getElementById("globalSearch").value.toLowerCase();
+
+  const tables = document.querySelectorAll("table tbody");
+
+  tables.forEach(tbody => {
+    const rows = tbody.querySelectorAll("tr");
+
+    rows.forEach(row => {
+      const text = row.innerText.toLowerCase();
+      row.style.display = text.includes(query) ? "" : "none";
+    });
+  });
 }
 
 

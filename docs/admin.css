@@ -265,4 +265,45 @@ tbody tr {
   padding: 0 20px;
   white-space: nowrap;
 }
+/* ================= SEARCH BAR (COLORED) ================= */
+.search-box {
+  position: relative;
+  width: 100%;
+  margin-bottom: 20px;
+}
 
+.search-input {
+  width: 100%;
+  height: 46px;
+  padding: 0 16px 0 48px;
+  border-radius: 14px;
+  border: 1px solid #c7d2fe;
+  background: linear-gradient(135deg, #eef2ff, #f8fafc);
+  font-size: 15px;
+  color: #0f172a;
+  transition: all 0.25s ease;
+}
+
+/* Focus glow */
+.search-input:focus {
+  outline: none;
+  border-color: #4f46e5;
+  box-shadow: 0 0 0 4px rgba(79, 70, 229, 0.18);
+  background: #ffffff;
+}
+
+/* Search icon */
+.search-icon {
+  position: absolute;
+  left: 16px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 18px;
+  color: #4f46e5;
+  pointer-events: none;
+}
+
+/* Placeholder */
+.search-input::placeholder {
+  color: #0e0e14;
+}

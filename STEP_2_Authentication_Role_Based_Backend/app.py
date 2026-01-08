@@ -2,6 +2,7 @@ from flask import Flask
 from flask_jwt_extended import JWTManager
 from flask_cors import CORS
 from werkzeug.security import generate_password_hash
+from flask import send_from_directory
 
 from config import Config
 from extensions import db, mail
@@ -10,6 +11,8 @@ from auth import auth_bp
 from course_api import course_bp
 from trainer_api import trainer_bp
 from student_api import student_bp
+from flask_cors import CORS
+
 
 def create_default_admin():
     admin_email = "admin@analogica.com"
@@ -47,6 +50,9 @@ def create_app():
     app.register_blueprint(trainer_bp, url_prefix="/api")
     app.register_blueprint(student_bp, url_prefix="/api")
 
+    @app.route("/uploads/<path:filename>")
+    def serve_uploads(filename):
+        return send_from_directory("uploads", filename)
 
     @app.route("/")
     def home():

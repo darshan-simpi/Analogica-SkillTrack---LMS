@@ -1,4 +1,4 @@
-const API = "http://127.0.0.1:5000";
+const API = "http://localhost:5000/api";
 const token = localStorage.getItem("token");
 const role = localStorage.getItem("role");
 
@@ -6,18 +6,18 @@ if (!token || role !== "STUDENT") {
   window.location.href = "login.html";
 }
 
-
 document.addEventListener("DOMContentLoaded", () => {
-  console.log("DOM Loaded - Initializing Student Dashboard");
+  console.log("🚀 Student Dashboard Initializing...");
+  console.log("📍 API Base:", API);
+  console.log("🔑 Token Present:", !!token);
 
-  // Set Student Name safely
   const nameEl = document.getElementById("studentName");
   if (nameEl) nameEl.innerText = localStorage.getItem("name") || "Student";
 
   loadCourses();
   loadProgress();
   loadAssignments();
-  loadMentors(); // Fetch mentors
+  loadMentors();
   setupTabs();
   setupLogout();
   setupAssignmentForm();
@@ -25,7 +25,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function loadProgress() {
   try {
-    const res = await fetch(`${API}/api/student/progress`, {
+    const res = await fetch(`${API}/student/progress`, {
       headers: { "Authorization": `Bearer ${token}` }
     });
     const progressData = await res.json();
@@ -42,15 +42,132 @@ async function loadProgress() {
       if (text) text.innerText = avg + "% of total curriculum";
     }
 
-    renderProgress(progressData);
+    renderProgressPage(progressData);
   } catch (err) {
     console.error("Failed to load progress", err);
+    const container = document.getElementById("progressContainer");
+    if (container) container.innerHTML = `<p style="color:red">Failed to load progress: ${err.message}</p>`;
   }
+}
+
+function renderProgressPage(data) {
+  const container = document.getElementById("progressContainer");
+  if (!container) return;
+
+  container.innerHTML = "";
+  if (data.length === 0) {
+    container.innerHTML = "<p>No enrolled courses found.</p>";
+    return;
+  }
+
+  data.forEach(c => {
+    container.innerHTML += `
+            <div class="box glow" style="margin-bottom:20px; padding:25px; border-left: 5px solid ${c.progress >= 100 ? '#22c55e' : '#4f46e5'}">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
+                    <h3 style="margin:0; font-size:1.2em">${c.course_name}</h3>
+                    <span class="tag" style="background:${c.progress >= 100 ? '#dcfce7' : '#e0ecff'}; color:${c.progress >= 100 ? '#166534' : '#3730a3'}">${c.status}</span>
+                </div>
+                
+                <div class="bar" style="height:10px; background:#e2e8f0; border-radius:5px; overflow:hidden; margin-bottom:10px">
+                    <div class="fill" style="width:${c.progress}%; background: ${c.progress >= 100 ? '#22c55e' : '#4f46e5'}; height:100%"></div>
+                </div>
+                
+                <div style="display:flex; justify-content:space-between; font-size:0.9em; color:#64748b">
+                    <span><b>${c.progress}%</b> Completed</span>
+                    <span>${c.assignments_completed} / ${c.total_assignments} Assignments</span>
+                </div>
+                
+                <div style="margin-top:15px; padding-top:15px; border-top:1px solid #f1f5f9; display:flex; gap:20px; font-size:0.85em">
+                   <span><i class="fa-solid fa-clock"></i> Duration: ${c.duration}</span>
+                   <span><i class="fa-solid fa-trophy"></i> Certificate: ${c.progress >= 100 ? 'Unlocked 🔓' : 'Locked 🔒'}</span>
+                </div>
+            </div>
+        `;
+  });
+}
+
+function renderWeeklyBreakdown(dashboardData) {
+  const container = document.getElementById("weeklyBreakdown");
+  if (!container) return;
+
+  container.innerHTML = "";
+
+  if (dashboardData.length === 0) {
+    container.innerHTML = "<p>No progress data available yet.</p>";
+    return;
+  }
+
+  dashboardData.forEach(c => {
+    const assignments = c.assignments || [];
+    const sorted = [...assignments].sort((a, b) => a.week_number - b.week_number);
+
+    // Create a list layout for weeks (Long Rectangles)
+    let weeksGrid = `<div style="display: flex; flex-direction: column; gap: 15px; margin-top: 15px;">`;
+
+    sorted.forEach(a => {
+      const safeTitle = (a.title || "Untitled").replace(/'/g, "\\'");
+      const isUnlocked = a.is_unlocked;
+      const isSubmitted = a.is_submitted;
+
+      let statusColor = "#94a3b8"; // Gray (Locked)
+      let statusIcon = '<i class="fa-solid fa-lock"></i>';
+
+      if (isSubmitted) {
+        statusColor = "#22c55e"; // Green
+        statusIcon = '<i class="fa-solid fa-check-circle"></i>';
+      } else if (isUnlocked) {
+        statusColor = "#4f46e5"; // Blue
+        statusIcon = '<i class="fa-solid fa-unlock"></i>';
+      }
+
+      // Action Button
+      let actionBtn = "";
+      if (isUnlocked && !isSubmitted) {
+        actionBtn = `<button onclick="openSubmitModal(${a.id}, '${safeTitle}')" class="btn-primary" style="padding:8px 20px; font-size:0.85em">Submit Task</button>`;
+      } else if (isSubmitted) {
+        const feedback = a.feedback ? a.feedback.replace(/'/g, "\\'") : "Wait for trainer feedback...";
+        actionBtn = `<button onclick="openViewModal('${safeTitle}', '${feedback}')" style="padding:8px 20px; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer">View Status</button>`;
+      } else {
+        actionBtn = `<button disabled style="padding:8px 20px; background:#f1f5f9; color:#94a3b8; border:none; cursor:not-allowed">Locked</button>`;
+      }
+
+      weeksGrid += `
+        <div class="card glow" style="padding:20px; border-left: 5px solid ${statusColor}; border-top:none; display:flex; justify-content:space-between; align-items:center; flex-direction:row;">
+            <div style="flex:1">
+                <div style="display:flex; align-items:center; margin-bottom:5px; gap:10px">
+                    <span style="font-size:0.8em; font-weight:700; color:${statusColor}; text-transform:uppercase; letter-spacing:0.5px">Week ${a.week_number}</span>
+                    <span style="color:${statusColor}">${statusIcon}</span>
+                </div>
+                <h4 style="font-size:1.1em; margin:0; color:#1e293b;">${a.title}</h4>
+                <p style="font-size:0.85em; color:#64748b; margin:5px 0 0 0">${isUnlocked ? (a.due_date ? 'Due: ' + a.due_date : 'No Deadline') : 'Complete previous week'}</p>
+            </div>
+            <div style="margin-left:20px;">
+                ${actionBtn}
+            </div>
+        </div>
+      `;
+    });
+
+    weeksGrid += `</div>`;
+
+    container.innerHTML += `
+      <div class="box glow" style="padding:25px; margin-bottom:30px;">
+        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:15px">
+            <h3 style="margin:0; color:#1e293b; font-size:1.3em">${c.course}</h3>
+            <div style="text-align:right">
+                <span style="display:block; font-size:1.5em; font-weight:800; color:#4f46e5">${c.progress}%</span>
+                <span style="font-size:0.8em; color:#64748b">Overall Progress</span>
+            </div>
+        </div>
+        ${weeksGrid}
+      </div>
+    `;
+  });
 }
 
 async function loadMentors() {
   try {
-    const res = await fetch(`${API}/api/mentors`, {
+    const res = await fetch(`${API}/mentors`, {
       headers: { "Authorization": `Bearer ${token}` }
     });
     const mentors = await res.json();
@@ -74,14 +191,15 @@ function renderMentors(mentors) {
   }
 
   mentors.forEach(m => {
-    const initials = m.name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
+    const name = m.name || "Unknown Mentor";
+    const initials = name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
     container.innerHTML += `
             <div class="mentor-card glow">
                 <div class="mentor-badge">Trainer</div>
                 <div class="mentor-img">${initials}</div>
-                <h3>${m.name}</h3>
-                <p><strong>Expertise:</strong> ${m.expertise}</p>
-                <p class="mentor-email"><i class="fa-solid fa-envelope"></i> ${m.email}</p>
+                <h3>${name}</h3>
+                <p><strong>Expertise:</strong> ${m.expertise || 'Mentor'}</p>
+                <p class="mentor-email"><i class="fa-solid fa-envelope"></i> ${m.email || 'N/A'}</p>
                 <div class="socials">
                      <i class="fa-brands fa-linkedin"></i>
                 </div>
@@ -93,7 +211,7 @@ function renderMentors(mentors) {
 
 async function loadCourses() {
   try {
-    const res = await fetch(`${API}/api/student/courses`, {
+    const res = await fetch(`${API}/student/courses`, {
       headers: { "Authorization": `Bearer ${token}` }
     });
 
@@ -115,98 +233,274 @@ async function loadCourses() {
 
 async function loadAssignments() {
   try {
-    const res = await fetch(`${API}/api/tasks`, {
+    const res = await fetch(`${API}/student/dashboard`, {
       headers: { "Authorization": `Bearer ${token}` }
     });
-    const tasks = await res.json();
+
+    if (!res.ok) throw new Error(`Server returned ${res.status}`);
+
+    const rawData = await res.json();
+
+// 🔴 FIX: extract array safely
+const dashboardData = Array.isArray(rawData)
+  ? rawData
+  : rawData.courses || [];
+;
+
+    if (dashboardData.length === 0) {
+      document.getElementById("assignmentList").innerHTML = "<p>You are not enrolled in any courses with assignments.</p>";
+      return;
+    }
+
+    // Flatten all assignments from all courses
+    let allTasks = [];
+    let eligibleForCertificate = null;
+
+    console.log("📦 Processing Dashboard Data:", dashboardData.length, "courses found");
+
+    dashboardData.forEach(c => {
+      const assignments = c.assignments || [];
+      assignments.forEach(a => {
+        allTasks.push({ ...a, course_name: c.course });
+      });
+      if (c.can_generate_certificate) {
+        eligibleForCertificate = { id: c.course_id, name: c.course };
+      }
+    });
+
+    console.log("📝 Total Assignments Flattened:", allTasks.length);
 
     // Update "Pending Tasks" count
-    const pendingCount = tasks.filter(t => t.status !== 'Completed' && t.status !== 'Submitted').length;
+    const pendingCount = allTasks.filter(t => !t.is_submitted).length;
     const pendingEl = document.getElementById("pendingCount");
     if (pendingEl) pendingEl.innerText = pendingCount;
 
-    renderAssignments(tasks);
+    renderAssignments(allTasks);
+    // renderWeeklyBreakdown(dashboardData); // Removed as requested
+
+    // Certificate logical
+    console.log("🎓 Checking Certificate Eligibility...");
+    const certHeader = document.getElementById("certHeader");
+    const certMsg = document.getElementById("certMsg");
+    const certBtn = document.getElementById("downloadCertBtn");
+
+    if (certBtn) {
+      if (eligibleForCertificate) {
+        console.log("✅ Eligible for Certificate:", eligibleForCertificate.name);
+        if (certHeader) certHeader.style.color = "#22c55e";
+        if (certHeader) certHeader.innerText = "🎓 Certification Available!";
+        if (certMsg) certMsg.innerText = `Congratulations! You've completed "${eligibleForCertificate.name}".`;
+
+        certBtn.disabled = false;
+        certBtn.style.background = "#22c55e";
+        certBtn.style.cursor = "pointer";
+        certBtn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Download Official Certificate';
+        certBtn.onclick = () => generateCertificate(eligibleForCertificate.id);
+      } else {
+        console.log("⏳ Not currently eligible for any certificates.");
+        if (certHeader) certHeader.style.color = "#64748b";
+        if (certHeader) certHeader.innerText = "🎓 Course Certification";
+        if (certMsg) certMsg.innerText = "Submit all assignments to unlock your certificate.";
+
+        certBtn.disabled = true;
+        certBtn.style.background = "#94a3b8";
+        certBtn.style.cursor = "not-allowed";
+        certBtn.innerHTML = '<i class="fa-solid fa-lock"></i> Certificate Locked';
+      }
+    }
+
   } catch (err) {
     console.error("Failed to load assignments", err);
-    document.getElementById("assignmentList").innerHTML = "<p>Failed to load assignments.</p>";
+    document.getElementById("assignmentList").innerHTML = `<p style="color:red">Failed to load assignments: ${err.message}</p>`;
   }
 }
 
+async function generateCertificate(courseId) {
+  const btn = document.getElementById("downloadCertBtn");
+  const msg = document.getElementById("certMsg");
+
+  btn.disabled = true;
+  btn.innerText = "Generating...";
+
+  try {
+    const res = await fetch(`${API}/student/certificate/${courseId}`, {
+      method: "POST",
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const data = await res.json();
+
+    if (res.ok) {
+      msg.innerHTML = `Success! <a href="${API}${data.url}" target="_blank" style="color:#22c55e; text-decoration:underline">Click here to view/download</a>`;
+      btn.innerText = "Certificate Ready ✅";
+    } else {
+      msg.innerText = "Error: " + (data.error || "Failed to generate");
+      btn.disabled = false;
+      btn.innerText = "Download Certificate";
+    }
+  } catch (err) {
+    console.error(err);
+    msg.innerText = "Server error occurred.";
+    btn.disabled = false;
+    btn.innerText = "Download Certificate";
+  }
+}
 function renderCourses(courses) {
   const list = document.getElementById("courseList");
-
   if (!list) return;
 
   list.innerHTML = "";
-
   if (courses.length === 0) {
     list.innerHTML = "<p>No enrolled courses found.</p>";
     return;
   }
 
   courses.forEach(c => {
+    const courseName = c.name ? c.name.replace(/'/g, "\\'") : "Unknown Course";
+    const courseDate = c.date || "N/A";
     list.innerHTML += `
-      <div class="box glow course-card">
-        <h3>${c.name}</h3>
+      <div class="box glow course-card" onclick="showResources(${c.id}, '${courseName}')" style="cursor:pointer">
+        <h3>${c.name || 'Untitled Course'}</h3>
         <p class="description">Enrolled Student Course</p>
         <div class="course-meta">
-            <span><i class="fa-solid fa-calendar"></i> ${c.date}</span>
-            <span class="tag medium">${c.status || 'Active'}</span>
+            <span><i class="fa-solid fa-calendar"></i> ${courseDate}</span>
+            <div style="display:flex; gap:10px; align-items:center">
+                <span class="tag medium" style="margin:0">ENROLLED</span>
+                <span class="tag" style="background:#e0ecff; color:#4f46e5; margin:0; cursor:pointer">View Resources</span>
+            </div>
         </div>
       </div>
     `;
   });
 }
 
+async function showResources(courseId, courseName) {
+  const resourceSection = document.getElementById("resourceSection");
+  const resourceList = document.getElementById("resourceList");
+
+  resourceSection.style.display = "block";
+  resourceList.innerHTML = "<p>Loading resources for " + courseName + "...</p>";
+
+  try {
+    const res = await fetch(`${API}/student/course/${courseId}/resources`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+
+    if (!res.ok) throw new Error(`Server returned ${res.status}`);
+
+const raw = await res.json();
+const resources = Array.isArray(raw) ? raw : raw.resources || [];
+
+    resourceList.innerHTML = "";
+    if (resources.length === 0) {
+      resourceList.innerHTML = "<p>No resources found for this course.</p>";
+      return;
+    }
+
+    resources.forEach(r => {
+      const icon = r.type === 'youtube' ? 'fa-video' : (r.type === 'book' ? 'fa-book' : 'fa-link');
+      resourceList.innerHTML += `
+                <div class="card glow small-card">
+                    <i class="fa-solid ${icon}" style="font-size:1.5em; margin-bottom:10px; color:#4f46e5"></i>
+                    <h4>${r.title}</h4>
+                    <p style="font-size:0.8em; margin:10px 0">${r.type.toUpperCase()}</p>
+                    <a href="${r.url}" target="_blank" class="btn-primary" style="padding:5px 10px; font-size:0.8em">Visit Resource</a>
+                </div>
+            `;
+    });
+
+  } catch (err) {
+    console.error("Failed to load resources", err);
+    resourceList.innerHTML = `<p style="color:red">Error loading resources: ${err.message}</p>`;
+  }
+}
+
 function renderAssignments(tasks) {
   const listContainer = document.getElementById("assignmentList");
   if (!listContainer) return;
 
-  listContainer.innerHTML = "";
+  try {
+    console.log("🎨 Rendering Assignments:", tasks.length);
+    listContainer.innerHTML = "";
 
-  if (tasks.length === 0) {
-    listContainer.innerHTML = "<p>No pending assignments.</p>";
-    return;
-  }
+    if (!Array.isArray(tasks) || tasks.length === 0) {
+      listContainer.innerHTML = "<p>No pending assignments.</p>";
+      return;
+    }
 
-  tasks.forEach(t => {
-    listContainer.innerHTML += `
-            <div class="task glow">
+    tasks.forEach((t, index) => {
+      // Safety defaults
+      const weekNum = t.week_number || (index + 1);
+      const title = t.title || "Untitled Assignment";
+      const isUnlocked = !!t.is_unlocked;
+      const isSubmitted = !!t.is_submitted;
+
+      const statusText = isSubmitted ? "Submitted" : (isUnlocked ? "Unlocked" : "Locked 🔒");
+      const statusColor = isSubmitted ? "#22c55e" : (isUnlocked ? "#4f46e5" : "#666");
+
+      let actionBtns = "";
+      const safeTitle = title.replace(/'/g, "\\'");
+
+      if (isUnlocked && !isSubmitted) {
+        actionBtns = `<button onclick="openSubmitModal(${t.id}, '${safeTitle}')" class="btn-primary" style="padding:6px 14px; font-size:0.85em; border-radius:8px">Submit</button>`;
+      } else if (isSubmitted) {
+        const feedback = t.feedback ? t.feedback.replace(/'/g, "\\'") : "Wait for trainer feedback...";
+        actionBtns = `<button onclick="openViewModal('${safeTitle}', '${feedback}')" class="btn-primary" style="padding:6px 14px; font-size:0.85em; border-radius:8px; background:#64748b">View Status</button>`;
+      }
+
+      const displayTitle = (isUnlocked || isSubmitted) ? `: ${title}` : "";
+      const displayDesc = (isUnlocked || isSubmitted) ? (t.due_date ? '📅 Due: ' + t.due_date : 'No Deadline') : '🔒 Complete previous week to view task';
+
+      listContainer.innerHTML += `
+            <div class="task glow ${(!isUnlocked && !isSubmitted) ? 'locked-task' : ''}" style="opacity: ${(isUnlocked || isSubmitted) ? 1 : 0.7}; border-left: 5px solid ${statusColor}; align-items: center">
                 <div style="flex:1">
-                    <h4>${t.title}</h4>
-                    <small>${t.description || ''}</small>
+                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px">
+                        <span class="tag" style="background:${statusColor}; color:#fff">${statusText}</span>
+                        <h4 style="margin:0">Week ${weekNum}${displayTitle}</h4>
+                    </div>
+                    <small style="color:#666">${displayDesc}</small>
                 </div>
-                <span class="tag ${t.priority === 'High' ? 'high' : 'medium'}">${t.due_date ? 'Due: ' + t.due_date : 'No Deadline'}</span>
-                <span class="tag" style="background:${t.status === 'Completed' ? 'green' : '#444'}">${t.status}</span>
+                <div style="margin-left:20px">
+                    ${actionBtns}
+                </div>
             </div>
         `;
-  });
+    });
+  } catch (err) {
+    console.error("Critical Error in renderAssignments:", err);
+    listContainer.innerHTML = `<p style="color:red">Error rendering assignments. Please check the console.</p>`;
+  }
 }
 
-
-function renderProgress(progressData) {
-  const container = document.getElementById("progressContainer");
-
-  if (!container) return; // Safety check
-
-  container.innerHTML = "";
-
-  if (progressData.length === 0) {
-    container.innerHTML = "<p>No enrolled courses yet.</p>";
-    return;
+function openSubmitModal(id, title) {
+  const modal = document.getElementById("submitModal");
+  if (modal) {
+    document.getElementById("submitAssignmentId").value = id;
+    document.getElementById("modalAssignmentTitle").innerText = title;
+    modal.classList.add("show");
   }
+}
 
-  progressData.forEach(p => {
-    container.innerHTML += `
-        <div class="progress-box glow">
-            <div class="week-header">
-                <h4>${p.course_name} <span style="font-size:0.8em; color:#bbb">(${p.status})</span></h4>
-                <span>${p.progress}%</span>
-            </div>
-            <div class="bar"><div class="fill" style="width:${p.progress}%; background: ${p.progress >= 100 ? '#22c55e' : '#4f46e5'}"></div></div>
-        </div>
-    `;
-  });
+function closeSubmitModal() {
+  const modal = document.getElementById("submitModal");
+  if (modal) {
+    modal.classList.remove("show");
+    document.getElementById("submitMsg").style.display = "none";
+    document.getElementById("assignmentForm").reset();
+  }
+}
+
+function openViewModal(title, feedback) {
+  const modal = document.getElementById("viewModal");
+  if (modal) {
+    document.getElementById("viewAssignmentTitle").innerText = title;
+    document.getElementById("feedbackContent").innerHTML = `<p>${feedback}</p>`;
+    modal.classList.add("show");
+  }
+}
+
+function closeViewModal() {
+  const modal = document.getElementById("viewModal");
+  if (modal) modal.classList.remove("show");
 }
 
 function logout() {
@@ -257,11 +551,53 @@ function setupLogout() {
 
 function setupAssignmentForm() {
   const form = document.getElementById("assignmentForm");
-  if (form) {
-    form.addEventListener("submit", (e) => {
-      e.preventDefault();
-      document.getElementById("submitMsg").style.display = "block";
-      // In a real app, you would POST this to the server
-    });
-  }
+  if (!form) return;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const submitBtn = document.getElementById("finalSubmitBtn");
+    const msg = document.getElementById("submitMsg");
+
+    const assignmentId = document.getElementById("submitAssignmentId").value;
+    const fileInput = document.getElementById("assignmentFile");
+
+    if (!fileInput.files[0]) return alert("Please select a file");
+
+    const formData = new FormData();
+    formData.append("assignment_id", assignmentId);
+    formData.append("file", fileInput.files[0]);
+
+    submitBtn.disabled = true;
+    submitBtn.innerText = "Uploading...";
+
+    try {
+      const res = await fetch(`${API}/student/submit`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` },
+        body: formData
+      });
+
+      if (res.ok) {
+        msg.innerText = "Assignment submitted successfully! ✅";
+        msg.style.display = "block";
+        form.reset();
+
+        setTimeout(() => {
+          closeSubmitModal();
+          loadAssignments(); // Refresh list to unlock next
+          loadProgress();    // Update progress bar
+        }, 1500);
+      } else {
+        const data = await res.json();
+        alert("Error: " + (data.error || "Failed to submit"));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Server error");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerText = "Submit for Grading";
+    }
+  });
 }
