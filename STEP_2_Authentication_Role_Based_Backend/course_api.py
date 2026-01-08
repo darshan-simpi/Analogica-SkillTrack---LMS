@@ -22,7 +22,6 @@ def get_courses():
     ]), 200
 
 
-
 @course_bp.route("/courses", methods=["POST"])
 @jwt_required()
 def add_course():
@@ -42,7 +41,6 @@ def add_course():
     db.session.add(course)
     db.session.commit()
     return jsonify({"message": "Course added"}), 201
-
 
 
 @course_bp.route("/courses/<int:id>", methods=["DELETE"])
@@ -188,7 +186,7 @@ def get_tasks():
     user_id = get_jwt_identity()
     role = claims.get("role")
 
-    if role == "INTERN":
+    if role == "INTERN" or role == "STUDENT":
         tasks = Task.query.filter_by(assigned_to=user_id).all()
     elif role == "TRAINER":
         tasks = Task.query.filter_by(assigned_by=user_id).all()
@@ -207,6 +205,28 @@ def get_tasks():
         }
         for t in tasks
     ]), 200
+
+
+@course_bp.route("/student/courses", methods=["GET"])
+@jwt_required()
+def get_student_courses():
+    user_id = get_jwt_identity()
+    progress_records = StudentProgress.query.filter_by(user_id=user_id).all()
+    
+    enrolled_courses = []
+    for p in progress_records:
+        course = Course.query.get(p.course_id)
+        if course:
+            enrolled_courses.append({
+                "id": course.id,
+                "name": course.name,
+                "date": course.start_date,
+                "status": p.status
+            })
+            
+    return jsonify(enrolled_courses), 200
+
+
 
 
 @course_bp.route("/tasks", methods=["POST"])
@@ -370,3 +390,39 @@ def enroll_internship():
     db.session.add(enrollment)
     db.session.commit()
     return jsonify({"message": "Enrolled successfully"}), 201
+
+
+@course_bp.route("/student/progress", methods=["GET"])
+@jwt_required()
+def get_student_progress():
+    user_id = get_jwt_identity()
+    progress_records = StudentProgress.query.filter_by(user_id=user_id).all()
+    
+    results = []
+    for p in progress_records:
+        course = Course.query.get(p.course_id)
+        if course:
+            results.append({
+                "course_name": course.name,
+                "progress": p.progress,
+                "status": p.status,
+                "assignments_completed": p.assignments_completed,
+                "total_assignments": p.total_assignments
+            })
+            
+    return jsonify(results), 200
+
+
+@course_bp.route("/mentors", methods=["GET"])
+@jwt_required()
+def get_all_mentors():
+    trainers = User.query.filter_by(role="TRAINER").all()
+    return jsonify([
+        {
+            "id": t.id, 
+            "name": t.name, 
+            "email": t.email,
+            "expertise": "Course Instructor" # Placeholder as model lacks this field
+        }
+        for t in trainers
+    ]), 200

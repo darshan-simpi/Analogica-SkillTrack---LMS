@@ -1,185 +1,113 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Student Dashboard</title>
-
     <link rel="stylesheet" href="student.css" />
-    <link rel="stylesheet"
-          href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-
-    <!-- 🔐 ROLE PROTECTION -->
-    <script>
-        const role = localStorage.getItem("role");
-        if (!role || role !== "STUDENT") {
-            window.location.href = "login.html";
-        }
-    </script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 </head>
 
 <body>
-<div class="app">
 
-    <!-- ========== SIDEBAR ========== -->
-    <aside class="sidebar">
-        <h2>Student</h2>
-        <a class="nav active" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
-        <a class="nav" data-page="courses"><i class="fa-solid fa-book"></i> Courses</a>
-        <a class="nav" data-page="assignments"><i class="fa-solid fa-list-check"></i> Assignments</a>
-        <a class="nav" data-page="progress"><i class="fa-solid fa-chart-pie"></i> Progress</a>
-        <a class="logout" id="logoutBtn"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
-    </aside>
+    <div class="app">
+        <aside class="sidebar">
+            <h2>Student</h2>
+            <a class="nav active" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
+            <a class="nav" data-page="courses"><i class="fa-solid fa-book"></i> Courses</a>
+            <a class="nav" data-page="assignments"><i class="fa-solid fa-list-check"></i> Assignments</a>
+            <a class="nav" data-page="mentors"><i class="fa-solid fa-user-group"></i> Mentors</a>
+            <a class="nav" data-page="progress"><i class="fa-solid fa-chart-pie"></i> Progress</a>
+            <a class="logout" id="logoutBtn"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+        </aside>
 
-    <!-- ========== MAIN ========== -->
-    <main>
+        <main>
+            <header>
+                <h1>Welcome Back, <span id="studentName">Student</span> 👋</h1>
+                <span class="status">Active Student</span>
+            </header>
 
-        <header>
-            <h1 id="welcomeText">Welcome 👋</h1>
-            <span class="status">Active Student</span>
-        </header>
-
-        <!-- DASHBOARD -->
-        <section id="dashboard" class="page show fade">
-            <div class="cards">
-                <div class="card blue glow">
-                    <p>Enrolled Courses</p>
-                    <h2 id="courseCount">0</h2>
+            <section id="dashboard" class="page show fade">
+                <div class="cards">
+                    <div class="card blue glow">
+                        <p>Enrolled Courses</p>
+                        <h2 id="courseCount">0</h2>
+                    </div>
+                    <div class="card green glow">
+                        <p>Pending Tasks</p>
+                        <h2 id="pendingCount">0</h2>
+                    </div>
+                    <div class="card purple glow">
+                        <p>Overall Grade</p>
+                        <h2>N/A</h2>
+                    </div>
                 </div>
-                <div class="card green glow">
-                    <p>Total Assignments</p>
-                    <h2 id="assignmentCount">0</h2>
+
+                <div class="cards">
+                    <!-- 
+                    <div class="card peach glow">
+                        <h3>Today's Focus</h3>
+                        <ul class="focus-list">
+                            <li><i class="fa-solid fa-check"></i> Check Assignments</li>
+                        </ul>
+                    </div>
+                    -->
+                    <div class="card blue glow">
+                        <h3>Course Completion</h3>
+                        <div class="bar">
+                            <div class="fill" id="completionFill" style="width:0%"></div>
+                        </div>
+                        <p id="completionText" style="margin-top:10px">0% of total curriculum</p>
+                    </div>
+                    <div class="card green glow">
+                        <h3>Study Streak</h3>
+                        <h2>0 Days</h2>
+                    </div>
                 </div>
-                <div class="card purple glow">
-                    <p>Overall Progress</p>
-                    <h2 id="overallProgress">0%</h2>
+            </section>
+
+            <section id="courses" class="page fade">
+                <h2 class="section-title">My Courses</h2>
+                <div class="grid" id="courseList">
+                    <p>Loading your courses...</p>
                 </div>
-            </div>
-        </section>
+            </section>
 
-        <!-- COURSES -->
-        <section id="courses" class="page fade">
-            <h2 class="section-title">My Courses</h2>
-            <div id="courseContainer" class="grid"></div>
-        </section>
-
-        <!-- ASSIGNMENTS -->
-        <section id="assignments" class="page fade">
-            <h2 class="section-title">Assignments</h2>
-            <div id="assignmentContainer"></div>
-        </section>
-
-        <!-- PROGRESS -->
-        <section id="progress" class="page fade">
-            <h2 class="section-title">Progress</h2>
-            <p id="progressText">Loading progress...</p>
-        </section>
-
-    </main>
-</div>
-
-<script>
-/* ================= CONFIG ================= */
-const API = "http://127.0.0.1:5000/api";
-const name = localStorage.getItem("name") || "Student";
-const token = localStorage.getItem("token");
-
-/* ================= NAVIGATION ================= */
-const navs = document.querySelectorAll(".nav");
-const pages = document.querySelectorAll(".page");
-
-navs.forEach(nav => {
-    nav.onclick = () => {
-        navs.forEach(n => n.classList.remove("active"));
-        nav.classList.add("active");
-        pages.forEach(p => p.classList.remove("show"));
-        document.getElementById(nav.dataset.page).classList.add("show");
-    };
-});
-
-/* ================= LOGOUT ================= */
-document.getElementById("logoutBtn").onclick = () => {
-    localStorage.clear();
-    window.location.href = "login.html";
-};
-
-/* ================= LOAD DASHBOARD ================= */
-async function loadStudentDashboard() {
-    document.getElementById("welcomeText").innerText = `Welcome, ${name} 👋`;
-
-    if (!token) return;
-
-    const res = await fetch(`${API}/student/dashboard`, {
-        headers: {
-            "Authorization": `Bearer ${token}`
-        }
-    });
-
-    const data = await res.json();
-    console.log("📦 Dashboard data:", data);
-
-    if (!Array.isArray(data)) return;
-
-    const courseContainer = document.getElementById("courseContainer");
-    const assignmentContainer = document.getElementById("assignmentContainer");
-
-    courseContainer.innerHTML = "";
-    assignmentContainer.innerHTML = "";
-
-    let totalAssignments = 0;
-    let submittedAssignments = 0;
-
-    data.forEach(item => {
-        totalAssignments += item.assignments.length;
-
-        courseContainer.innerHTML += `
-            <div class="box glow course-card">
-                <h3>${item.course}</h3>
-                <p>${item.assignments.length} Assignments</p>
-            </div>
-        `;
-
-        item.assignments.forEach(a => {
-            assignmentContainer.innerHTML += `
-                <div class="task glow">
-                    <span>${a.title} (Due: ${a.due_date})</span>
-                    <button onclick="submitAssignment(${a.id})">Submit</button>
+            <section id="assignments" class="page fade">
+                <h2 class="section-title">Assignments</h2>
+                <div id="assignmentList">
+                    <p>Loading assignments...</p>
                 </div>
-            `;
-        });
-    });
 
-    document.getElementById("courseCount").innerText = data.length;
-    document.getElementById("assignmentCount").innerText = totalAssignments;
+                <div class="box glow" style="margin-top:30px">
+                    <h3>Submit Assignment</h3>
+                    <form id="assignmentForm" class="submit-form">
+                        <input type="text" placeholder="Project Name" required />
+                        <input type="file" required />
+                        <button type="submit" class="btn-primary">Submit for Grading</button>
+                    </form>
+                    <p id="submitMsg" style="display:none;color:green;margin-top:10px">File uploaded successfully! ✅</p>
+                </div>
+            </section>
 
-    // BASIC PROGRESS %
-    const progress = totalAssignments === 0
-        ? 0
-        : Math.round((submittedAssignments / totalAssignments) * 100);
+            <section id="mentors" class="page fade">
+                <h2 class="section-title">Global Mentors</h2>
+                <div class="grid" id="mentorList">
+                    <p>Loading mentors...</p>
+                </div>
+            </section>
 
-    document.getElementById("overallProgress").innerText = progress + "%";
-    document.getElementById("progressText").innerText =
-        `You have completed ${progress}% of your assignments.`;
-}
+            <section id="progress" class="page fade">
+                <h2 class="section-title">Weekly Learning Metrics</h2>
+                <div class="progress-container" id="progressContainer">
+                    <p>Loading progress...</p>
+                </div>
+            </section>
+        </main>
+    </div>
 
-/* ================= SUBMIT ASSIGNMENT ================= */
-async function submitAssignment(assignmentId) {
-    await fetch(`${API}/student/submit`, {
-        method: "POST",
-        headers: {
-            "Authorization": `Bearer ${token}`,
-            "Content-Type": "application/json"
-        },
-        body: JSON.stringify({ assignment_id: assignmentId })
-    });
-
-    alert("Assignment submitted successfully ✅");
-    loadStudentDashboard(); // refresh counts
-}
-
-/* ================= INIT ================= */
-document.addEventListener("DOMContentLoaded", loadStudentDashboard);
-</script>
-
+    <script src="student.js"></script>
 </body>
+
 </html>
