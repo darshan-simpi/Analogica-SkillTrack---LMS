@@ -1,3 +1,6 @@
+const API = "http://127.0.0.1:5000/api";
+const token = localStorage.getItem("token");
+
 /* ================= TRAINER NAME ================= */
 window.addEventListener("DOMContentLoaded", () => {
 
@@ -17,15 +20,6 @@ document.querySelector(".logout").onclick = () => {
   window.location.href = "index.html";
 };
 
-/* ================= STUDENTS ================= */
-const students = [
-  { name: "John", course: "Web Development", progress: 70, status: "On Track", task: "", submitted: false, feedback: "" },
-  { name: "Jane", course: "Data Science", progress: 85, status: "On Track", task: "", submitted: false, feedback: "" },
-  { name: "Mike", course: "Web Development", progress: 40, status: "Behind", task: "", submitted: false, feedback: "" },
-  { name: "Sarah", course: "Machine Learning", progress: 65, status: "On Track", task: "", submitted: false, feedback: "" },
-  { name: "David", course: "Data Science", progress: 30, status: "Behind", task: "", submitted: false, feedback: "" }
-];
-
 /* ================= CARDS ================= */
 function updateCards() {
   document.getElementById("total").innerHTML = students.length;
@@ -37,39 +31,49 @@ function updateCards() {
 }
 
 /* ================= COURSE CARDS ================= */
-const courseCards = document.getElementById("courseCards");
-const uniqueCourses = [...new Set(students.map(s => s.course))];
+async function renderCourses() {
+  const res = await fetch(`${API}/trainer/dashboard`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
 
-function renderCourses() {
-  courseCards.innerHTML = "";
-  uniqueCourses.forEach(course => {
-    const count = students.filter(s => s.course === course).length;
+  const courses = await res.json();
+  const container = document.getElementById("courseCards");
+  container.innerHTML = "";
 
-    courseCards.innerHTML += `
+  courses.forEach(c => {
+    container.innerHTML += `
       <div class="course-card">
-        <h3>${course}</h3>
-        <p>${count} students</p>
-
-        <button onclick="assignTask('${course}')">Assign Task</button>
-        <button onclick="manage('${course}')">Manage Students</button>
-      </div>`;
+        <h3>${c.course_name}</h3>
+        <p>${c.students} students</p>
+        <button onclick="assignTask(${c.course_id})">Assign Task</button>
+      </div>
+    `;
   });
 }
 
 /* ================= ASSIGN TASK ================= */
-function assignTask(course) {
-  const task = prompt("Enter assignment for " + course);
-  if (!task) return;
+async function assignTask(courseId) {
+  const title = prompt("Enter assignment title");
+  const due = prompt("Enter due date (YYYY-MM-DD)");
 
-  students.forEach(s => {
-    if (s.course === course) {
-      s.task = task;
-      s.submitted = false;
-    }
+  if (!title || !due) return;
+
+  await fetch(`${API}/trainer/assign`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      course_id: courseId,
+      title: title,
+      due_date: due
+    })
   });
 
-  alert("Task assigned ✔");
+  alert("Assignment assigned successfully ✅");
 }
+
 
 /* ================= MODAL ================= */
 function openModal(html) {

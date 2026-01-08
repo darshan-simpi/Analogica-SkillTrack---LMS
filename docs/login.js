@@ -77,12 +77,50 @@ function login() {
 }
 
 /* ================= REGISTER ================= */
+/* ================= REGISTER ================= */
 function openRegister() {
   document.getElementById("registerModal").style.display = "flex";
+  populateOptions();
 }
 
 function closeRegister() {
   document.getElementById("registerModal").style.display = "none";
+}
+
+function toggleRoleFields() {
+  const role = document.getElementById("regRole").value;
+  document.getElementById("studentFields").style.display = role === "STUDENT" ? "block" : "none";
+  document.getElementById("internFields").style.display = role === "INTERN" ? "block" : "none";
+}
+
+async function populateOptions() {
+  // Populate Courses
+  try {
+    const res = await fetch(`${API_BASE}/api/courses`);
+    const courses = await res.json();
+    const courseSelect = document.getElementById("regCourse");
+    courseSelect.innerHTML = '<option value="">Select Course</option>';
+    courses.forEach(c => {
+      const opt = document.createElement("option");
+      opt.value = c.id;
+      opt.innerText = c.name + " (" + c.date + ")";
+      courseSelect.appendChild(opt);
+    });
+  } catch(e) { console.error("Error loading courses", e); }
+
+  // Populate Internships
+  try {
+    const res = await fetch(`${API_BASE}/api/internships`);
+    const internships = await res.json();
+    const internSelect = document.getElementById("regInternship");
+    internSelect.innerHTML = '<option value="">Select Internship</option>';
+    internships.forEach(i => {
+      const opt = document.createElement("option");
+      opt.value = i.id;
+      opt.innerText = i.intern_name + " (" + i.duration + ")";
+      internSelect.appendChild(opt);
+    });
+  } catch(e) { console.error("Error loading internships", e); }
 }
 
 function register() {
@@ -90,6 +128,17 @@ function register() {
   const email = document.getElementById("regEmail").value;
   const password = document.getElementById("regPassword").value;
   const role = document.getElementById("regRole").value;
+
+  let extraData = {};
+  if (role === "STUDENT") {
+    const courseId = document.getElementById("regCourse").value;
+    if (!courseId) { alert("Please select a course"); return; }
+    extraData.course_id = courseId;
+  } else if (role === "INTERN") {
+    const internshipId = document.getElementById("regInternship").value;
+    if (!internshipId) { alert("Please select an internship"); return; }
+    extraData.internship_id = internshipId;
+  }
 
   if (!name || !email || !password || !role) {
     alert("Please fill all fields");
@@ -99,7 +148,7 @@ function register() {
   fetch(`${API_BASE}/api/auth/register`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ name, email, password, role })
+    body: JSON.stringify({ name, email, password, role, ...extraData })
   })
     .then(res => res.json())
     .then(data => {

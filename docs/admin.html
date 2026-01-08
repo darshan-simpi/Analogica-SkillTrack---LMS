@@ -77,11 +77,19 @@
 
       <input id="courseName" placeholder="Course Name">
       <input id="courseDate" placeholder="Start Date">
+      <input id="courseMentor" placeholder="Mentor Name">
+      <input id="courseDuration" placeholder="Duration (e.g. 3 Months)">
       <button onclick="addCourse()">Add Course</button>
 
       <table>
         <thead>
-          <tr><th>Name</th><th>Date</th><th>Action</th></tr>
+          <tr>
+            <th>Name</th>
+            <th>Start Date</th>
+            <th>Mentor</th>
+            <th>Duration</th>
+            <th>Action</th>
+          </tr>
         </thead>
         <tbody id="courseManageTable"></tbody>
       </table>
@@ -169,12 +177,21 @@ async function loadCourses() {
   courseManageTable.innerHTML = "";
 
   data.forEach(c => {
-    courseTable.innerHTML += `<tr><td>${c.name}</td><td>${c.date}</td></tr>`;
+    courseTable.innerHTML += `
+      <tr>
+        <td>${c.name}</td>
+        <td>${c.date}</td>
+      </tr>`;
+
     courseManageTable.innerHTML += `
       <tr>
         <td>${c.name}</td>
         <td>${c.date}</td>
-        <td><button onclick="deleteCourse(${c.id})">Delete</button></td>
+        <td>${c.mentor_name}</td>
+        <td>${c.duration}</td>
+        <td>
+          <button onclick="deleteCourse(${c.id})">Delete</button>
+        </td>
       </tr>`;
   });
 }
@@ -188,10 +205,17 @@ async function addCourse() {
     },
     body: JSON.stringify({
       name: courseName.value,
-      date: courseDate.value
+      date: courseDate.value,
+      mentor_name: courseMentor.value,
+      duration: courseDuration.value
     })
   });
-  courseName.value = courseDate.value = "";
+
+  courseName.value = "";
+  courseDate.value = "";
+  courseMentor.value = "";
+  courseDuration.value = "";
+
   loadCourses();
   loadDashboard();
 }

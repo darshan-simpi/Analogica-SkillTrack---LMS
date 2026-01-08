@@ -1,140 +1,186 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
-<meta charset="UTF-8">
-<title>Intern Dashboard</title>
-<link rel="stylesheet" href="intern.css">
-<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <meta charset="UTF-8">
+  <title>Intern Dashboard</title>
+  <link rel="stylesheet" href="intern.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
+
 <body>
 
-<div class="app">
-  <aside class="sidebar">
-    <h2>Intern</h2>
-    <a class="nav active" data-target="dashboard">Dashboard</a>
-    <a class="nav" data-target="tasks">Tasks</a>
-    <a class="nav" data-target="progress">Progress</a>
-    <a class="nav" data-target="mentor">Mentor</a>
-    <a class="nav" data-target="internships">Internships</a>
-    <a class="nav" id="logout-link">Logout</a>
-  </aside>
+  <div class="app">
+    <aside class="sidebar">
+      <h2>Intern</h2>
+      <a class="nav active" data-target="dashboard">Dashboard</a>
+      <a class="nav" data-target="tasks">Tasks</a>
+      <a class="nav" data-target="progress">Progress</a>
+      <a class="nav" data-target="mentor">Mentor</a>
+      <a class="nav" data-target="internships">Internships</a>
+      <a class="nav" id="logout-link">Logout</a>
+    </aside>
 
-  <main>
-    <header>
-      <h1 id="welcome-message"></h1>
-      <span class="status">Active Intern</span>
-    </header>
+    <main>
+      <header>
+        <h1 id="welcome-message"></h1>
+        <span class="status">Active Intern</span>
+      </header>
 
-    <!-- DASHBOARD -->
-    <section id="dashboard" class="page show">
-      <div class="cards">
-        <div class="card pastel-blue"><p>Tasks Completed</p><h2>6</h2><canvas class="mini" id="dash1"></canvas></div>
-        <div class="card pastel-lavender"><p>Pending Tasks</p><h2>4</h2><canvas class="mini" id="dash2"></canvas></div>
-        <div class="card pastel-green"><p>Overall Progress</p><h2>72%</h2><canvas class="mini" id="dash3"></canvas></div>
-      </div>
-
-      <div class="cards">
-        <div class="card pastel-peach"><p>Today Summary</p><h2>4 Tasks Done</h2><small>⏱ 3h 20m focused</small></div>
-        <div class="card pastel-green"><p>Weekly Goal</p><h2>80%</h2><div class="progress-bar"><div class="progress-fill" style="width:80%"></div></div></div>
-        <div class="card pastel-lavender"><p>🔥 Productivity Streak</p><h2>5 Days</h2></div>
-      </div>
-
-      <h2 class="group-title">Today’s Focus</h2>
-      <div class="task-grid">
-        <div class="task soft big">Fix UI Bugs <span class="tag high">High</span></div>
-        <div class="task soft big">API Integration <span class="tag medium">Medium</span></div>
-        <div class="task soft big">Weekly Report <span class="tag low">Low</span></div>
-      </div>
-
-      <h2 class="group-title">Recent Activity</h2>
-      <div class="activity-list">
-        <div class="activity">✅ UI Improved</div>
-        <div class="activity">📌 API Connected</div>
-        <div class="activity">📝 Docs Updated</div>
-        <div class="activity">🚀 Dashboard Finalized</div>
-      </div>
-    </section>
-
-    <!-- TASKS -->
-    <section id="tasks" class="page">
-      <h2 class="group-title">Today</h2>
-      <div class="task-grid">
-        <div class="task soft big priority-high">
-          <div class="task-head"><span>Fix UI bugs</span><span class="tag high">High</span></div>
-          <ul class="subtasks">
-            <li><input type="checkbox"> Navbar alignment</li>
-            <li><input type="checkbox"> Responsive layout</li>
-          </ul>
+      <!-- DASHBOARD -->
+      <section id="dashboard" class="page show">
+        <div class="cards">
+          <div class="card pastel-blue">
+            <p>Tasks Completed</p>
+            <h2>6</h2><canvas class="mini" id="dash1"></canvas>
+          </div>
+          <div class="card pastel-lavender">
+            <p>Pending Tasks</p>
+            <h2>4</h2><canvas class="mini" id="dash2"></canvas>
+          </div>
+          <div class="card pastel-green">
+            <p>Overall Progress</p>
+            <h2>72%</h2><canvas class="mini" id="dash3"></canvas>
+          </div>
+          <div class="card pastel-peach">
+            <p>Internships Enrolled</p>
+            <h2 id="internships-enrolled">0</h2>
+          </div>
         </div>
 
-        <div class="task soft big priority-medium">
-          <div class="task-head"><span>API Integration</span><span class="tag medium">Medium</span></div>
-          <ul class="subtasks">
-            <li><input type="checkbox"> API testing</li>
-            <li><input type="checkbox"> Error handling</li>
-          </ul>
+        <div class="cards">
+          <div class="card pastel-peach">
+            <p>Today Summary</p>
+            <h2>4 Tasks Done</h2><small>⏱ 3h 20m focused</small>
+          </div>
+          <div class="card pastel-green">
+            <p>Weekly Goal</p>
+            <h2>80%</h2>
+            <div class="progress-bar">
+              <div class="progress-fill" style="width:80%"></div>
+            </div>
+          </div>
+          <div class="card pastel-lavender">
+            <p>🔥 Productivity Streak</p>
+            <h2>5 Days</h2>
+          </div>
         </div>
-      </div>
 
-      <h2 class="group-title">This Week</h2>
-      <div class="task-grid">
-        <div class="task soft big priority-medium">
-          <div class="task-head"><span>Authentication</span><span class="tag medium">Medium</span></div>
-          <ul class="subtasks">
-            <li><input type="checkbox"> Login</li>
-            <li><input type="checkbox"> Session</li>
-          </ul>
+        <h2 class="group-title">Today’s Focus</h2>
+        <div class="task-grid">
+          <div class="task soft big">Fix UI Bugs <span class="tag high">High</span></div>
+          <div class="task soft big">API Integration <span class="tag medium">Medium</span></div>
+          <div class="task soft big">Weekly Report <span class="tag low">Low</span></div>
         </div>
 
-        <div class="task soft big priority-low">
-          <div class="task-head"><span>Documentation</span><span class="tag low">Low</span></div>
-          <ul class="subtasks">
-            <li><input type="checkbox"> README</li>
-            <li><input type="checkbox"> Notes</li>
-          </ul>
+        <h2 class="group-title">Recent Activity</h2>
+        <div class="activity-list">
+          <div class="activity">✅ UI Improved</div>
+          <div class="activity">📌 API Connected</div>
+          <div class="activity">📝 Docs Updated</div>
+          <div class="activity">🚀 Dashboard Finalized</div>
         </div>
-      </div>
-    </section>
+      </section>
 
-    <!-- PROGRESS -->
-    <section id="progress" class="page">
-      <h2 class="group-title">Weekly Progress</h2>
-      <canvas id="weeklyChart" height="120"></canvas>
+      <!-- TASKS -->
+      <section id="tasks" class="page">
+        <h2 class="group-title">Today</h2>
+        <div class="task-grid">
+          <div class="task soft big priority-high">
+            <div class="task-head"><span>Fix UI bugs</span><span class="tag high">High</span></div>
+            <ul class="subtasks">
+              <li><input type="checkbox"> Navbar alignment</li>
+              <li><input type="checkbox"> Responsive layout</li>
+            </ul>
+          </div>
 
-      <div class="cards">
-        <div class="card pastel-green"><p>Tasks Done</p><h2>18</h2></div>
-        <div class="card pastel-lavender"><p>Hours Worked</p><h2>24h</h2></div>
-        <div class="card pastel-peach"><p>Efficiency</p><h2>90%</h2></div>
-      </div>
-    </section>
+          <div class="task soft big priority-medium">
+            <div class="task-head"><span>API Integration</span><span class="tag medium">Medium</span></div>
+            <ul class="subtasks">
+              <li><input type="checkbox"> API testing</li>
+              <li><input type="checkbox"> Error handling</li>
+            </ul>
+          </div>
+        </div>
 
-    <!-- MENTOR -->
-    <section id="mentor" class="page">
-      <h2 class="group-title">Mentor</h2>
-      <div class="mentor-card pastel-peach">
-        <h3>Jane Doe</h3>
-        <p>Senior Software Engineer</p>
-        <p>Email: jane.doe@company.com</p>
-        <p>Feedback: Excellent improvement this week 👏</p>
-      </div>
+        <h2 class="group-title">This Week</h2>
+        <div class="task-grid">
+          <div class="task soft big priority-medium">
+            <div class="task-head"><span>Authentication</span><span class="tag medium">Medium</span></div>
+            <ul class="subtasks">
+              <li><input type="checkbox"> Login</li>
+              <li><input type="checkbox"> Session</li>
+            </ul>
+          </div>
 
-      <div class="cards">
-        <div class="card pastel-green"><p>Last Review</p><h2>2 Days Ago</h2></div>
-        <div class="card pastel-lavender"><p>Next Meeting</p><h2>Friday</h2></div>
-      </div>
-    </section>
+          <div class="task soft big priority-low">
+            <div class="task-head"><span>Documentation</span><span class="tag low">Low</span></div>
+            <ul class="subtasks">
+              <li><input type="checkbox"> README</li>
+              <li><input type="checkbox"> Notes</li>
+            </ul>
+          </div>
+        </div>
+      </section>
 
-    <!-- INTERNSHIPS -->
-    <section id="internships" class="page">
-      <h2 class="group-title">Available Internships</h2>
-      <div class="internship-list">
-        <!-- Internships will be loaded here by JavaScript -->
-      </div>
-    </section>
-  </main>
-</div>
+      <!-- PROGRESS -->
+      <section id="progress" class="page">
+        <h2 class="group-title">Weekly Progress</h2>
+        <canvas id="weeklyChart" height="120"></canvas>
 
-<script src="intern.js"></script>
+        <div class="cards">
+          <div class="card pastel-green">
+            <p>Tasks Done</p>
+            <h2>18</h2>
+          </div>
+          <div class="card pastel-lavender">
+            <p>Hours Worked</p>
+            <h2>24h</h2>
+          </div>
+          <div class="card pastel-peach">
+            <p>Efficiency</p>
+            <h2>90%</h2>
+          </div>
+        </div>
+      </section>
+
+      <!-- MENTOR -->
+      <section id="mentor" class="page">
+        <h2 class="group-title">Mentor</h2>
+        <div id="mentor-list">
+          <!-- Dynamic Mentor Cards will be loaded here -->
+          <p>Loading mentors...</p>
+        </div>
+
+        <div class="cards">
+          <div class="card pastel-green">
+            <p>Last Review</p>
+            <h2>2 Days Ago</h2>
+          </div>
+          <div class="card pastel-lavender">
+            <p>Next Meeting</p>
+            <h2>Friday</h2>
+          </div>
+        </div>
+      </section>
+
+      <!-- INTERNSHIPS -->
+      <section id="internships" class="page">
+        <h2 class="group-title">My Internships</h2>
+        <div class="internship-list" id="enrolled-internships">
+          <!-- Enrolled internships will be loaded here -->
+        </div>
+
+        <h2 class="group-title">Available Internships</h2>
+        <div class="internship-list" id="available-internships">
+          <!-- Available internships will be loaded here -->
+        </div>
+      </section>
+    </main>
+  </div>
+
+  <script src="intern.js"></script>
 </body>
+
 </html>

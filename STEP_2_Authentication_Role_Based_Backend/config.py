@@ -1,9 +1,15 @@
 class Config:
+    # ================= FLASK =================
     SECRET_KEY = "major_project_secret"
+
+    # ================= JWT (🔥 CRITICAL FOR 422 FIX) =================
     JWT_SECRET_KEY = "jwt-secret-key"
+    JWT_TOKEN_LOCATION = ["headers"]
+    JWT_HEADER_NAME = "Authorization"
+    JWT_HEADER_TYPE = "Bearer"
 
-    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:@localhost/darshan"
-
+    # ================= DATABASE =================
+    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:@localhost/skilltrack"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # ================= EMAIL CONFIG =================
@@ -16,5 +22,5 @@ class Config:
     MAIL_PASSWORD = "ezua hvii pjox qiwu"
     MAIL_DEFAULT_SENDER = MAIL_USERNAME
 
-    # Frontend (GitHub Pages)
+    # ================= FRONTEND =================
     FRONTEND_URL = "https://darshan-simpi.github.io/Analogica-SkillTrack---LMS"

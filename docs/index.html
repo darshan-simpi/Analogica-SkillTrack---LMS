@@ -62,12 +62,24 @@
     <input id="regEmail" placeholder="Email">
     <input id="regPassword" type="password" placeholder="Password">
 
-    <select id="regRole">
+    <select id="regRole" onchange="toggleRoleFields()">
       <option value="">Select Role</option>
       <option value="STUDENT">Student</option>
       <option value="TRAINER">Trainer</option>
       <option value="INTERN">Intern</option>
     </select>
+
+    <div id="studentFields" style="display:none;">
+      <select id="regCourse">
+        <option value="">Select Course</option>
+      </select>
+    </div>
+
+    <div id="internFields" style="display:none;">
+      <select id="regInternship">
+        <option value="">Select Internship</option>
+      </select>
+    </div>
 
     <button onclick="register()">Register</button>
     <button class="cancel-btn" onclick="closeRegister()">Cancel</button>

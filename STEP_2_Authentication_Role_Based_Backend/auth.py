@@ -1,13 +1,17 @@
 from flask import Blueprint, request, jsonify, current_app
 from werkzeug.security import generate_password_hash, check_password_hash
-from flask_jwt_extended import create_access_token
+from flask_jwt_extended import (
+    create_access_token,
+    jwt_required,
+    get_jwt,
+    get_jwt_identity
+)
 from flask_mail import Message
 from itsdangerous import URLSafeTimedSerializer
 
-from models import User
+from models import User, StudentProgress, Enrollment
 from extensions import db, mail
 
-# ✅ THIS MUST EXIST AT TOP LEVEL
 auth_bp = Blueprint("auth", __name__)
 
 def get_serializer():
@@ -34,7 +38,30 @@ def register():
     db.session.add(user)
     db.session.commit()
 
+    if data["role"] == "STUDENT" and "course_id" in data:
+        enrollment = Enrollment(
+            user_id=user.id,
+            course_id=data["course_id"]
+        )
+        db.session.add(enrollment)
+
+        student_progress = StudentProgress(
+            user_id=user.id,
+            course_id=data["course_id"],
+            status="Enrolled"
+        )
+        db.session.add(student_progress)
+
+    if data["role"] == "INTERN" and "internship_id" in data:
+        enrollment = Enrollment(
+            user_id=user.id,
+            internship_id=data["internship_id"]
+        )
+        db.session.add(enrollment)
+
+    db.session.commit()
     return jsonify({"message": "User registered successfully"}), 201
+
 
 # ================= LOGIN =================
 @auth_bp.route("/login", methods=["POST"])
@@ -45,6 +72,7 @@ def login():
     if not user or not check_password_hash(user.password, data["password"]):
         return jsonify({"error": "Invalid credentials"}), 401
 
+    # ✅ FIX: identity MUST be string
     token = create_access_token(
         identity=str(user.id),
         additional_claims={"role": user.role}
@@ -56,37 +84,6 @@ def login():
         "name": user.name
     }), 200
 
-# ================= FORGOT PASSWORD =================
-@auth_bp.route("/forgot-password", methods=["POST"])
-def forgot_password():
-    email = request.json.get("email")
-    user = User.query.filter_by(email=email).first()
-
-    if not user:
-        return jsonify({"error": "Email not registered"}), 404
-
-    token = get_serializer().dumps(email, salt="reset-password")
-
-    reset_link = (
-        f"{current_app.config['FRONTEND_URL']}"
-        f"/reset-password.html?token={token}"
-    )
-
-    msg = Message(
-        subject="Reset Your Password - Analogica LMS",
-        recipients=[email],
-        body=f"""
-Hello {user.name},
-
-Click the link below to reset your password:
-{reset_link}
-
-This link is valid for 15 minutes.
-"""
-    )
-
-    mail.send(msg)
-    return jsonify({"message": "Reset link sent"}), 200
 
 # ================= RESET PASSWORD =================
 @auth_bp.route("/reset-password", methods=["POST"])
@@ -110,3 +107,23 @@ def reset_password():
     db.session.commit()
 
     return jsonify({"message": "Password reset successful"}), 200
+
+
+# ================= GET USERS =================
+@auth_bp.route("/users", methods=["GET"])
+@jwt_required()
+def get_users():
+    claims = get_jwt()
+    if claims.get("role") != "TRAINER" and claims.get("role") != "ADMIN":
+        return jsonify({"error": "Unauthorized"}), 403
+
+    role = request.args.get("role")
+    if role:
+        users = User.query.filter_by(role=role).all()
+    else:
+        users = User.query.all()
+
+    return jsonify([
+        {"id": u.id, "name": u.name, "email": u.email, "role": u.role}
+        for u in users
+    ]), 200
