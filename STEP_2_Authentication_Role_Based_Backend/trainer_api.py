@@ -74,15 +74,18 @@ def get_course_assignments(course_id):
 def get_submissions(assignment_id):
     submissions = Submission.query.filter_by(assignment_id=assignment_id).all()
 
-    return jsonify([
-        {
+    result = []
+    for s in submissions:
+        student = User.query.get(s.student_id)  # ✅ CORRECT
+
+        result.append({
             "submission_id": s.id,
-            "student_name": User.query.get(s.user_id).name,  # ✅ FIX
+            "student_name": student.name if student else "Unknown",
             "file_url": s.file_path,
             "feedback": s.feedback
-        } for s in submissions
-    ])
+        })
 
+    return jsonify(result), 200
 
 # ================= FEEDBACK =================
 @trainer_bp.route("/trainer/feedback", methods=["POST"])
