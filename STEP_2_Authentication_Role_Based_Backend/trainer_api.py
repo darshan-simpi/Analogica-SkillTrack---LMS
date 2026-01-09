@@ -2,6 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import Course, Enrollment, Assignment, Submission, User, CourseResource, StudentProgress
 from extensions import db
+from student_api import get_required_assignments
 from werkzeug.utils import secure_filename
 import os
 
@@ -37,22 +38,34 @@ def trainer_dashboard():
 @jwt_required()
 def assign_assignment():
     data = request.get_json()
+    course_id = data["course_id"]
+    
+    course = Course.query.get_or_404(course_id)
+    
+    # Calculate next week number
+    existing_assignments = Assignment.query.filter_by(course_id=course_id).all()
+    next_week = len(existing_assignments) + 1
+    
+    # Enforce duration-based limit (4 per month)
+    limit = get_required_assignments(course.duration)
+    if next_week > limit:
+        return jsonify({"error": f"Maximum assignments ({limit}) reached for this course duration."}), 400
 
     assignment = Assignment(
-        course_id=data["course_id"],
+        course_id=course_id,
         title=data["title"],
-        week_number=1,
+        week_number=next_week,
         due_date=data["due_date"],
         is_released=True
     )
     db.session.add(assignment)
 
-    students = StudentProgress.query.filter_by(course_id=data["course_id"]).all()
+    students = StudentProgress.query.filter_by(course_id=course_id).all()
     for s in students:
         s.total_assignments += 1
 
     db.session.commit()
-    return jsonify({"message": "Assignment assigned"}), 201
+    return jsonify({"message": f"Assignment for Week {next_week} assigned", "week_number": next_week}), 201
 
 
 # ================= COURSE ASSIGNMENTS =================
@@ -64,6 +77,7 @@ def get_course_assignments(course_id):
     return jsonify([{
         "id": a.id,
         "title": a.title,
+        "week_number": a.week_number,
         "due_date": a.due_date
     } for a in assignments])
 

@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8" />
   <title>Trainer Dashboard | LMS</title>
@@ -9,144 +10,144 @@
 
 <body>
 
-<div class="trainer-layout">
+  <div class="trainer-layout">
 
-  <!-- LEFT SIDEBAR -->
-  <aside class="trainer-sidebar">
-    <h2>Trainer</h2>
-    <ul>
-      <li class="active" onclick="showSection('dashboard')">Dashboard</li>
-      <li onclick="showSection('courses')">Courses</li>
-      <li onclick="showSection('internships')">Internships</li>
-      <li onclick="showSection('workshops')">Workshops</li>
-      <li onclick="logout()">Logout</li>
-    </ul>
-  </aside>
+    <!-- LEFT SIDEBAR -->
+    <aside class="trainer-sidebar">
+      <h2>Trainer</h2>
+      <ul>
+        <li class="active" onclick="showSection('dashboard')">Dashboard</li>
+        <li onclick="showSection('courses')">Courses</li>
+        <li onclick="showSection('internships')">Internships</li>
+        <li onclick="showSection('workshops')">Workshops</li>
+        <li onclick="logout()">Logout</li>
+      </ul>
+    </aside>
 
-  <!-- RIGHT CONTENT -->
-  <main class="trainer-main">
+    <!-- RIGHT CONTENT -->
+    <main class="trainer-main">
 
-    <!-- DASHBOARD -->
-    <section id="dashboard" class="section">
-  <header class="header">
-    <div>
-      <h1>Trainer Dashboard</h1>
-      <p id="welcome"></p>
-    </div>
-  </header>
+      <!-- DASHBOARD -->
+      <section id="dashboard" class="section">
+        <header class="header">
+          <div>
+            <h1>Trainer Dashboard</h1>
+            <p id="welcome"></p>
+          </div>
+        </header>
 
-  <div class="cards">
+        <div class="cards">
 
-    <div class="card">
-      <h4>Total Courses</h4>
-      <p id="totalCourses" class="number blue">0</p>
-    </div>
+          <div class="card">
+            <h4>Total Courses</h4>
+            <p id="totalCourses" class="number blue">0</p>
+          </div>
 
-    <div class="card">
-      <h4>Total Students</h4>
-      <p id="totalStudents" class="number blue">0</p>
-    </div>
+          <div class="card">
+            <h4>Total Students</h4>
+            <p id="totalStudents" class="number blue">0</p>
+          </div>
 
-    <div class="card">
-      <h4>Total Internships</h4>
-      <p id="totalInternships" class="number green">0</p>
-    </div>
+          <div class="card">
+            <h4>Total Internships</h4>
+            <p id="totalInternships" class="number green">0</p>
+          </div>
 
-    <div class="card">
-      <h4>Total Interns</h4>
-      <p id="totalInterns" class="number green">0</p>
-    </div>
+          <div class="card">
+            <h4>Total Interns</h4>
+            <p id="totalInterns" class="number green">0</p>
+          </div>
 
-    <div class="card">
-      <h4>Total Workshops</h4>
-      <p id="totalWorkshops" class="number red">0</p>
-    </div>
+          <div class="card">
+            <h4>Total Workshops</h4>
+            <p id="totalWorkshops" class="number red">0</p>
+          </div>
 
-    <div class="card">
-      <h4>Total Attenders</h4>
-      <p id="totalAttenders" class="number red">0</p>
-    </div>
+          <div class="card">
+            <h4>Total Attenders</h4>
+            <p id="totalAttenders" class="number red">0</p>
+          </div>
 
+        </div>
+      </section>
+
+
+      <!-- COURSES -->
+      <section id="courses" class="section hidden">
+        <h2>My Courses</h2>
+        <div id="trainerCourses" class="course-cards"></div>
+      </section>
+
+      <!-- MANAGE COURSE -->
+      <section id="manageCourse" class="section hidden">
+
+        <button class="back-btn" onclick="backToCourses()">← Back to Courses</button>
+        <h2 id="courseTitle"></h2>
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <button onclick="switchTab('assignments')" class="tab active">Assignments</button>
+          <button onclick="switchTab('submissions')" class="tab">Submissions</button>
+          <button onclick="switchTab('resources')" class="tab">Resources</button>
+        </div>
+
+        <!-- ASSIGNMENTS -->
+        <div id="assignments" class="tab-content active">
+          <h3>Create Week <span id="nextWeekNumber">1</span> Assignment</h3>
+          <input id="assignmentTitle" placeholder="Assignment Title">
+          <input type="date" id="assignmentDue">
+          <button onclick="createAssignment()">Save Assignment</button>
+
+          <div id="assignmentList"></div>
+        </div>
+
+        <!-- SUBMISSIONS -->
+        <div id="submissions" class="tab-content">
+          <h3>Student Submissions</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Student</th>
+                <th>File</th>
+                <th>Feedback</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="submissionTable"></tbody>
+          </table>
+        </div>
+
+        <!-- RESOURCES -->
+        <div id="resources" class="tab-content">
+          <h3>Course Resources</h3>
+          <input id="resourceTitle" placeholder="Resource Title">
+          <select id="resourceType">
+            <option value="pdf">PDF</option>
+            <option value="doc">Word</option>
+            <option value="xls">Excel</option>
+            <option value="video">Video</option>
+          </select>
+          <input type="file" id="resourceFile">
+          <button onclick="addResource()">Add Resource</button>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Type</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="resourceTable"></tbody>
+          </table>
+        </div>
+
+      </section>
+
+    </main>
   </div>
-</section>
 
-
-    <!-- COURSES -->
-    <section id="courses" class="section hidden">
-      <h2>My Courses</h2>
-      <div id="trainerCourses" class="course-cards"></div>
-    </section>
-
-    <!-- MANAGE COURSE -->
-    <section id="manageCourse" class="section hidden">
-
-      <button class="back-btn" onclick="backToCourses()">← Back to Courses</button>
-      <h2 id="courseTitle"></h2>
-
-      <!-- Tabs -->
-      <div class="tabs">
-        <button onclick="switchTab('assignments')" class="tab active">Assignments</button>
-        <button onclick="switchTab('submissions')" class="tab">Submissions</button>
-        <button onclick="switchTab('resources')" class="tab">Resources</button>
-      </div>
-
-      <!-- ASSIGNMENTS -->
-      <div id="assignments" class="tab-content active">
-        <h3>Create / Update Assignment</h3>
-        <input id="assignmentTitle" placeholder="Assignment Title">
-        <input type="date" id="assignmentDue">
-        <button onclick="createAssignment()">Save Assignment</button>
-
-        <div id="assignmentList"></div>
-      </div>
-
-      <!-- SUBMISSIONS -->
-      <div id="submissions" class="tab-content">
-        <h3>Student Submissions</h3>
-        <table>
-          <thead>
-            <tr>
-              <th>Student</th>
-              <th>File</th>
-              <th>Feedback</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="submissionTable"></tbody>
-        </table>
-      </div>
-
-      <!-- RESOURCES -->
-      <div id="resources" class="tab-content">
-        <h3>Course Resources</h3>
-        <input id="resourceTitle" placeholder="Resource Title">
-        <select id="resourceType">
-          <option value="pdf">PDF</option>
-          <option value="doc">Word</option>
-          <option value="xls">Excel</option>
-          <option value="video">Video</option>
-        </select>
-        <input type="file" id="resourceFile">
-        <button onclick="addResource()">Add Resource</button>
-
-        <table>
-          <thead>
-            <tr>
-              <th>Title</th>
-              <th>Type</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody id="resourceTable"></tbody>
-        </table>
-      </div>
-
-    </section>
-
-  </main>
-</div>
-
-<script src="trainer.js"></script>
+  <script src="trainer.js"></script>
 </body>
 
 

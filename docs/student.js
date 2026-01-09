@@ -3,7 +3,7 @@ const token = localStorage.getItem("token");
 const role = localStorage.getItem("role");
 
 if (!token || role !== "STUDENT") {
-  window.location.href = "login.html";
+  window.location.href = "index.html";
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -28,12 +28,17 @@ async function loadProgress() {
     const res = await fetch(`${API}/student/progress`, {
       headers: { "Authorization": `Bearer ${token}` }
     });
+
+    if (res.status === 401) return logout();
+    if (!res.ok) throw new Error("Progress load failed");
+
     const progressData = await res.json();
 
     // Calculate Average Completion
     if (progressData.length > 0) {
       const totalProgress = progressData.reduce((sum, p) => sum + p.progress, 0);
-      const avg = Math.round(totalProgress / progressData.length);
+      let avg = Math.round(totalProgress / progressData.length);
+      avg = Math.min(avg, 100); // UI Safety Cap
 
       const fill = document.getElementById("completionFill");
       const text = document.getElementById("completionText");
@@ -170,6 +175,10 @@ async function loadMentors() {
     const res = await fetch(`${API}/mentors`, {
       headers: { "Authorization": `Bearer ${token}` }
     });
+
+    if (res.status === 401) return logout();
+    if (!res.ok) throw new Error("Mentor load failed");
+
     const mentors = await res.json();
 
     renderMentors(mentors);
@@ -215,6 +224,7 @@ async function loadCourses() {
       headers: { "Authorization": `Bearer ${token}` }
     });
 
+    if (res.status === 401) return logout();
     if (!res.ok) throw new Error(`API Error: ${res.status}`);
 
     const courses = await res.json();
@@ -237,15 +247,16 @@ async function loadAssignments() {
       headers: { "Authorization": `Bearer ${token}` }
     });
 
+    if (res.status === 401) return logout();
     if (!res.ok) throw new Error(`Server returned ${res.status}`);
 
     const rawData = await res.json();
 
-// 🔴 FIX: extract array safely
-const dashboardData = Array.isArray(rawData)
-  ? rawData
-  : rawData.courses || [];
-;
+    // 🔴 FIX: extract array safely
+    const dashboardData = Array.isArray(rawData)
+      ? rawData
+      : rawData.courses || [];
+    ;
 
     if (dashboardData.length === 0) {
       document.getElementById("assignmentList").innerHTML = "<p>You are not enrolled in any courses with assignments.</p>";
@@ -264,7 +275,11 @@ const dashboardData = Array.isArray(rawData)
         allTasks.push({ ...a, course_name: c.course });
       });
       if (c.can_generate_certificate) {
-        eligibleForCertificate = { id: c.course_id, name: c.course };
+        eligibleForCertificate = {
+          id: c.course_id,
+          name: c.course,
+          certificate_url: c.certificate_url
+        };
       }
     });
 
@@ -276,17 +291,32 @@ const dashboardData = Array.isArray(rawData)
     if (pendingEl) pendingEl.innerText = pendingCount;
 
     renderAssignments(allTasks);
-    // renderWeeklyBreakdown(dashboardData); // Removed as requested
 
-    // Certificate logical
+    // Certificate logic
     console.log("🎓 Checking Certificate Eligibility...");
     const certHeader = document.getElementById("certHeader");
     const certMsg = document.getElementById("certMsg");
     const certBtn = document.getElementById("downloadCertBtn");
+    const certResult = document.getElementById("certResult");
 
     if (certBtn) {
       if (eligibleForCertificate) {
         console.log("✅ Eligible for Certificate:", eligibleForCertificate.name);
+
+        // PERSISTENCE FIX: If it already exists in DB, show the link immediately!
+        if (eligibleForCertificate.certificate_url) {
+          const downloadUrl = `${API}${eligibleForCertificate.certificate_url}`;
+          certResult.innerHTML = `
+                <div style="background:#dcfce7; padding:20px; border-radius:12px; border:2px solid #22c55e; margin-bottom:20px;">
+                    <p style="color:#166534; font-weight:bold; margin-bottom:10px; font-size:1.1em">Your Certificate is Ready ✅</p>
+                    <a href="${downloadUrl}" target="_blank" style="display:inline-block; background:#22c55e; color:white; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:800; font-size:1.2em; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+                        🔗 CLICK HERE TO VIEW PDF
+                    </a>
+                </div>
+            `;
+          certBtn.innerText = "Certificate Ready ✅";
+        }
+
         if (certHeader) certHeader.style.color = "#22c55e";
         if (certHeader) certHeader.innerText = "🎓 Certification Available!";
         if (certMsg) certMsg.innerText = `Congratulations! You've completed "${eligibleForCertificate.name}".`;
@@ -294,7 +324,7 @@ const dashboardData = Array.isArray(rawData)
         certBtn.disabled = false;
         certBtn.style.background = "#22c55e";
         certBtn.style.cursor = "pointer";
-        certBtn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> Download Official Certificate';
+        certBtn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> ' + (eligibleForCertificate.certificate_url ? 'Regenerate Certificate' : 'Download Official Certificate');
         certBtn.onclick = () => generateCertificate(eligibleForCertificate.id);
       } else {
         console.log("⏳ Not currently eligible for any certificates.");
@@ -317,28 +347,44 @@ const dashboardData = Array.isArray(rawData)
 
 async function generateCertificate(courseId) {
   const btn = document.getElementById("downloadCertBtn");
-  const msg = document.getElementById("certMsg");
+  const msg = document.getElementById("certResult");
 
+  console.log("🛠️ Generating certificate for course:", courseId);
   btn.disabled = true;
-  btn.innerText = "Generating...";
+  btn.innerText = "⏳ Generating...";
 
   try {
     const res = await fetch(`${API}/student/certificate/${courseId}`, {
       method: "POST",
       headers: { "Authorization": `Bearer ${token}` }
     });
+
+    console.log("📡 API Response Status:", res.status);
     const data = await res.json();
+    console.log("📄 API Data:", data);
 
     if (res.ok) {
-      msg.innerHTML = `Success! <a href="${API}${data.url}" target="_blank" style="color:#22c55e; text-decoration:underline">Click here to view/download</a>`;
+      const downloadUrl = `${API}${data.url}`;
+      console.log("✅ Certificate Ready at:", downloadUrl);
+
+      // Using dedicated certResult div to prevent overwriting
+      msg.innerHTML = `
+        <div style="background:#dcfce7; padding:20px; border-radius:12px; border:2px solid #22c55e; margin-bottom:20px; animation: fadeIn 0.6s ease-out;">
+          <p style="color:#166534; font-weight:bold; margin-bottom:10px; font-size:1.1em">Success! Certificate is ready ✅</p>
+          <a href="${downloadUrl}" target="_blank" style="display:inline-block; background:#22c55e; color:white; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:800; font-size:1.2em; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s;">
+            🔗 CLICK HERE TO VIEW PDF
+          </a>
+        </div>
+      `;
       btn.innerText = "Certificate Ready ✅";
     } else {
+      console.error("❌ Generation failed:", data.error);
       msg.innerText = "Error: " + (data.error || "Failed to generate");
       btn.disabled = false;
       btn.innerText = "Download Certificate";
     }
   } catch (err) {
-    console.error(err);
+    console.error("🚨 Network/Server Error:", err);
     msg.innerText = "Server error occurred.";
     btn.disabled = false;
     btn.innerText = "Download Certificate";
@@ -387,8 +433,8 @@ async function showResources(courseId, courseName) {
 
     if (!res.ok) throw new Error(`Server returned ${res.status}`);
 
-const raw = await res.json();
-const resources = Array.isArray(raw) ? raw : raw.resources || [];
+    const raw = await res.json();
+    const resources = Array.isArray(raw) ? raw : raw.resources || [];
 
     resourceList.innerHTML = "";
     if (resources.length === 0) {
@@ -407,10 +453,63 @@ const resources = Array.isArray(raw) ? raw : raw.resources || [];
                 </div>
             `;
     });
-
   } catch (err) {
     console.error("Failed to load resources", err);
     resourceList.innerHTML = `<p style="color:red">Error loading resources: ${err.message}</p>`;
+  }
+}
+
+async function loadAllResources() {
+  const container = document.getElementById("allResourcesContainer");
+  if (!container) return;
+
+  try {
+    const res = await fetch(`${API}/student/courses`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const courses = await res.json();
+
+    container.innerHTML = "";
+    if (courses.length === 0) {
+      container.innerHTML = "<p>Enroll in a course to see resources.</p>";
+      return;
+    }
+
+    for (const c of courses) {
+      const resData = await fetch(`${API}/student/course/${c.id}/resources`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const resources = await resData.json();
+
+      if (resources.length > 0) {
+        let resourceGrid = `<div class="grid" style="margin-top:10px; margin-bottom:30px">`;
+        resources.forEach(r => {
+          const icon = r.type === 'youtube' ? 'fa-video' : (r.type === 'book' ? 'fa-book' : 'fa-link');
+          resourceGrid += `
+            <div class="card glow small-card">
+              <i class="fa-solid ${icon}" style="font-size:1.5em; margin-bottom:10px; color:#4f46e5"></i>
+              <h4>${r.title}</h4>
+              <p style="font-size:0.8em; margin:10px 0">${r.type.toUpperCase()}</p>
+              <a href="${r.url}" target="_blank" class="btn-primary" style="padding:5px 10px; font-size:0.8em">Visit Resource</a>
+            </div>`;
+        });
+        resourceGrid += `</div>`;
+
+        container.innerHTML += `
+          <div style="margin-bottom:20px">
+            <h3 style="border-bottom:1px solid #f1f5f9; padding-bottom:10px">${c.name} Resources</h3>
+            ${resourceGrid}
+          </div>`;
+      }
+    }
+
+    if (container.innerHTML === "") {
+      container.innerHTML = "<p>No resources found for your courses.</p>";
+    }
+
+  } catch (err) {
+    console.error("Failed to load all resources", err);
+    container.innerHTML = "<p style='color:red'>Failed to load resources.</p>";
   }
 }
 
@@ -430,28 +529,30 @@ function renderAssignments(tasks) {
     tasks.forEach((t, index) => {
       // Safety defaults
       const weekNum = t.week_number || (index + 1);
-      const title = t.title || "Untitled Assignment";
-      const isUnlocked = !!t.is_unlocked;
+      const isDataRevealed = !!t.is_data_revealed;
+      const isSubmittable = !!t.is_unlocked;
       const isSubmitted = !!t.is_submitted;
 
-      const statusText = isSubmitted ? "Submitted" : (isUnlocked ? "Unlocked" : "Locked 🔒");
-      const statusColor = isSubmitted ? "#22c55e" : (isUnlocked ? "#4f46e5" : "#666");
+      const statusText = isSubmitted ? "Submitted" : (isSubmittable ? "Unlocked" : "Locked 🔒");
+      const statusColor = isSubmitted ? "#22c55e" : (isSubmittable ? "#4f46e5" : "#666");
 
       let actionBtns = "";
-      const safeTitle = title.replace(/'/g, "\\'");
+      const safeTitle = (t.title || "Untitled Assignment").replace(/'/g, "\\'");
 
-      if (isUnlocked && !isSubmitted) {
+      if (isSubmittable && !isSubmitted) {
         actionBtns = `<button onclick="openSubmitModal(${t.id}, '${safeTitle}')" class="btn-primary" style="padding:6px 14px; font-size:0.85em; border-radius:8px">Submit</button>`;
       } else if (isSubmitted) {
         const feedback = t.feedback ? t.feedback.replace(/'/g, "\\'") : "Wait for trainer feedback...";
         actionBtns = `<button onclick="openViewModal('${safeTitle}', '${feedback}')" class="btn-primary" style="padding:6px 14px; font-size:0.85em; border-radius:8px; background:#64748b">View Status</button>`;
+      } else if (isDataRevealed && !isSubmitted) {
+        actionBtns = `<button disabled class="btn-primary" style="padding:6px 14px; font-size:0.85em; border-radius:8px; background:#94a3b8; cursor:not-allowed">Locked</button>`;
       }
 
-      const displayTitle = (isUnlocked || isSubmitted) ? `: ${title}` : "";
-      const displayDesc = (isUnlocked || isSubmitted) ? (t.due_date ? '📅 Due: ' + t.due_date : 'No Deadline') : '🔒 Complete previous week to view task';
+      const displayTitle = isDataRevealed ? `: ${t.title}` : "";
+      let displayDesc = isDataRevealed ? (t.due_date ? '📅 Due: ' + t.due_date : 'No Deadline') : '🔒 This assignment is locked until the previous one is submitted.';
 
       listContainer.innerHTML += `
-            <div class="task glow ${(!isUnlocked && !isSubmitted) ? 'locked-task' : ''}" style="opacity: ${(isUnlocked || isSubmitted) ? 1 : 0.7}; border-left: 5px solid ${statusColor}; align-items: center">
+            <div class="task glow ${(!isDataRevealed) ? 'locked-task' : ''}" style="opacity: ${isDataRevealed ? 1 : 0.4}; border-left: 5px solid ${statusColor}; align-items: center">
                 <div style="flex:1">
                     <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px">
                         <span class="tag" style="background:${statusColor}; color:#fff">${statusText}</span>

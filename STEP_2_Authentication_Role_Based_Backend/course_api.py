@@ -415,14 +415,29 @@ def get_student_progress():
 
 @course_bp.route("/mentors", methods=["GET"])
 @jwt_required()
-def get_all_mentors():
-    trainers = User.query.filter_by(role="TRAINER").all()
+def get_mentors():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    if user and user.role == "STUDENT":
+        # Get enrolled courses
+        enrollments = StudentProgress.query.filter_by(user_id=user_id).all()
+        course_ids = [p.course_id for p in enrollments]
+        courses = Course.query.filter(Course.id.in_(course_ids)).all()
+        mentor_names = [c.mentor_name for c in courses if c.mentor_name]
+        
+        # Get trainer user objects for these names
+        trainers = User.query.filter(User.name.in_(mentor_names), User.role == "TRAINER").all()
+    else:
+        # Fallback for admin/trainer/intern: show all trainers (or adjust if needed)
+        trainers = User.query.filter_by(role="TRAINER").all()
+        
     return jsonify([
         {
             "id": t.id, 
             "name": t.name, 
             "email": t.email,
-            "expertise": "Course Instructor" # Placeholder as model lacks this field
+            "expertise": "Course Instructor"
         }
         for t in trainers
     ]), 200

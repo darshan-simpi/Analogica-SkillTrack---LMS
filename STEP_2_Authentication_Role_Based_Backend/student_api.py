@@ -1,15 +1,32 @@
 from flask import Blueprint, jsonify, request
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
-from datetime import datetime
+from datetime import datetime, timedelta
 import os
+from reportlab.lib.pagesizes import landscape, letter
+from reportlab.pdfgen import canvas
+from reportlab.lib.units import inch
+from reportlab.lib.colors import HexColor
 
-from models import Enrollment, Course, Assignment, Submission, StudentProgress, CourseResource, Certificate
+from models import Enrollment, Course, Assignment, Submission, StudentProgress, CourseResource, Certificate, User
 from extensions import db
 
 student_bp = Blueprint("student", __name__)
 
 UPLOAD_FOLDER = "uploads"
+def get_required_assignments(duration_str):
+    try:
+        # Example: "2 Months" -> 2
+        # Example: "1 Month" -> 1
+        parts = duration_str.lower().split()
+        if len(parts) >= 2:
+            if "month" in parts[1]:
+                return int(parts[0]) * 4
+            elif "week" in parts[1]:
+                return int(parts[0])
+        return 4 # Default to 1 month (4 assignments)
+    except:
+        return 4
 
 # ✅ NEW PROGRESS ENDPOINT
 @student_bp.route("/student/progress", methods=["GET"])
@@ -25,13 +42,26 @@ def student_progress():
         
         progress = StudentProgress.query.filter_by(user_id=student_id, course_id=course.id).first()
         
+        # Get submissions count for this student for THIS course
+        submissions = Submission.query.filter_by(student_id=student_id).all()
+        course_assignments = Assignment.query.filter_by(course_id=course.id).all()
+        course_assignment_ids = {a.id for a in course_assignments}
+        # Count unique assignments submitted for this course
+        completed_count = len({s.assignment_id for s in submissions if s.assignment_id in course_assignment_ids})
+        
+        required_count = get_required_assignments(course.duration)
+        total_assignments = required_count
+        
+        progress_val = int((completed_count / max(total_assignments, 1)) * 100) if total_assignments > 0 else 0
+        dynamic_progress = min(progress_val, 100)
+        
         response.append({
             "course_id": course.id,
             "course_name": course.name,
-            "status": progress.status if progress else "Active",
-            "progress": progress.progress if progress else 0,
-            "assignments_completed": progress.assignments_completed if progress else 0,
-            "total_assignments": progress.total_assignments if progress else 0,
+            "status": "Completed" if dynamic_progress >= 100 else (progress.status if progress else "Active"),
+            "progress": dynamic_progress,
+            "assignments_completed": completed_count,
+            "total_assignments": total_assignments,
             "duration": course.duration
         })
 
@@ -60,52 +90,98 @@ def student_dashboard():
 
         # Get submissions for this student once
         student_submissions = Submission.query.filter_by(student_id=student_id).all()
-        submitted_assignment_ids = [s.assignment_id for s in student_submissions]
+        submitted_assignment_ids = {s.assignment_id for s in student_submissions}
 
-        # Assignments logic with unlocking
-        assignments_list = []
-        # Sort by week number to handle unlocking sequentially
-        sorted_assignments = sorted(assignments, key=lambda x: x.week_number)
+        today = datetime.utcnow().strftime('%Y-%m-%d')
+        start_date_str = course.start_date  # Expected "YYYY-MM-DD"
         
-        for i, a in enumerate(sorted_assignments):
-            # Unlock if it is released by trainer
-            # AND (it's the first one OR the previous one is submitted)
-            is_unlocked = False
+        try:
+            start_date_obj = datetime.strptime(start_date_str, '%Y-%m-%d')
+        except:
+            start_date_obj = datetime.utcnow()
+
+        required_count = get_required_assignments(course.duration)
+        assignments_list = []
+        
+        # Get actual assignments and map them by week number
+        actual_assignments = {a.week_number: a for a in assignments}
+
+        can_reveal_next = True
+        completed_count = 0
+
+        for i in range(1, required_count + 1):
+            # Calculate expected due date for this week (+i weeks)
+            expected_due_date = (start_date_obj + timedelta(weeks=i)).strftime('%Y-%m-%d')
             
-            # 1. Bypass release check (Assignment appears if it exists)
-            # if a.is_released:  <-- REMOVED CHECK
+            real_a = actual_assignments.get(i)
+            is_submitted = real_a.id in submitted_assignment_ids if real_a else False
+            target_due_date = real_a.due_date if (real_a and real_a.due_date) else expected_due_date
 
-            # 2. Check sequential logic
-            if i == 0:
-                is_unlocked = True
+            # Visibility Logic:
+            # - Week 1 is always revealed
+            # - Subsequent weeks reveal ONLY if all previous assignments are submitted
+            if i == 1:
+                is_data_revealed = True
             else:
-                previous_assignment = sorted_assignments[i-1]
-                prev_id = previous_assignment.id
-                if prev_id in submitted_assignment_ids:
-                    is_unlocked = True
+                is_data_revealed = can_reveal_next
+            
+            # ✅ NEW: If revealed but not in DB, create a placeholder assignment 
+            # so the student has an ID to submit against.
+            if is_data_revealed and real_a is None:
+                try:
+                    new_a = Assignment(
+                        course_id=course.id,
+                        title=f"Weekly Assignment {i}",
+                        week_number=i,
+                        due_date=expected_due_date,
+                        is_released=True
+                    )
+                    db.session.add(new_a)
+                    db.session.commit()
+                    real_a = new_a
+                except Exception as ex:
+                    db.session.rollback()
+                    print(f"Error auto-creating assignment: {ex}")
 
+            # Submittability logic: 
+            # - Must be revealed
+            # - Must be a real assignment (not a placeholder)
+            # - Must not already be submitted
+            is_submittable = is_data_revealed and (real_a is not None) and not is_submitted
+            
             assignments_list.append({
-                "id": a.id,
-                "title": a.title,
-                "week_number": a.week_number,
-                "due_date": a.due_date,
-                "is_unlocked": is_unlocked,
-                "is_submitted": a.id in submitted_assignment_ids,
-                "feedback": next((s.feedback for s in student_submissions if s.assignment_id == a.id), None)
+                "id": real_a.id if real_a else None,
+                "title": (real_a.title if real_a else "Pending Trainer Upload") if is_data_revealed else "Locked Assignment",
+                "week_number": i,
+                "due_date": target_due_date if is_data_revealed else "Hidden",
+                "is_unlocked": is_submittable, 
+                "is_data_revealed": is_data_revealed,
+                "is_submitted": is_submitted,
+                "feedback": next((s.feedback for s in student_submissions if s.assignment_id == real_a.id), None) if real_a else None,
+                "is_placeholder": real_a is None
             })
 
+            # The next assignment can only be revealed if this one is submitted
+            can_reveal_next = is_data_revealed and is_submitted
+            if is_submitted:
+                completed_count += 1
+
         # Calculate dynamic progress
-        course_assignments_ids = [a.id for a in assignments]
-        completed_count = len([aid for aid in submitted_assignment_ids if aid in course_assignments_ids])
-        total_count = len(assignments)
-        dynamic_progress = int((completed_count / max(total_count, 1)) * 100) if total_count > 0 else 0
+        total_count = required_count
+        progress_val = int((completed_count / max(total_count, 1)) * 100) if total_count > 0 else 0
+        dynamic_progress = min(progress_val, 100)
+
+        # Check if certificate already exists
+        cert_record = Certificate.query.filter_by(user_id=student_id, course_id=course.id).first()
+        cert_url = cert_record.certificate_url if cert_record else None
 
         response.append({
             "course_id": course.id,
             "course": course.name,
             "progress": dynamic_progress,
             "assignments": assignments_list,
-            "can_generate_certificate": total_count > 0 and completed_count == total_count
+            "can_generate_certificate": dynamic_progress >= 100,
+            "certificate_url": cert_url
         })
 
     return jsonify(response), 200
@@ -115,7 +191,7 @@ def student_dashboard():
 @jwt_required()
 def submit_assignment():
     student_id = int(get_jwt_identity())
-    assignment_id = request.form.get("assignment_id")
+    assignment_id = int(request.form.get("assignment_id"))
     file = request.files.get("file")
 
     if not file:
@@ -142,10 +218,20 @@ def submit_assignment():
     ).first()
 
     if progress:
-        progress.assignments_completed += 1
-        progress.progress = int(
-            (progress.assignments_completed / max(progress.total_assignments, 1)) * 100
-        )
+        # Re-calculate unique submissions count for this student+course
+        all_subs = Submission.query.filter_by(student_id=student_id).all()
+        course_asgn_ids = {a.id for a in Assignment.query.filter_by(course_id=assignment.course_id).all()}
+        unique_submitted = len({s.assignment_id for s in all_subs if s.assignment_id in course_asgn_ids})
+        
+        course = Course.query.get(assignment.course_id)
+        required = get_required_assignments(course.duration) if course else 4
+        
+        progress.assignments_completed = unique_submitted
+        progress.total_assignments = required
+        new_progress = int((unique_submitted / max(required, 1)) * 100)
+        progress.progress = min(new_progress, 100)
+        if progress.progress >= 100:
+            progress.status = "Completed"
 
     db.session.commit()
     return jsonify({"message": "Assignment submitted"}), 200
@@ -161,34 +247,97 @@ def get_course_resources(course_id):
         "url": r.url
     } for r in resources]), 200
 
+def generate_certificate_pdf(student_name, course_name, output_path):
+    c = canvas.Canvas(output_path, pagesize=landscape(letter))
+    width, height = landscape(letter)
+
+    # Background Color (Subtle Cream)
+    c.setFillColor(HexColor("#fdfbf7"))
+    c.rect(0, 0, width, height, fill=1)
+
+    # Border
+    c.setStrokeColor(HexColor("#4f46e5"))
+    c.setLineWidth(5)
+    c.rect(20, 20, width-40, height-40)
+    
+    c.setStrokeColor(HexColor("#cbd5e1"))
+    c.setLineWidth(1)
+    c.rect(30, 30, width-60, height-60)
+
+    # Title
+    c.setFont("Helvetica-Bold", 40)
+    c.setFillColor(HexColor("#1e293b"))
+    c.drawCentredString(width/2, height - 150, "CERTIFICATE OF COMPLETION")
+
+    # Body
+    c.setFont("Helvetica", 18)
+    c.drawCentredString(width/2, height - 220, "This is to certify that")
+
+    c.setFont("Helvetica-Bold", 32)
+    c.setFillColor(HexColor("#4f46e5"))
+    c.drawCentredString(width/2, height - 280, student_name.upper())
+
+    c.setFont("Helvetica", 18)
+    c.setFillColor(HexColor("#1e293b"))
+    c.drawCentredString(width/2, height - 340, "has successfully completed the course")
+
+    c.setFont("Helvetica-Bold", 24)
+    c.drawCentredString(width/2, height - 400, course_name)
+
+    # Footer
+    c.setFont("Helvetica", 12)
+    date_str = datetime.utcnow().strftime("%B %d, %Y")
+    c.drawString(100, 100, f"Date: {date_str}")
+    
+    # Signature Placeholder
+    c.line(width - 250, 100, width - 100, 100)
+    c.drawCentredString(width - 175, 80, "Authorized Signatory")
+
+    c.save()
+
 @student_bp.route("/student/certificate/<int:course_id>", methods=["POST"])
 @jwt_required()
 def generate_certificate(course_id):
     student_id = int(get_jwt_identity())
+    student = User.query.get(student_id)
+    course = Course.query.get(course_id)
     
-    # Check if all assignments are submitted
-    assignments = Assignment.query.filter_by(course_id=course_id).all()
-    if not assignments:
-        return jsonify({"error": "No assignments found for this course"}), 400
+    if not course or not student:
+        return jsonify({"error": "Resource not found"}), 404
         
+    # Check eligibility (must be 100% progress)
     submissions = Submission.query.filter_by(student_id=student_id).all()
-    submitted_ids = [s.assignment_id for s in submissions]
+    course_assignments = Assignment.query.filter_by(course_id=course_id).all()
+    course_assignment_ids = {a.id for a in course_assignments}
+    completed_count = len({s.assignment_id for s in submissions if s.assignment_id in course_assignment_ids})
     
-    if not all(a.id in submitted_ids for a in assignments):
-        return jsonify({"error": "All assignments must be submitted first"}), 403
+    required_count = get_required_assignments(course.duration)
+    if completed_count < required_count:
+        return jsonify({"error": f"Certificate locked. Please complete all {required_count} assignments."}), 403
+
+    # Generate filename
+    CERT_FOLDER = "certificates"
+    os.makedirs(CERT_FOLDER, exist_ok=True)
+    filename = f"cert_{student_id}_{course_id}.pdf"
+    filepath = os.path.join(CERT_FOLDER, filename)
 
     # Check if already exists
     existing = Certificate.query.filter_by(user_id=student_id, course_id=course_id).first()
-    if existing:
-        return jsonify({"message": "Certificate already generated", "url": existing.certificate_url}), 200
-
-    # Create dummy certificate entry
-    cert = Certificate(
-        user_id=student_id,
-        course_id=course_id,
-        certificate_url=f"/certificates/cert_{student_id}_{course_id}.pdf"
-    )
-    db.session.add(cert)
-    db.session.commit()
     
-    return jsonify({"message": "Certificate generated successfully", "url": cert.certificate_url}), 201
+    # Generate Actual PDF
+    try:
+        generate_certificate_pdf(student.name, course.name, filepath)
+    except Exception as e:
+        return jsonify({"error": f"Failed to generate PDF: {str(e)}"}), 500
+
+    if not existing:
+        cert = Certificate(
+            user_id=student_id,
+            course_id=course_id,
+            certificate_url=f"/certificates/{filename}"
+        )
+        db.session.add(cert)
+        db.session.commit()
+        return jsonify({"message": "Certificate generated successfully", "url": cert.certificate_url}), 201
+    else:
+        return jsonify({"message": "Certificate updated", "url": existing.certificate_url}), 200

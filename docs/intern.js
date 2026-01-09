@@ -1,6 +1,12 @@
 const navLinks = document.querySelectorAll(".nav");
 const pages = document.querySelectorAll(".page");
 const API_BASE = 'http://127.0.0.1:5000/api';
+const token = localStorage.getItem("token");
+const role = localStorage.getItem("role");
+
+if (!token || role !== "INTERN") {
+    window.location.href = "index.html";
+}
 
 // Display welcome message
 document.addEventListener('DOMContentLoaded', () => {

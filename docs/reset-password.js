@@ -46,25 +46,25 @@ function resetPassword() {
       password: password
     })
   })
-  .then(res => res.json())
-  .then(data => {
-    console.log("RESET RESPONSE:", data); // 🔥 DEBUG
+    .then(res => res.json())
+    .then(data => {
+      console.log("RESET RESPONSE:", data); // 🔥 DEBUG
 
-    if (data.message) {
-      msg.style.color = "green";
-      msg.innerText = "Password reset successful. Redirecting to login...";
+      if (data.message) {
+        msg.style.color = "green";
+        msg.innerText = "Password reset successful. Redirecting to login...";
 
-      setTimeout(() => {
-        window.location.href = "login.html";
-      }, 2000);
-    } else {
+        setTimeout(() => {
+          window.location.href = "index.html";
+        }, 2000);
+      } else {
+        msg.style.color = "red";
+        msg.innerText = data.error || "Reset failed";
+      }
+    })
+    .catch(err => {
+      console.error(err);
       msg.style.color = "red";
-      msg.innerText = data.error || "Reset failed";
-    }
-  })
-  .catch(err => {
-    console.error(err);
-    msg.style.color = "red";
-    msg.innerText = "Server error. Try again later.";
-  });
+      msg.innerText = "Server error. Try again later.";
+    });
 }

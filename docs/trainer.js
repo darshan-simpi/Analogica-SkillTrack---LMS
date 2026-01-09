@@ -1,5 +1,10 @@
 const API = "http://127.0.0.1:5000/api";
 const token = localStorage.getItem("token");
+const role = localStorage.getItem("role");
+
+if (!token || role !== "TRAINER") {
+  window.location.href = "index.html";
+}
 
 let selectedCourseId = null;
 
@@ -14,7 +19,7 @@ document.addEventListener("DOMContentLoaded", () => {
   if (logoutBtn) {
     logoutBtn.onclick = () => {
       localStorage.clear();
-      window.location.href = "login.html";
+      window.location.href = "index.html";
     };
   }
 });
@@ -69,7 +74,7 @@ async function createAssignment() {
   const title = assignmentTitle.value;
   const due = assignmentDue.value;
 
-  await fetch(`${API}/trainer/assign`, {
+  const res = await fetch(`${API}/trainer/assign`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -82,9 +87,15 @@ async function createAssignment() {
     })
   });
 
+  const data = await res.json();
+  if (data.error) {
+    alert(data.error);
+    return;
+  }
+
   assignmentTitle.value = "";
   assignmentDue.value = "";
-loadAssignments(selectedCourseId);
+  loadAssignments(selectedCourseId);
 }
 
 
@@ -97,15 +108,24 @@ async function loadAssignments(courseId) {
   const container = document.getElementById("assignmentList");
   container.innerHTML = "";
 
+  // Update next week number for creation form
+  const nextWeekEl = document.getElementById("nextWeekNumber");
+  if (nextWeekEl) {
+    nextWeekEl.innerText = data.length + 1;
+  }
+
   if (data.length === 0) {
     container.innerHTML = "<p>No assignments yet</p>";
     return;
   }
 
+  // Sort by week number before rendering
+  data.sort((a, b) => a.week_number - b.week_number);
+
   data.forEach(a => {
     container.innerHTML += `
       <div class="assignment-row">
-        <b>${a.title}</b> | Due: ${a.due_date}
+        <b>Week ${a.week_number}: ${a.title}</b> | Due: ${a.due_date}
         <button onclick="viewSubmissions(${a.id})">
           View Submissions
         </button>
@@ -121,19 +141,30 @@ async function viewSubmissions(assignmentId) {
   });
 
   const data = await res.json();
-  const container = document.getElementById("submissionList");
+  const container = document.getElementById("submissionTable");
   container.innerHTML = "";
+
+  if (data.length === 0) {
+    container.innerHTML = "<tr><td colspan='4'>No submissions found</td></tr>";
+    return;
+  }
 
   data.forEach(s => {
     container.innerHTML += `
-      <div>
-        <p>${s.student_name}</p>
-        <a href="${API}/${s.file_url}" target="_blank">View</a>
-        <input placeholder="Feedback" value="${s.feedback || ""}"
-          onchange="sendFeedback(${s.submission_id}, this.value)">
-      </div>
+      <tr>
+        <td>${s.student_name}</td>
+        <td><a href="${API.replace('/api', '')}/${s.file_url}" target="_blank">View File</a></td>
+        <td>
+          <input class="feedback-input" placeholder="Feedback" value="${s.feedback || ""}" 
+                 onchange="sendFeedback(${s.submission_id}, this.value)">
+        </td>
+        <td><span class="status-badge">${s.feedback ? 'Graded' : 'Pending'}</span></td>
+      </tr>
     `;
   });
+
+  // Switch to submissions tab
+  switchTab('submissions');
 }
 
 async function sendFeedback(id, feedback) {
@@ -210,7 +241,7 @@ function switchTab(tab) {
 }
 function logout() {
   localStorage.clear();
-  window.location.href = "login.html";
+  window.location.href = "index.html";
 }
 
 

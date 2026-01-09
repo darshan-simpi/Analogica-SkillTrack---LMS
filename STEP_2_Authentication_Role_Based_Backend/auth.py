@@ -52,12 +52,7 @@ def register():
         )
         db.session.add(student_progress)
 
-    if data["role"] == "INTERN" and "internship_id" in data:
-        enrollment = Enrollment(
-            user_id=user.id,
-            internship_id=data["internship_id"]
-        )
-        db.session.add(enrollment)
+    
 
     db.session.commit()
     return jsonify({"message": "User registered successfully"}), 201
