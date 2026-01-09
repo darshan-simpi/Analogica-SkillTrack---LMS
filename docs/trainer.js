@@ -115,33 +115,23 @@ async function loadAssignments(courseId) {
 }
 
 /* ================= SUBMISSIONS ================= */
-async function loadSubmissions(assignmentId) {
+async function viewSubmissions(assignmentId) {
   const res = await fetch(`${API}/trainer/assignment/${assignmentId}/submissions`, {
     headers: { Authorization: `Bearer ${token}` }
   });
 
-  const table = document.getElementById("submissionTable");
-  table.innerHTML = "";
-
   const data = await res.json();
-
-  if (data.length === 0) {
-    table.innerHTML = "<tr><td colspan='4'>No submissions yet</td></tr>";
-    return;
-  }
+  const container = document.getElementById("submissionList");
+  container.innerHTML = "";
 
   data.forEach(s => {
-    table.innerHTML += `
-      <tr>
-        <td>${s.student_name}</td>
-        <td><a href="${API}/${s.file_url}" target="_blank">View</a></td>
-        <td>
-          <input id="fb-${s.submission_id}" value="${s.feedback || ""}">
-        </td>
-        <td>
-          <button onclick="sendFeedback(${s.submission_id})">Send</button>
-        </td>
-      </tr>
+    container.innerHTML += `
+      <div>
+        <p>${s.student_name}</p>
+        <a href="${API}/${s.file_url}" target="_blank">View</a>
+        <input placeholder="Feedback" value="${s.feedback || ""}"
+          onchange="sendFeedback(${s.submission_id}, this.value)">
+      </div>
     `;
   });
 }
