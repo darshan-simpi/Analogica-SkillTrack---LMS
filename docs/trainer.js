@@ -1,10 +1,6 @@
-const API = "http://127.0.0.1:5000/api";
+const BASE_URL = "http://127.0.0.1:5000";
+const API = `${BASE_URL}/api`;
 const token = localStorage.getItem("token");
-const role = localStorage.getItem("role");
-
-if (!token || role !== "TRAINER") {
-  window.location.href = "index.html";
-}
 
 let selectedCourseId = null;
 
@@ -73,8 +69,9 @@ function backToCourses() {
 async function createAssignment() {
   const title = assignmentTitle.value;
   const due = assignmentDue.value;
+  const week = assignmentWeek.value || 1;
 
-  const res = await fetch(`${API}/trainer/assign`, {
+  await fetch(`${API}/trainer/assign`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
@@ -83,18 +80,14 @@ async function createAssignment() {
     body: JSON.stringify({
       course_id: selectedCourseId,
       title,
+      week_number: week,
       due_date: due
     })
   });
 
-  const data = await res.json();
-  if (data.error) {
-    alert(data.error);
-    return;
-  }
-
   assignmentTitle.value = "";
   assignmentDue.value = "";
+  assignmentWeek.value = "";
   loadAssignments(selectedCourseId);
 }
 
@@ -105,77 +98,101 @@ async function loadAssignments(courseId) {
   });
 
   const data = await res.json();
-  const container = document.getElementById("assignmentList");
+  const container = document.getElementById("assignmentTable");
   container.innerHTML = "";
 
-  // Update next week number for creation form
-  const nextWeekEl = document.getElementById("nextWeekNumber");
-  if (nextWeekEl) {
-    nextWeekEl.innerText = data.length + 1;
-  }
-
   if (data.length === 0) {
-    container.innerHTML = "<p>No assignments yet</p>";
+    container.innerHTML = "<tr><td colspan='3'>No assignments yet</td></tr>";
     return;
   }
 
-  // Sort by week number before rendering
-  data.sort((a, b) => a.week_number - b.week_number);
-
   data.forEach(a => {
     container.innerHTML += `
-      <div class="assignment-row">
-        <b>Week ${a.week_number}: ${a.title}</b> | Due: ${a.due_date}
-        <button onclick="viewSubmissions(${a.id})">
-          View Submissions
-        </button>
-      </div>
+      <tr>
+        <td>Week ${a.week_number || 1}: <b>${a.title}</b></td>
+        <td>${a.due_date}</td>
+        <td>
+          <button onclick="viewSubmissions(${a.id})">
+            View Submissions
+          </button>
+        </td>
+      </tr>
     `;
   });
 }
 
 /* ================= SUBMISSIONS ================= */
 async function viewSubmissions(assignmentId) {
-  const res = await fetch(`${API}/trainer/assignment/${assignmentId}/submissions`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
+  try {
+    const res = await fetch(`${API}/trainer/assignment/${assignmentId}/submissions`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
 
-  const data = await res.json();
-  const container = document.getElementById("submissionTable");
-  container.innerHTML = "";
+    if (!res.ok) throw new Error("Failed to fetch submissions");
 
-  if (data.length === 0) {
-    container.innerHTML = "<tr><td colspan='4'>No submissions found</td></tr>";
-    return;
+    const data = await res.json();
+    const container = document.getElementById("submissionTable");
+    container.innerHTML = "";
+
+    if (data.length === 0) {
+      container.innerHTML = "<tr><td colspan='4'>No submissions yet</td></tr>";
+    } else {
+      data.forEach(s => {
+        container.innerHTML += `
+          <tr>
+            <td>${s.student_name}</td>
+            <td><a href="${BASE_URL}/${s.file_url}" target="_blank" class="view-link">View File</a></td>
+            <td>
+              <input class="feedback-input" placeholder="Feedback" value="${s.feedback || ""}"
+                onchange="updateSubmission(${s.submission_id}, {feedback: this.value})">
+            </td>
+            <td>
+              <div class="action-btns">
+                <button class="approve-btn" onclick="updateSubmissionStatus(${s.submission_id}, 'Approved')">Approve</button>
+                <button class="reject-btn" onclick="updateSubmissionStatus(${s.submission_id}, 'Rejected')">Reject</button>
+              </div>
+              <div id="status-${s.submission_id}" class="status-text">${s.status || 'Pending'}</div>
+            </td>
+          </tr>
+        `;
+      });
+    }
+  } catch (err) {
+    console.error(err);
   }
 
-  data.forEach(s => {
-    container.innerHTML += `
-      <tr>
-        <td>${s.student_name}</td>
-        <td><a href="${API.replace('/api', '')}/${s.file_url}" target="_blank">View File</a></td>
-        <td>
-          <input class="feedback-input" placeholder="Feedback" value="${s.feedback || ""}" 
-                 onchange="sendFeedback(${s.submission_id}, this.value)">
-        </td>
-        <td><span class="status-badge">${s.feedback ? 'Graded' : 'Pending'}</span></td>
-      </tr>
-    `;
-  });
-
-  // Switch to submissions tab
-  switchTab('submissions');
+  switchTab('submissions', true);
 }
 
-async function sendFeedback(id, feedback) {
-  await fetch(`${API}/trainer/feedback`, {
+async function updateSubmission(id, data) {
+  await fetch(`${API}/trainer/submission/update`, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`
     },
-    body: JSON.stringify({ submission_id: id, feedback })
+    body: JSON.stringify({ submission_id: id, ...data })
   });
+}
+
+async function updateSubmissionStatus(id, status) {
+  const res = await fetch(`${API}/trainer/submission/update`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({ submission_id: id, status: status })
+  });
+
+  if (res.ok) {
+    const statusEl = document.getElementById(`status-${id}`);
+    if (statusEl) {
+      statusEl.innerText = status;
+      statusEl.className = `status-text status-${status.toLowerCase()}`;
+    }
+    alert(`Submission ${status}`);
+  }
 }
 
 /* ================= RESOURCES ================= */
@@ -232,16 +249,65 @@ function showSection(id) {
   if (target) target.style.display = "block";
 }
 
-function switchTab(tab) {
+async function loadCourseSubmissions(courseId) {
+  if (!courseId) return;
+  try {
+    const res = await fetch(`${API}/trainer/course/${courseId}/submissions`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+
+    if (!res.ok) throw new Error("Failed to fetch course submissions");
+
+    const data = await res.json();
+    const container = document.getElementById("submissionTable");
+    container.innerHTML = "";
+
+    if (data.length === 0) {
+      container.innerHTML = "<tr><td colspan='4'>No submissions yet for this course</td></tr>";
+    } else {
+      data.forEach(s => {
+        container.innerHTML += `
+          <tr>
+            <td>${s.student_name}</td>
+            <td>
+              <div style="font-size: 0.8em; color: #64748b; margin-bottom: 4px;">Task: ${s.assignment_title || 'N/A'}</div>
+              <a href="${BASE_URL}/${s.file_url}" target="_blank" class="view-link">View File</a>
+            </td>
+            <td>
+              <input class="feedback-input" placeholder="Feedback" value="${s.feedback || ""}"
+                onchange="updateSubmission(${s.submission_id}, {feedback: this.value})">
+            </td>
+            <td>
+              <div class="action-btns">
+                <button class="approve-btn" onclick="updateSubmissionStatus(${s.submission_id}, 'Approved')">Approve</button>
+                <button class="reject-btn" onclick="updateSubmissionStatus(${s.submission_id}, 'Rejected')">Reject</button>
+              </div>
+              <div id="status-${s.submission_id}" class="status-text">${s.status || 'Pending'}</div>
+            </td>
+          </tr>
+        `;
+      });
+    }
+  } catch (err) {
+    console.error(err);
+  }
+}
+
+function switchTab(tab, preventReload = false) {
   document.querySelectorAll(".tab").forEach(t => t.classList.remove("active"));
   document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
 
-  document.querySelector(`button[onclick="switchTab('${tab}')"]`).classList.add("active");
-  document.getElementById(tab).classList.add("active");
+  const tabBtn = document.querySelector(`button[onclick*="switchTab('${tab}')"]`);
+  if (tabBtn) tabBtn.classList.add("active");
+
+  const content = document.getElementById(tab);
+  if (content) content.classList.add("active");
+
+  if (tab === 'submissions' && !preventReload) {
+    loadCourseSubmissions(selectedCourseId);
+  }
 }
 function logout() {
   localStorage.clear();
   window.location.href = "index.html";
 }
-
-

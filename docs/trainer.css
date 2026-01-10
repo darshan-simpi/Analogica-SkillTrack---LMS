@@ -100,7 +100,8 @@ body {
 /* ================= DASHBOARD CARDS ================= */
 .cards {
   display: grid;
-  grid-template-columns: repeat(2, 1fr); /* ✅ FORCE 2 cards per row */
+  grid-template-columns: repeat(2, 1fr);
+  /* ✅ FORCE 2 cards per row */
   gap: 22px;
   margin: 28px 0;
 }
@@ -131,9 +132,17 @@ body {
   font-weight: 800;
 }
 
-.blue { color: #2563eb; }
-.green { color: #16a34a; }
-.red { color: #dc2626; }
+.blue {
+  color: #2563eb;
+}
+
+.green {
+  color: #16a34a;
+}
+
+.red {
+  color: #dc2626;
+}
 
 /* ================= SECTION CONTROL ================= */
 .section {
@@ -255,7 +264,8 @@ body {
 }
 
 /* ================= FORMS ================= */
-input, select {
+input,
+select {
   width: 100%;
   padding: 12px 14px;
   margin-bottom: 12px;
@@ -284,7 +294,8 @@ thead {
   background: #f1f5f9;
 }
 
-th, td {
+th,
+td {
   padding: 14px;
   border-bottom: 1px solid #e5e7eb;
   text-align: left;
@@ -307,4 +318,95 @@ tbody tr:hover {
   .cards {
     grid-template-columns: 1fr;
   }
+}
+
+/* ================= SUBMISSION BUTTONS & STATUS ================= */
+.approve-btn {
+  background: #10b981;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  margin-right: 6px;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.approve-btn:hover {
+  background: #059669;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.2);
+}
+
+.reject-btn {
+  background: #ef4444;
+  color: white;
+  border: none;
+  padding: 8px 14px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+}
+
+.reject-btn:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+  box-shadow: 0 10px 15px -3px rgba(239, 68, 68, 0.2);
+}
+
+.status-text {
+  margin-top: 10px;
+  font-size: 13px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.025em;
+  padding: 4px 0;
+}
+
+.status-approved {
+  color: #059669;
+}
+
+.status-rejected {
+  color: #dc2626;
+}
+
+.view-link {
+  color: #2563eb;
+  text-decoration: none;
+  font-weight: 600;
+  display: inline-block;
+  padding: 4px 8px;
+  background: #eff6ff;
+  border-radius: 6px;
+  transition: all 0.2s;
+}
+
+.view-link:hover {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.feedback-input {
+  width: 100%;
+  padding: 10px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  font-size: 14px;
+  transition: border-color 0.2s;
+}
+
+.feedback-input:focus {
+  outline: none;
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+}
+
+.action-btns {
+  display: flex;
+  align-items: center;
 }

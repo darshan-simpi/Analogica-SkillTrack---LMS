@@ -93,12 +93,22 @@
 
         <!-- ASSIGNMENTS -->
         <div id="assignments" class="tab-content active">
-          <h3>Create Week <span id="nextWeekNumber">1</span> Assignment</h3>
+          <h3>Create / Update Assignment</h3>
           <input id="assignmentTitle" placeholder="Assignment Title">
+          <input type="number" id="assignmentWeek" placeholder="Week #" min="1" max="52" style="width:80px">
           <input type="date" id="assignmentDue">
           <button onclick="createAssignment()">Save Assignment</button>
 
-          <div id="assignmentList"></div>
+          <table style="width:100%; margin-top:15px">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Due Date</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="assignmentTable"></tbody>
+          </table>
         </div>
 
         <!-- SUBMISSIONS -->
