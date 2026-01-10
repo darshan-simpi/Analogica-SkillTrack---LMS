@@ -178,6 +178,8 @@ class Submission(db.Model):
     file_path = db.Column(db.String(255))   # ✅ NEW
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
     feedback = db.Column(db.String(255))
+    status = db.Column(db.String(50), default="Pending")
+    grade = db.Column(db.String(50))
 
 
 # ================= COURSE RESOURCES =================

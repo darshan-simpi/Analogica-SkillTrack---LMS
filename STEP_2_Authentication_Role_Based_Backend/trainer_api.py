@@ -2,7 +2,6 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from models import Course, Enrollment, Assignment, Submission, User, CourseResource, StudentProgress
 from extensions import db
-from student_api import get_required_assignments
 from werkzeug.utils import secure_filename
 import os
 
@@ -38,34 +37,22 @@ def trainer_dashboard():
 @jwt_required()
 def assign_assignment():
     data = request.get_json()
-    course_id = data["course_id"]
-    
-    course = Course.query.get_or_404(course_id)
-    
-    # Calculate next week number
-    existing_assignments = Assignment.query.filter_by(course_id=course_id).all()
-    next_week = len(existing_assignments) + 1
-    
-    # Enforce duration-based limit (4 per month)
-    limit = get_required_assignments(course.duration)
-    if next_week > limit:
-        return jsonify({"error": f"Maximum assignments ({limit}) reached for this course duration."}), 400
 
     assignment = Assignment(
-        course_id=course_id,
+        course_id=data["course_id"],
         title=data["title"],
-        week_number=next_week,
+        week_number=data.get("week_number", 1),
         due_date=data["due_date"],
         is_released=True
     )
     db.session.add(assignment)
 
-    students = StudentProgress.query.filter_by(course_id=course_id).all()
+    students = StudentProgress.query.filter_by(course_id=data["course_id"]).all()
     for s in students:
         s.total_assignments += 1
 
     db.session.commit()
-    return jsonify({"message": f"Assignment for Week {next_week} assigned", "week_number": next_week}), 201
+    return jsonify({"message": "Assignment assigned"}), 201
 
 
 # ================= COURSE ASSIGNMENTS =================
@@ -79,7 +66,7 @@ def get_course_assignments(course_id):
         "title": a.title,
         "week_number": a.week_number,
         "due_date": a.due_date
-    } for a in assignments])
+    } for a in sorted(assignments, key=lambda x: (x.week_number, x.due_date or ""))])
 
 
 # ================= SUBMISSIONS =================
@@ -90,16 +77,68 @@ def get_submissions(assignment_id):
 
     result = []
     for s in submissions:
-        student = User.query.get(s.student_id)  # ✅ CORRECT
+        student = User.query.get(s.student_id)
 
         result.append({
             "submission_id": s.id,
             "student_name": student.name if student else "Unknown",
             "file_url": s.file_path,
-            "feedback": s.feedback
+            "feedback": s.feedback,
+            "grade": s.grade,
+            "status": s.status
         })
 
     return jsonify(result), 200
+
+# ================= COURSE SUBMISSIONS =================
+@trainer_bp.route("/trainer/course/<int:course_id>/submissions", methods=["GET"])
+@jwt_required()
+def get_course_submissions(course_id):
+    assignments = Assignment.query.filter_by(course_id=course_id).all()
+    assignment_ids = [a.id for a in assignments]
+    
+    submissions = Submission.query.filter(Submission.assignment_id.in_(assignment_ids)).all()
+
+    result = []
+    for s in submissions:
+        student = User.query.get(s.student_id)
+        assignment = Assignment.query.get(s.assignment_id)
+
+        result.append({
+            "submission_id": s.id,
+            "student_name": student.name if student else "Unknown",
+            "assignment_title": assignment.title if assignment else "Unknown",
+            "file_url": s.file_path,
+            "feedback": s.feedback,
+            "grade": s.grade,
+            "status": s.status
+        })
+
+    return jsonify(result), 200
+
+# ================= UPDATE SUBMISSION (GRADE, FEEDBACK, STATUS) =================
+@trainer_bp.route("/trainer/submission/update", methods=["POST"])
+@jwt_required()
+def update_submission():
+    data = request.get_json()
+    submission = Submission.query.get_or_404(data["submission_id"])
+    
+    # Update fields if provided
+    if "feedback" in data:
+        submission.feedback = data["feedback"]
+    if "grade" in data:
+        submission.grade = data["grade"]
+    
+    old_status = submission.status
+    if "status" in data:
+        submission.status = data["status"]
+        
+        # Logic regarding progress update on approval is removed to prevent double counting
+        # Progress is calculated in student_api.py based on unique submissions
+
+
+    db.session.commit()
+    return jsonify({"message": "Submission updated successfully", "status": submission.status})
 
 # ================= FEEDBACK =================
 @trainer_bp.route("/trainer/feedback", methods=["POST"])

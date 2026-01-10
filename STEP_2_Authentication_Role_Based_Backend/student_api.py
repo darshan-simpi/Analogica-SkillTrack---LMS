@@ -42,28 +42,15 @@ def student_progress():
         
         progress = StudentProgress.query.filter_by(user_id=student_id, course_id=course.id).first()
         
-        # Get submissions count for this student for THIS course
-        submissions = Submission.query.filter_by(student_id=student_id).all()
-        course_assignments = Assignment.query.filter_by(course_id=course.id).all()
-        course_assignment_ids = {a.id for a in course_assignments}
-        # Count unique assignments submitted for this course
-        completed_count = len({s.assignment_id for s in submissions if s.assignment_id in course_assignment_ids})
-        
-        required_count = get_required_assignments(course.duration)
-        total_assignments = required_count
-        
-        progress_val = int((completed_count / max(total_assignments, 1)) * 100) if total_assignments > 0 else 0
-        dynamic_progress = min(progress_val, 100)
-        
-        response.append({
-            "course_id": course.id,
-            "course_name": course.name,
-            "status": "Completed" if dynamic_progress >= 100 else (progress.status if progress else "Active"),
-            "progress": dynamic_progress,
-            "assignments_completed": completed_count,
-            "total_assignments": total_assignments,
-            "duration": course.duration
-        })
+        if progress:
+            response.append({
+                "course_id": course.id,
+                "course_name": course.name,
+                "progress": min(progress.progress, 100),
+                "status": progress.status,
+                "assignments_completed": progress.assignments_completed,
+                "total_assignments": progress.total_assignments
+            })
 
     return jsonify(response), 200
 
@@ -114,40 +101,28 @@ def student_dashboard():
             expected_due_date = (start_date_obj + timedelta(weeks=i)).strftime('%Y-%m-%d')
             
             real_a = actual_assignments.get(i)
-            is_submitted = real_a.id in submitted_assignment_ids if real_a else False
-            target_due_date = real_a.due_date if (real_a and real_a.due_date) else expected_due_date
+            # Determine previous assignment's due date
+            prev_due_date_obj = start_date_obj + timedelta(weeks=i-1)
+            is_past_prev_due_date = datetime.utcnow() >= prev_due_date_obj
 
-            # Visibility Logic:
-            # - Week 1 is always revealed
-            # - Subsequent weeks reveal ONLY if all previous assignments are submitted
             if i == 1:
                 is_data_revealed = True
             else:
+                # Rule: Reveal content as soon as previous is submitted (User Request: "unmask wht the assignment is")
                 is_data_revealed = can_reveal_next
-            
-            # ✅ NEW: If revealed but not in DB, create a placeholder assignment 
-            # so the student has an ID to submit against.
-            if is_data_revealed and real_a is None:
-                try:
-                    new_a = Assignment(
-                        course_id=course.id,
-                        title=f"Weekly Assignment {i}",
-                        week_number=i,
-                        due_date=expected_due_date,
-                        is_released=True
-                    )
-                    db.session.add(new_a)
-                    db.session.commit()
-                    real_a = new_a
-                except Exception as ex:
-                    db.session.rollback()
-                    print(f"Error auto-creating assignment: {ex}")
 
+            # Define variables that were missing
+            is_submitted = real_a.id in submitted_assignment_ids if real_a else False
+            target_due_date = real_a.due_date if (real_a and real_a.due_date) else expected_due_date
+
+            
             # Submittability logic: 
             # - Must be revealed
             # - Must be a real assignment (not a placeholder)
             # - Must not already be submitted
-            is_submittable = is_data_revealed and (real_a is not None) and not is_submitted
+            # - Rule: Submission button unlocks only after previous due date ("submission button should work only when last assignment due is done")
+            is_unlocked_by_date = (i == 1) or is_past_prev_due_date
+            is_submittable = is_data_revealed and (real_a is not None) and not is_submitted and is_unlocked_by_date
             
             assignments_list.append({
                 "id": real_a.id if real_a else None,
@@ -166,9 +141,10 @@ def student_dashboard():
             if is_submitted:
                 completed_count += 1
 
-        # Calculate dynamic progress
-        total_count = required_count
-        progress_val = int((completed_count / max(total_count, 1)) * 100) if total_count > 0 else 0
+        # Calculate dynamic progress based on actual assignments
+        # Use required_count as total to reflect Course Progress
+        total_count = required_count 
+        progress_val = int((completed_count / max(total_count, 1)) * 100)
         dynamic_progress = min(progress_val, 100)
 
         # Check if certificate already exists
@@ -181,7 +157,9 @@ def student_dashboard():
             "progress": dynamic_progress,
             "assignments": assignments_list,
             "can_generate_certificate": dynamic_progress >= 100,
-            "certificate_url": cert_url
+            "certificate_url": cert_url,
+            "total_assignments": total_count,
+            "assignments_completed": completed_count
         })
 
     return jsonify(response), 200
