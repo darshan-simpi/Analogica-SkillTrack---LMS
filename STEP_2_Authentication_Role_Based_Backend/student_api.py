@@ -59,6 +59,43 @@ def student_progress():
 @jwt_required()
 def student_dashboard():
     student_id = int(get_jwt_identity())
+    student = User.query.get(student_id)
+
+    # ✅ 1. STUDY STREAK LOGIC
+    today_date = datetime.utcnow().date()
+    yesterday = today_date - timedelta(days=1)
+    
+    # If no activity recorded yet, or last activity was NOT today
+    if student.last_activity_date != today_date:
+        if student.last_activity_date == yesterday:
+            student.current_streak += 1
+        elif student.last_activity_date != today_date:
+             # Broken streak (unless it's the very first time, handled by 0 default)
+             # If last activity was older than yesterday, reset to 1 (active today)
+             student.current_streak = 1
+        
+        student.last_activity_date = today_date
+        db.session.commit()
+
+    # ✅ 2. OVERALL GRADE LOGIC
+    # Get all submissions that have a grade
+    all_submissions = Submission.query.filter_by(student_id=student_id).all()
+    valid_grades = []
+    
+    for s in all_submissions:
+        if s.grade:
+            try:
+                # Remove '%' if present and convert to float
+                clean_grade = s.grade.replace('%', '').strip()
+                valid_grades.append(float(clean_grade))
+            except ValueError:
+                pass # Ignore non-numeric grades like "A", "Pass"
+    
+    if len(valid_grades) > 0:
+        overall_grade = int(sum(valid_grades) / len(valid_grades))
+        overall_grade_str = f"{overall_grade}%"
+    else:
+        overall_grade_str = "N/A"
 
     enrollments = Enrollment.query.filter_by(user_id=student_id).all()
     response = []
@@ -162,7 +199,11 @@ def student_dashboard():
             "assignments_completed": completed_count
         })
 
-    return jsonify(response), 200
+    return jsonify({
+        "courses": response,
+        "study_streak": student.current_streak,
+        "overall_grade": overall_grade_str
+    }), 200
 
 
 @student_bp.route("/student/submit", methods=["POST"])
@@ -224,6 +265,7 @@ def get_course_resources(course_id):
         "type": r.type,
         "url": r.url
     } for r in resources]), 200
+
 
 def generate_certificate_pdf(student_name, course_name, output_path):
     c = canvas.Canvas(output_path, pagesize=landscape(letter))

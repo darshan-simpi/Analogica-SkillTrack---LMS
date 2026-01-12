@@ -143,6 +143,11 @@ async function viewSubmissions(assignmentId) {
             <td>${s.student_name}</td>
             <td><a href="${BASE_URL}/${s.file_url}" target="_blank" class="view-link">View File</a></td>
             <td>
+              <input class="feedback-input" placeholder="Grade (e.g. 90%)" value="${s.grade || ""}" 
+                style="width: 80px; text-align: center;"
+                onchange="updateSubmission(${s.submission_id}, {grade: this.value})">
+            </td>
+            <td>
               <input class="feedback-input" placeholder="Feedback" value="${s.feedback || ""}"
                 onchange="updateSubmission(${s.submission_id}, {feedback: this.value})">
             </td>
@@ -272,6 +277,11 @@ async function loadCourseSubmissions(courseId) {
             <td>
               <div style="font-size: 0.8em; color: #64748b; margin-bottom: 4px;">Task: ${s.assignment_title || 'N/A'}</div>
               <a href="${BASE_URL}/${s.file_url}" target="_blank" class="view-link">View File</a>
+            </td>
+            <td>
+              <input class="feedback-input" placeholder="Grade" value="${s.grade || ""}" 
+                style="width: 80px;"
+                onchange="updateSubmission(${s.submission_id}, {grade: this.value})">
             </td>
             <td>
               <input class="feedback-input" placeholder="Feedback" value="${s.feedback || ""}"

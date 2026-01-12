@@ -252,11 +252,19 @@ async function loadAssignments() {
 
     const rawData = await res.json();
 
-    // 🔴 FIX: extract array safely
-    const dashboardData = Array.isArray(rawData)
-      ? rawData
-      : rawData.courses || [];
-    ;
+    // ✅ Handle New API Format (Dict with courses, study_streak, overall_grade)
+    const dashboardData = Array.isArray(rawData) ? rawData : (rawData.courses || []);
+
+    // Update Streak & Grade UI
+    if (rawData.study_streak !== undefined) {
+        const streakEl = document.getElementById("studyStreak");
+        if (streakEl) streakEl.innerText = rawData.study_streak + " Days";
+    }
+
+    if (rawData.overall_grade) {
+         const gradeEl = document.getElementById("overallGrade");
+         if (gradeEl) gradeEl.innerText = rawData.overall_grade;
+    }
 
     if (dashboardData.length === 0) {
       document.getElementById("assignmentList").innerHTML = "<p>You are not enrolled in any courses with assignments.</p>";

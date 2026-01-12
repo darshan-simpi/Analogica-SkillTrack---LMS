@@ -64,6 +64,16 @@ def create_app():
 
     with app.app_context():
         db.create_all()
+        
+        # ✅ FIX: Ensure DB has new columns (since we don't have migrations)
+        try:
+            with db.engine.connect() as conn:
+                conn.execute(db.text("ALTER TABLE users ADD COLUMN last_activity_date DATE"))
+                conn.execute(db.text("ALTER TABLE users ADD COLUMN current_streak INTEGER DEFAULT 0"))
+                print("✅ Added new columns to users table")
+        except Exception:
+            pass # Columns likely already exist
+
         create_default_admin()
         
     return app
