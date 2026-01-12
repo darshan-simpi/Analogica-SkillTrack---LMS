@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models import Course, Enrollment, Assignment, Submission, User, CourseResource, StudentProgress
+from models import Course, Enrollment, Assignment, Submission, User, CourseResource, StudentProgress, Internship, Task, TaskSubmission, InternshipResource
 from extensions import db
 from werkzeug.utils import secure_filename
 import os
@@ -18,18 +18,37 @@ def trainer_dashboard():
         return jsonify({"error": "Unauthorized"}), 403
 
     courses = Course.query.filter_by(mentor_name=trainer.name).all()
+    internships = Internship.query.filter_by(mentor_name=trainer.name).all()
 
-    response = []
+    course_list = []
     for c in courses:
         students = Enrollment.query.filter_by(course_id=c.id).count()
-        response.append({
+        course_list.append({
             "course_id": c.id,
             "course_name": c.name,
             "students": students,
             "duration": c.duration
         })
 
-    return jsonify(response), 200
+    internship_list = []
+    for i in internships:
+        # Assuming Task model tracks assigned_to for interns
+        # For simple parity, we just show the internship name and duration
+        internship_list.append({
+            "internship_id": i.id,
+            "intern_name": i.intern_name,
+            "duration": i.duration
+        })
+
+    return jsonify({
+        "courses": course_list,
+        "internships": internship_list
+    }), 200
+
+
+# ================= INTERNSHIP TASKS =================
+
+# ================= ASSIGN ASSIGNMENT =================
 
 
 # ================= ASSIGN ASSIGNMENT =================
@@ -262,4 +281,161 @@ def delete_resource(resource_id):
     resource = CourseResource.query.get_or_404(resource_id)
     db.session.delete(resource)
     db.session.commit()
-    return jsonify({"message": "Deleted"})
+# ================= INTERNSHIP TASKS =================
+@trainer_bp.route("/trainer/internship/<int:internship_id>/tasks", methods=["GET"])
+@jwt_required()
+def get_internship_tasks(internship_id):
+    tasks = Task.query.filter_by(internship_id=internship_id).all()
+    return jsonify([{
+        "id": t.id,
+        "title": t.title,
+        "week_number": t.week_number,
+        "due_date": t.due_date
+    } for t in sorted(tasks, key=lambda x: (x.week_number, x.due_date or ""))])
+
+@trainer_bp.route("/trainer/internship/assign", methods=["POST"])
+@jwt_required()
+def assign_intern_task():
+    data = request.get_json()
+    internship = Internship.query.get_or_404(data["internship_id"])
+    
+    # 🔍 ROBUST DURATION PARSING
+    max_tasks = 4 # Fallback
+    try:
+        duration_str = internship.duration.lower()
+        import re
+        match = re.search(r'(\d+)', duration_str)
+        num = int(match.group(1)) if match else 1
+        
+        if "month" in duration_str:
+            max_tasks = num * 4
+        elif "week" in duration_str:
+            max_tasks = num
+    except Exception:
+        pass
+        
+    current_count = Task.query.filter_by(internship_id=internship.id).count()
+    if current_count >= max_tasks:
+        return jsonify({"error": f"Limit reached! This is a {internship.duration} internship (Max {max_tasks} tasks)."}), 400
+        
+    week_num = current_count + 1
+    
+    # Create the task
+    # We need to know WHO to assign it to. 
+    # Usually, an Internship record should probably have an intern_id, but the current model just has intern_name.
+    # We'll try to find a user with that name and role INTERN.
+    intern = User.query.filter_by(name=internship.intern_name, role="INTERN").first()
+    
+    task = Task(
+        title=data["title"],
+        due_date=data["due_date"],
+        week_number=week_num,
+        internship_id=internship.id,
+        assigned_by=get_jwt_identity(),
+        assigned_to=intern.id if intern else get_jwt_identity() # Fallback
+    )
+    db.session.add(task)
+    db.session.commit()
+    return jsonify({"message": "Task assigned"}), 201
+
+@trainer_bp.route("/trainer/task/<int:task_id>", methods=["PUT"])
+@jwt_required()
+def update_intern_task(task_id):
+    data = request.get_json()
+    task = Task.query.get_or_404(task_id)
+    if "title" in data: task.title = data["title"]
+    if "due_date" in data: task.due_date = data["due_date"]
+    db.session.commit()
+    return jsonify({"message": "Task updated"}), 200
+
+@trainer_bp.route("/trainer/task/<int:task_id>", methods=["DELETE"])
+@jwt_required()
+def delete_intern_task(task_id):
+    task = Task.query.get_or_404(task_id)
+    db.session.delete(task)
+    db.session.commit()
+    return jsonify({"message": "Task deleted"}), 200
+
+# ================= INTERNSHIP SUBMISSIONS =================
+@trainer_bp.route("/trainer/internship/<int:internship_id>/submissions", methods=["GET"])
+@jwt_required()
+def get_internship_submissions(internship_id):
+    tasks = Task.query.filter_by(internship_id=internship_id).all()
+    task_ids = [t.id for t in tasks]
+    
+    submissions = TaskSubmission.query.filter(TaskSubmission.task_id.in_(task_ids)).all()
+
+    result = []
+    for s in submissions:
+        student = User.query.get(s.student_id)
+        task = Task.query.get(s.task_id)
+
+        result.append({
+            "submission_id": s.id,
+            "student_name": student.name if student else "Unknown",
+            "task_title": task.title if task else "Unknown",
+            "file_url": s.file_path,
+            "feedback": s.feedback,
+            "grade": s.grade,
+            "status": s.status
+        })
+
+    return jsonify(result), 200
+
+@trainer_bp.route("/trainer/task_submission/update", methods=["POST"])
+@jwt_required()
+def update_task_submission():
+    data = request.get_json()
+    submission = TaskSubmission.query.get_or_404(data["submission_id"])
+    
+    if "feedback" in data: submission.feedback = data["feedback"]
+    if "grade" in data: submission.grade = data["grade"]
+    if "status" in data: submission.status = data["status"]
+
+    db.session.commit()
+    return jsonify({"message": "Task Submission updated", "status": submission.status})
+
+
+# ================= INTERNSHIP RESOURCES =================
+@trainer_bp.route("/trainer/internship/<int:internship_id>/resource/upload", methods=["POST"])
+@jwt_required()
+def upload_internship_resource(internship_id):
+    file = request.files.get("file")
+    title = request.form.get("title")
+
+    if not file: return jsonify({"error": "File required"}), 400
+
+    os.makedirs("uploads/resources", exist_ok=True)
+    filename = secure_filename(file.filename)
+    path = f"uploads/resources/{filename}"
+    file.save(path)
+
+    resource = InternshipResource(
+        internship_id=internship_id,
+        title=title,
+        type=file.content_type,
+        url=path
+    )
+
+    db.session.add(resource)
+    db.session.commit()
+    return jsonify({"message": "Resource uploaded"}), 201
+
+@trainer_bp.route("/trainer/internship/<int:internship_id>/resources", methods=["GET"])
+@jwt_required()
+def get_internship_resources(internship_id):
+    resources = InternshipResource.query.filter_by(internship_id=internship_id).all()
+    return jsonify([{
+        "id": r.id,
+        "title": r.title,
+        "type": r.type,
+        "url": r.url
+    } for r in resources])
+
+@trainer_bp.route("/trainer/internship/resource/<int:resource_id>", methods=["DELETE"])
+@jwt_required()
+def delete_internship_resource(resource_id):
+    resource = InternshipResource.query.get_or_404(resource_id)
+    db.session.delete(resource)
+    db.session.commit()
+    return jsonify({"message": "Resource deleted"}), 200

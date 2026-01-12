@@ -19,7 +19,7 @@
         <li class="active" onclick="showSection('dashboard')">Dashboard</li>
         <li onclick="showSection('courses')">Courses</li>
         <li onclick="showSection('internships')">Internships</li>
-        <li onclick="showSection('workshops')">Workshops</li>
+
         <li onclick="logout()">Logout</li>
       </ul>
     </aside>
@@ -58,15 +58,7 @@
             <p id="totalInterns" class="number green">0</p>
           </div>
 
-          <div class="card">
-            <h4>Total Workshops</h4>
-            <p id="totalWorkshops" class="number red">0</p>
-          </div>
 
-          <div class="card">
-            <h4>Total Attenders</h4>
-            <p id="totalAttenders" class="number red">0</p>
-          </div>
 
         </div>
       </section>
@@ -153,6 +145,92 @@
               </tr>
             </thead>
             <tbody id="resourceTable"></tbody>
+          </table>
+        </div>
+
+      </section>
+
+      <!-- INTERNSHIPS -->
+      <section id="internships" class="section hidden">
+        <h2>My Internships</h2>
+        <div id="trainerInternships" class="course-cards"></div>
+      </section>
+
+      <!-- MANAGE INTERNSHIP -->
+      <section id="manageInternship" class="section hidden">
+        <button class="back-btn" onclick="showSection('internships')">← Back to Internships</button>
+        <h2 id="internshipTitle"></h2>
+
+        <!-- Tabs -->
+        <div class="tabs">
+          <button onclick="switchInternTab('internshipTasks')" class="tab active">Assignments</button>
+          <button onclick="switchInternTab('internshipSubmissions')" class="tab">Submissions</button>
+          <button onclick="switchInternTab('internshipResources')" class="tab">Resources</button>
+        </div>
+
+        <!-- ASSIGNMENTS (TASKS) -->
+        <div id="internshipTasks" class="tab-content active">
+          <h3>Create / Update Task</h3>
+          <input id="internTaskTitle" placeholder="Task Title">
+          <input type="date" id="internTaskDue">
+          <div style="display:inline-block">
+            <button id="saveInternTaskBtn" onclick="createInternTask()">Save Task</button>
+            <button id="cancelInternTaskEditBtn" onclick="cancelInternTaskEdit()"
+              style="display:none; background:#64748b; margin-left:10px">Cancel</button>
+          </div>
+
+          <table style="width:100%; margin-top:15px">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Due Date</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="internTaskTable"></tbody>
+          </table>
+        </div>
+
+        <!-- INTERNSHIP SUBMISSIONS -->
+        <div id="internshipSubmissions" class="tab-content">
+          <h3>Intern Submissions</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Intern</th>
+                <th>Task</th>
+                <th>File</th>
+                <th>Grade</th>
+                <th>Feedback</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="internSubmissionTable"></tbody>
+          </table>
+        </div>
+
+        <!-- INTERNSHIP RESOURCES -->
+        <div id="internshipResources" class="tab-content">
+          <h3>Internship Resources</h3>
+          <input id="internResourceTitle" placeholder="Resource Title">
+          <select id="internResourceType">
+            <option value="pdf">PDF</option>
+            <option value="doc">Word</option>
+            <option value="xls">Excel</option>
+            <option value="video">Video</option>
+          </select>
+          <input type="file" id="internResourceFile">
+          <button onclick="addInternResource()">Add Resource</button>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Type</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="internResourceTable"></tbody>
           </table>
         </div>
 

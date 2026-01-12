@@ -65,14 +65,25 @@ def create_app():
     with app.app_context():
         db.create_all()
         
-        # ✅ FIX: Ensure DB has new columns (since we don't have migrations)
-        try:
-            with db.engine.connect() as conn:
+        # ✅ FIX:        # Schema updates (Individual checks)
+        with db.engine.connect() as conn:
+            try:
                 conn.execute(db.text("ALTER TABLE users ADD COLUMN last_activity_date DATE"))
+            except Exception: pass
+            
+            try:
                 conn.execute(db.text("ALTER TABLE users ADD COLUMN current_streak INTEGER DEFAULT 0"))
-                print("✅ Added new columns to users table")
-        except Exception:
-            pass # Columns likely already exist
+            except Exception: pass
+            
+            try:
+                conn.execute(db.text("ALTER TABLE tasks ADD COLUMN week_number INTEGER DEFAULT 1"))
+            except Exception: pass
+            
+            try:
+                conn.execute(db.text("ALTER TABLE tasks ADD COLUMN internship_id INTEGER"))
+            except Exception: pass
+            
+            print("✅ Verified DB Schema")
 
         create_default_admin()
         

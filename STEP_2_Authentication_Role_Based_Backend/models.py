@@ -138,6 +138,7 @@ class Task(db.Model):
 
     status = db.Column(db.String(50), default="Pending")
     priority = db.Column(db.String(20), default="Medium")
+    week_number = db.Column(db.Integer, default=1)   # ✅ Added for parity with Assignments
     due_date = db.Column(db.String(50))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 
@@ -162,6 +163,7 @@ class Assignment(db.Model):
     submissions = db.relationship("Submission", backref="assignment", lazy=True)
 
 # ================= SUBMISSIONS =================
+# ================= SUBMISSIONS =================
 class Submission(db.Model):
     __tablename__ = "submissions"
 
@@ -179,7 +181,31 @@ class Submission(db.Model):
         nullable=False
     )
 
-    file_path = db.Column(db.String(255))   # ✅ NEW
+    file_path = db.Column(db.String(255))
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
+    feedback = db.Column(db.String(255))
+    status = db.Column(db.String(50), default="Pending")
+    grade = db.Column(db.String(50))
+
+# ================= TASK SUBMISSIONS (INTERNSHIPS) =================
+class TaskSubmission(db.Model):
+    __tablename__ = "task_submissions"
+
+    id = db.Column(db.Integer, primary_key=True)
+
+    task_id = db.Column(
+        db.Integer,
+        db.ForeignKey("tasks.id"),
+        nullable=False
+    )
+
+    student_id = db.Column(
+        db.Integer,
+        db.ForeignKey("users.id"),
+        nullable=False
+    )
+
+    file_path = db.Column(db.String(255))
     submitted_at = db.Column(db.DateTime, default=datetime.utcnow)
     feedback = db.Column(db.String(255))
     status = db.Column(db.String(50), default="Pending")
@@ -194,6 +220,17 @@ class CourseResource(db.Model):
     course_id = db.Column(db.Integer, db.ForeignKey("courses.id"), nullable=False)
     title = db.Column(db.String(150), nullable=False)
     type = db.Column(db.String(50))  # 'book', 'youtube', 'article'
+    url = db.Column(db.String(500))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# ================= INTERNSHIP RESOURCES =================
+class InternshipResource(db.Model):
+    __tablename__ = "internship_resources"
+
+    id = db.Column(db.Integer, primary_key=True)
+    internship_id = db.Column(db.Integer, db.ForeignKey("internships.id"), nullable=False)
+    title = db.Column(db.String(150), nullable=False)
+    type = db.Column(db.String(50))
     url = db.Column(db.String(500))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
 

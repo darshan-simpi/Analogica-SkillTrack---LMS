@@ -26,23 +26,41 @@ async function loadTrainerCourses() {
     headers: { Authorization: `Bearer ${token}` }
   });
 
-  const courses = await res.json();
-  const container = document.getElementById("trainerCourses");
-  container.innerHTML = "";
+  const data = await res.json();
+  const courses = data.courses || [];
+  const internships = data.internships || [];
 
+  // Update Courses
+  const courseContainer = document.getElementById("trainerCourses");
+  courseContainer.innerHTML = "";
   document.getElementById("totalCourses").innerText = courses.length;
-  document.getElementById("totalStudents").innerText =
-    courses.reduce((a, b) => a + b.students, 0);
+  document.getElementById("totalStudents").innerText = courses.reduce((a, b) => a + b.students, 0);
 
   courses.forEach(c => {
-    container.innerHTML += `
+    courseContainer.innerHTML += `
       <div class="course-card">
         <h3>${c.course_name}</h3>
         <p>${c.students} Students</p>
         <p>${c.duration}</p>
-        <button onclick="openCourse(${c.course_id}, '${c.course_name}')">
-          Manage Course
-        </button>
+        <button onclick="openCourse(${c.course_id}, '${c.course_name}')">Manage Course</button>
+      </div>
+    `;
+  });
+
+  // Update Internships
+  const internContainer = document.getElementById("trainerInternships");
+  internContainer.innerHTML = "";
+  document.getElementById("totalInternships").innerText = internships.length;
+  // (Total Interns calculation depends on logic, but for now we set it)
+  document.getElementById("totalInterns").innerText = internships.length;
+
+  internships.forEach(i => {
+    internContainer.innerHTML += `
+      <div class="course-card">
+        <h3>${i.intern_name}</h3>
+        <p>Internship</p>
+        <p>${i.duration}</p>
+        <button onclick="openInternship(${i.internship_id}, '${i.intern_name}')">Manage Internship</button>
       </div>
     `;
   });
@@ -383,6 +401,251 @@ function switchTab(tab, preventReload = false) {
     loadCourseSubmissions(selectedCourseId);
   }
 }
+/* ================= INTERNSHIPS ================= */
+/* ================= INTERNSHIPS ================= */
+let selectedInternshipId = null;
+let editingTaskId = null;
+let filterTaskId = null; // ✅ Global filter state
+
+function openInternship(id, name) {
+  selectedInternshipId = id;
+  showSection("manageInternship");
+  document.getElementById("internshipTitle").innerText = "Internship: " + name;
+  switchInternTab('internshipTasks'); // Default tab
+}
+
+function switchInternTab(tabId) {
+  document.querySelectorAll("#manageInternship .tab-content").forEach(c => c.classList.remove("active"));
+  document.querySelectorAll("#manageInternship .tab").forEach(t => t.classList.remove("active"));
+
+  document.getElementById(tabId).classList.add("active");
+  // Highlight active tab button logic (simple matching)
+  const buttons = document.querySelectorAll("#manageInternship .tab");
+  if (tabId === 'internshipTasks') buttons[0].classList.add("active");
+  if (tabId === 'internshipSubmissions') {
+    buttons[1].classList.add("active");
+    loadInternshipSubmissions();
+  } else {
+    filterTaskId = null; // ✅ Reset filter when leaving Submissions tab
+  }
+
+  if (tabId === 'internshipResources') {
+    buttons[2].classList.add("active");
+    loadInternshipResources();
+  }
+
+  if (tabId === 'internshipTasks') loadInternshipTasks();
+}
+
+async function createInternTask() {
+  const title = internTaskTitle.value;
+  const due = internTaskDue.value;
+
+  if (!title) return alert("Title is required");
+
+  if (editingTaskId) {
+    await fetch(`${API}/trainer/task/${editingTaskId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ title, due_date: due })
+    });
+    alert("Task updated successfully");
+  } else {
+    const res = await fetch(`${API}/trainer/internship/assign`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        internship_id: selectedInternshipId,
+        title,
+        due_date: due
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      // Handle database errors specifically if needed
+      alert(data.error || "Failed to create task");
+      return;
+    }
+    alert("Task assigned successfully");
+  }
+
+  cancelInternTaskEdit();
+  loadInternshipTasks();
+}
+
+async function loadInternshipTasks() {
+  const res = await fetch(`${API}/trainer/internship/${selectedInternshipId}/tasks`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+
+  if (!res.ok) return; // Fail silently or show empty
+
+  const data = await res.json();
+  const container = document.getElementById("internTaskTable");
+  container.innerHTML = "";
+
+  if (data.length === 0) {
+    container.innerHTML = "<tr><td colspan='3'>No tasks yet</td></tr>";
+    return;
+  }
+
+  data.forEach(t => {
+    const safeTitle = (t.title || "").replace(/'/g, "\\'");
+    container.innerHTML += `
+      <tr>
+        <td>Week ${t.week_number}: <b>${t.title}</b></td>
+        <td>${t.due_date || "No Date"}</td>
+        <td>
+           <button onclick="editInternTask(${t.id}, '${safeTitle}', '${t.due_date}')" class="btn-small">Edit</button>
+           <button onclick="deleteInternTask(${t.id})" class="btn-small">Delete</button>
+           <button onclick="filterInternSubmissions(${t.id})" class="btn-small">Submissions</button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+function filterInternSubmissions(taskId) {
+  filterTaskId = taskId;
+  switchInternTab('internshipSubmissions');
+}
+
+function editInternTask(id, title, due) {
+  editingTaskId = id;
+  document.getElementById("internTaskTitle").value = title;
+  document.getElementById("internTaskDue").value = due && due !== 'null' ? due : "";
+  document.getElementById("saveInternTaskBtn").innerText = "Update Task";
+  document.getElementById("cancelInternTaskEditBtn").style.display = "inline-block";
+}
+
+function cancelInternTaskEdit() {
+  editingTaskId = null;
+  document.getElementById("internTaskTitle").value = "";
+  document.getElementById("internTaskDue").value = "";
+  document.getElementById("saveInternTaskBtn").innerText = "Save Task";
+  document.getElementById("cancelInternTaskEditBtn").style.display = "none";
+}
+
+async function deleteInternTask(id) {
+  if (!confirm("Are you sure?")) return;
+  await fetch(`${API}/trainer/task/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  loadInternshipTasks();
+}
+
+/* ================= INTERNSHIP SUBMISSIONS ================= */
+async function loadInternshipSubmissions() {
+  const res = await fetch(`${API}/trainer/internship/${selectedInternshipId}/submissions`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const data = await res.json();
+  const container = document.getElementById("internSubmissionTable");
+  container.innerHTML = "";
+
+  if (data.length === 0) {
+    container.innerHTML = "<tr><td colspan='6'>No submissions yet</td></tr>";
+    return;
+  }
+
+  // ✅ Client-side filtering
+  const filteredData = filterTaskId
+    ? data.filter(s => s.task_id === filterTaskId)
+    : data; // Show all if no filter
+
+  if (filterTaskId && filteredData.length === 0) {
+    container.innerHTML = "<tr><td colspan='6'>No submissions for this task</td></tr>";
+    return;
+  }
+
+  filteredData.forEach(s => {
+    container.innerHTML += `
+      <tr>
+        <td>${s.student_name}</td>
+        <td>${s.task_title}</td>
+        <td><a href="${API}/${s.file_url}" target="_blank">View File</a></td>
+        <td><input value="${s.grade || ''}" id="grade-${s.submission_id}" style="width:50px"></td>
+        <td><input value="${s.feedback || ''}" id="feed-${s.submission_id}"></td>
+        <td>
+          <button class="btn-small" onclick="updateInternSubmission(${s.submission_id})">Save</button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+async function updateInternSubmission(id) {
+  const grade = document.getElementById(`grade-${id}`).value;
+  const feedback = document.getElementById(`feed-${id}`).value;
+
+  await fetch(`${API}/trainer/task_submission/update`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ submission_id: id, grade, feedback, status: "Graded" })
+  });
+  alert("Feedback Saved");
+}
+
+/* ================= INTERNSHIP RESOURCES ================= */
+async function loadInternshipResources() {
+  const res = await fetch(`${API}/trainer/internship/${selectedInternshipId}/resources`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const data = await res.json();
+  const container = document.getElementById("internResourceTable");
+  container.innerHTML = "";
+
+  data.forEach(r => {
+    container.innerHTML += `
+          <tr>
+              <td><a href="${API}/${r.url}" target="_blank">${r.title}</a></td>
+              <td>${r.type}</td>
+              <td><button onclick="deleteInternResource(${r.id})" class="btn-small" style="background:red">Delete</button></td>
+          </tr>
+      `;
+  });
+}
+
+async function addInternResource() {
+  const fileInput = document.getElementById("internResourceFile");
+  const title = document.getElementById("internResourceTitle").value;
+
+  if (!fileInput.files[0] || !title) return alert("File and Title required");
+
+  const formData = new FormData();
+  formData.append("file", fileInput.files[0]);
+  formData.append("title", title);
+
+  await fetch(`${API}/trainer/internship/${selectedInternshipId}/resource/upload`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${token}` },
+    body: formData
+  });
+
+  alert("Resource Uploaded");
+  document.getElementById("internResourceTitle").value = "";
+  fileInput.value = "";
+  loadInternshipResources();
+}
+
+async function deleteInternResource(id) {
+  if (!confirm("Delete this resource?")) return;
+  await fetch(`${API}/trainer/internship/resource/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  loadInternshipResources();
+}
+
+
 function logout() {
   localStorage.clear();
   window.location.href = "index.html";
