@@ -38,10 +38,40 @@ def trainer_dashboard():
 def assign_assignment():
     data = request.get_json()
 
+    course = Course.query.get_or_404(data["course_id"])
+    
+    # 🔍 ROBUST DURATION PARSING
+    max_assignments = 4 # Fallback
+    try:
+        duration_str = course.duration.lower()
+        # Extract number (e.g., "1 week" -> 1, "2 Months" -> 2)
+        import re
+        match = re.search(r'(\d+)', duration_str)
+        num = int(match.group(1)) if match else 1
+        
+        if "month" in duration_str:
+            max_assignments = num * 4
+        elif "week" in duration_str:
+            max_assignments = num
+    except Exception:
+        pass # Keep fallback 4 if parsing fails
+        
+    # Check 1: Count Limit
+    current_count = Assignment.query.filter_by(course_id=course.id).count()
+    if current_count >= max_assignments:
+        return jsonify({"error": f"Limit reached! This is a {course.duration} course (Max {max_assignments} assignments)."}), 400
+        
+    # ✅ AUTO-CALCULATE WEEK
+    week_num = current_count + 1
+    
+    # Check 2: Week Limit
+    if week_num > max_assignments:
+        return jsonify({"error": f"Cannot add Week {week_num}! Max week for {course.duration} course is {max_assignments}."}), 400
+
     assignment = Assignment(
         course_id=data["course_id"],
         title=data["title"],
-        week_number=data.get("week_number", 1),
+        week_number=week_num,
         due_date=data["due_date"],
         is_released=True
     )
@@ -67,6 +97,39 @@ def get_course_assignments(course_id):
         "week_number": a.week_number,
         "due_date": a.due_date
     } for a in sorted(assignments, key=lambda x: (x.week_number, x.due_date or ""))])
+
+
+# ================= EDIT ASSIGNMENT =================
+@trainer_bp.route("/trainer/assignment/<int:assignment_id>", methods=["PUT"])
+@jwt_required()
+def update_assignment(assignment_id):
+    data = request.get_json()
+    assignment = Assignment.query.get_or_404(assignment_id)
+
+    if "title" in data:
+        assignment.title = data["title"]
+    if "week_number" in data:
+        assignment.week_number = data["week_number"]
+    if "due_date" in data:
+        assignment.due_date = data["due_date"]
+
+    db.session.commit()
+    return jsonify({"message": "Assignment updated successfully"}), 200
+
+
+# ================= DELETE ASSIGNMENT =================
+@trainer_bp.route("/trainer/assignment/<int:assignment_id>", methods=["DELETE"])
+@jwt_required()
+def delete_assignment(assignment_id):
+    assignment = Assignment.query.get_or_404(assignment_id)
+    
+    # Optional: Delete associated submissions manually if cascade isn't set
+    # (Assuming we want to clean up)
+    Submission.query.filter_by(assignment_id=assignment_id).delete()
+    
+    db.session.delete(assignment)
+    db.session.commit()
+    return jsonify({"message": "Assignment deleted successfully"}), 200
 
 
 # ================= SUBMISSIONS =================

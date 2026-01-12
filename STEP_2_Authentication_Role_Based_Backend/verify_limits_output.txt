@@ -1,0 +1,28 @@
+--- VERIFYING ASSIGNMENT LIMITS ---
+Trainer: Darshan
+Course: Python (Duration: 1 week)
+Expected Limit: 8
+
+[Step 1] Attempting to exceed assignment count limit...
+Current Count: 1
+Attempt adding #2: Status 400
+ -> Blocked! Response: {'error': 'Limit reached! This is a 1 week course (Max 1 assignments).'}
+Attempt adding #3: Status 400
+ -> Blocked! Response: {'error': 'Limit reached! This is a 1 week course (Max 1 assignments).'}
+Attempt adding #4: Status 400
+ -> Blocked! Response: {'error': 'Limit reached! This is a 1 week course (Max 1 assignments).'}
+Attempt adding #5: Status 400
+ -> Blocked! Response: {'error': 'Limit reached! This is a 1 week course (Max 1 assignments).'}
+Attempt adding #6: Status 400
+ -> Blocked! Response: {'error': 'Limit reached! This is a 1 week course (Max 1 assignments).'}
+Attempt adding #7: Status 400
+ -> Blocked! Response: {'error': 'Limit reached! This is a 1 week course (Max 1 assignments).'}
+Attempt adding #8: Status 400
+ -> Blocked! Response: {'error': 'Limit reached! This is a 1 week course (Max 1 assignments).'}
+Attempt adding #9: Status 400
+ -> Blocked! Response: {'error': 'Limit reached! This is a 1 week course (Max 1 assignments).'}
+Attempt adding #10: Status 400
+ -> Blocked! Response: {'error': 'Limit reached! This is a 1 week course (Max 1 assignments).'}
+
+[Step 2] Auto-incrementing weeks check...
+Success: Verified by Step 1 results.

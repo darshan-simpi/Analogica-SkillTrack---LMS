@@ -66,29 +66,92 @@ function backToCourses() {
 
 
 /* ================= ASSIGNMENTS ================= */
+let editingAssignmentId = null;
+
 async function createAssignment() {
   const title = assignmentTitle.value;
   const due = assignmentDue.value;
-  const week = assignmentWeek.value || 1;
 
-  await fetch(`${API}/trainer/assign`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`
-    },
-    body: JSON.stringify({
-      course_id: selectedCourseId,
-      title,
-      week_number: week,
-      due_date: due
-    })
+  if (!title) return alert("Title is required");
+
+  // DECIDE: Create or Update?
+  if (editingAssignmentId) {
+    // UPDATE MODE
+    await fetch(`${API}/trainer/assignment/${editingAssignmentId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({ title, due_date: due })
+    });
+    alert("Assignment updated successfully");
+  } else {
+    // CREATE MODE
+    const res = await fetch(`${API}/trainer/assign`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`
+      },
+      body: JSON.stringify({
+        course_id: selectedCourseId,
+        title,
+        due_date: due
+      })
+    });
+
+    const data = await res.json();
+    if (!res.ok) {
+      alert(data.error || "Failed to create assignment");
+      return; // Stop here, don't clear form
+    }
+    alert("Assignment created successfully");
+  }
+
+  // Reset Form
+  cancelEdit();
+  loadAssignments(selectedCourseId);
+}
+
+function editAssignment(id, title, week, due) {
+  editingAssignmentId = id;
+
+  // Populate Form
+  document.getElementById("assignmentTitle").value = title;
+  document.getElementById("assignmentDue").value = due && due !== 'null' ? due : "";
+
+  // UI Updates
+  document.getElementById("saveAssignmentBtn").innerText = "Update Assignment";
+  document.getElementById("cancelEditBtn").style.display = "inline-block";
+
+  // Scroll to top
+  document.getElementById("manageCourse").scrollIntoView({ behavior: 'smooth' });
+}
+
+function cancelEdit() {
+  editingAssignmentId = null;
+
+  document.getElementById("assignmentTitle").value = "";
+  document.getElementById("assignmentDue").value = "";
+
+  document.getElementById("saveAssignmentBtn").innerText = "Save Assignment";
+  document.getElementById("cancelEditBtn").style.display = "none";
+}
+
+async function deleteAssignment(id) {
+  if (!confirm("Are you sure? This will delete the assignment and ALL student submissions associated with it.")) return;
+
+  const res = await fetch(`${API}/trainer/assignment/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` }
   });
 
-  assignmentTitle.value = "";
-  assignmentDue.value = "";
-  assignmentWeek.value = "";
-  loadAssignments(selectedCourseId);
+  if (res.ok) {
+    loadAssignments(selectedCourseId);
+  } else {
+    alert("Failed to delete assignment");
+  }
 }
 
 
@@ -107,14 +170,17 @@ async function loadAssignments(courseId) {
   }
 
   data.forEach(a => {
+    // Escape single quotes for safety in onclick
+    const safeTitle = (a.title || "").replace(/'/g, "\\'");
+
     container.innerHTML += `
       <tr>
         <td>Week ${a.week_number || 1}: <b>${a.title}</b></td>
-        <td>${a.due_date}</td>
+        <td>${a.due_date || "No Date"}</td>
         <td>
-          <button onclick="viewSubmissions(${a.id})">
-            View Submissions
-          </button>
+           <button onclick="viewSubmissions(${a.id})" class="btn-small">View</button>
+           <button onclick="editAssignment(${a.id}, '${safeTitle}', ${a.week_number}, '${a.due_date}')" class="btn-small">Edit</button>
+           <button onclick="deleteAssignment(${a.id})" class="btn-small">Delete</button>
         </td>
       </tr>
     `;
