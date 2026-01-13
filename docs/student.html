@@ -17,6 +17,7 @@
             <a class="nav active" data-page="dashboard"><i class="fa-solid fa-chart-line"></i> Dashboard</a>
             <a class="nav" data-page="courses"><i class="fa-solid fa-book"></i> Courses</a>
             <a class="nav" data-page="assignments"><i class="fa-solid fa-list-check"></i> Assignments</a>
+            <a class="nav" data-page="quizzes"><i class="fa-solid fa-brain"></i> Quizzes</a>
             <a class="nav" data-page="mentors"><i class="fa-solid fa-user-group"></i> Mentors</a>
             <a class="nav" data-page="progress"><i class="fa-solid fa-chart-pie"></i> Progress</a>
             <a class="logout" id="logoutBtn"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
@@ -110,12 +111,13 @@
                 </div>
             </section>
 
-            <section id="progress" class="page fade">
-                <h2 class="section-title">Weekly Course Breakdown</h2>
-                <div class="progress-container" id="progressContainer">
-                    <p>Loading progress...</p>
-                </div>
+            </section>
 
+            <section id="quizzes" class="page fade">
+                <h2 class="section-title">Weekly Quizzes</h2>
+                <div id="quizList">
+                    <p>Loading quizzes...</p>
+                </div>
             </section>
         </main>
     </div>
@@ -154,6 +156,18 @@
                     <p>Wait for trainer feedback...</p>
                 </div>
             </div>
+        </div>
+    </div>
+
+    <!-- Quiz Modal -->
+    <div id="quizModal" class="modal">
+        <div class="modal-content" style="max-width: 800px;">
+            <span class="close-modal" onclick="closeQuizModal()">&times;</span>
+            <h3 class="modal-title" id="quizModalTitle">Take Quiz</h3>
+            <div id="quizQuestions" class="quiz-container">
+                <!-- Populated via JS -->
+            </div>
+            <button class="btn-primary" onclick="submitQuizAnswers()" style="margin-top:20px">Submit Quiz</button>
         </div>
     </div>
 

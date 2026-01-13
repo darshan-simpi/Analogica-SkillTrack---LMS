@@ -17,6 +17,7 @@ document.addEventListener("DOMContentLoaded", () => {
   loadCourses();
   loadProgress();
   loadAssignments();
+  loadStudentQuizzes();
   loadMentors();
   setupTabs();
   setupLogout();
@@ -257,13 +258,13 @@ async function loadAssignments() {
 
     // Update Streak & Grade UI
     if (rawData.study_streak !== undefined) {
-        const streakEl = document.getElementById("studyStreak");
-        if (streakEl) streakEl.innerText = rawData.study_streak + " Days";
+      const streakEl = document.getElementById("studyStreak");
+      if (streakEl) streakEl.innerText = rawData.study_streak + " Days";
     }
 
     if (rawData.overall_grade) {
-         const gradeEl = document.getElementById("overallGrade");
-         if (gradeEl) gradeEl.innerText = rawData.overall_grade;
+      const gradeEl = document.getElementById("overallGrade");
+      if (gradeEl) gradeEl.innerText = rawData.overall_grade;
     }
 
     if (dashboardData.length === 0) {
@@ -615,6 +616,140 @@ function closeViewModal() {
 function logout() {
   localStorage.clear();
   window.location.href = "index.html";
+}
+
+/* ================= QUIZZES ================= */
+async function loadStudentQuizzes() {
+  try {
+    const res = await fetch(`${API}/student/courses`, {
+      headers: { "Authorization": `Bearer ${token}` }
+    });
+    const courses = await res.json();
+
+    const container = document.getElementById("quizList");
+    container.innerHTML = "";
+
+    if (courses.length === 0) {
+      container.innerHTML = "<p>Enroll in a course to see quizzes.</p>";
+      return;
+    }
+
+    for (const c of courses) {
+      const qRes = await fetch(`${API}/student/course/${c.id}/quizzes`, {
+        headers: { "Authorization": `Bearer ${token}` }
+      });
+      const quizzes = await qRes.json();
+
+      if (quizzes.length > 0) {
+        let quizHtml = `
+          <div class="box glow" style="margin-bottom:30px; padding:25px">
+             <h3 style="margin-bottom:20px; color:#4f46e5">${c.name} Quizzes</h3>
+             <div class="quiz-grid" style="display:flex; flex-direction:column; gap:15px">
+        `;
+
+        quizzes.forEach(q => {
+          const isVisible = q.is_visible;
+          const isSubmitted = q.is_submitted;
+          const statusText = isSubmitted ? `Score: ${q.score}/${q.total}` : (isVisible ? "Available" : "Locked 🔒");
+          const statusColor = isSubmitted ? "#22c55e" : (isVisible ? "#4f46e5" : "#94a3b8");
+
+          quizHtml += `
+            <div class="card glow" style="padding:20px; border-left: 5px solid ${statusColor}; border-top:none; display:flex; justify-content:space-between; align-items:center; opacity: ${isVisible ? 1 : 0.6}">
+              <div>
+                <span style="font-size:0.8em; font-weight:700; color:${statusColor}; text-transform:uppercase">Week ${q.week_number}</span>
+                <h4 style="margin:5px 0">${q.title}</h4>
+                <small style="color:#64748b">${isVisible ? (q.deadline ? 'Deadline: ' + q.deadline : 'No Deadline') : 'Available after previous week deadline'}</small>
+              </div>
+              <div>
+                ${isVisible && !isSubmitted ? `<button onclick="takeQuiz(${q.id}, '${q.title.replace(/'/g, "\\'")}')" class="btn-primary">Take Quiz</button>` : `<span style="font-weight:bold; color:${statusColor}">${statusText}</span>`}
+              </div>
+            </div>
+          `;
+        });
+
+        quizHtml += `</div></div>`;
+        container.innerHTML += quizHtml;
+      }
+    }
+
+    if (container.innerHTML === "") {
+      container.innerHTML = "<p>No quizzes available for your courses yet.</p>";
+    }
+  } catch (err) {
+    console.error("Failed to load quizzes", err);
+  }
+}
+
+let activeQuizId = null;
+
+async function takeQuiz(quizId, title) {
+  activeQuizId = quizId;
+  const res = await fetch(`${API}/student/quiz/${quizId}`, {
+    headers: { "Authorization": `Bearer ${token}` }
+  });
+  const quiz = await res.json();
+
+  document.getElementById("quizModalTitle").innerText = title;
+  const container = document.getElementById("quizQuestions");
+  container.innerHTML = "";
+
+  quiz.questions.forEach((q, idx) => {
+    container.innerHTML += `
+      <div class="quiz-question-box" style="margin-bottom:20px; padding:15px; background:#f8fafc; border-radius:8px">
+        <p><strong>Q${idx + 1}:</strong> ${q.text}</p>
+        <div class="options" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px">
+          <label><input type="radio" name="q${q.id}" value="A"> A) ${q.option_a}</label>
+          <label><input type="radio" name="q${q.id}" value="B"> B) ${q.option_b}</label>
+          <label><input type="radio" name="q${q.id}" value="C"> C) ${q.option_c}</label>
+          <label><input type="radio" name="q${q.id}" value="D"> D) ${q.option_d}</label>
+        </div>
+      </div>
+    `;
+  });
+
+  document.getElementById("quizModal").classList.add("show");
+}
+
+function closeQuizModal() {
+  document.getElementById("quizModal").classList.remove("show");
+}
+
+async function submitQuizAnswers() {
+  const container = document.getElementById("quizQuestions");
+  const questions = container.querySelectorAll(".quiz-question-box");
+  const answers = {};
+
+  let allAnswered = true;
+  questions.forEach(box => {
+    const radio = box.querySelector('input[type="radio"]:checked');
+    const qId = box.querySelector('input[type="radio"]').name.substring(1);
+    if (radio) {
+      answers[qId] = radio.value;
+    } else {
+      allAnswered = false;
+    }
+  });
+
+  if (!allAnswered && !confirm("You haven't answered all questions. Submit anyway?")) return;
+
+  const res = await fetch(`${API}/student/quiz/${activeQuizId}/submit`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "Authorization": `Bearer ${token}`
+    },
+    body: JSON.stringify({ answers })
+  });
+
+  if (res.ok) {
+    const data = await res.json();
+    alert(`Quiz Submitted! Your score: ${data.score}/${data.total}`);
+    closeQuizModal();
+    loadStudentQuizzes();
+  } else {
+    const data = await res.json();
+    alert(data.error || "Failed to submit quiz");
+  }
 }
 
 function setupTabs() {

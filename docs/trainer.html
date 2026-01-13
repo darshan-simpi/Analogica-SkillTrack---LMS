@@ -79,6 +79,7 @@
         <!-- Tabs -->
         <div class="tabs">
           <button onclick="switchTab('assignments')" class="tab active">Assignments</button>
+          <button onclick="switchTab('quizzes')" class="tab">Quizzes</button>
           <button onclick="switchTab('submissions')" class="tab">Submissions</button>
           <button onclick="switchTab('resources')" class="tab">Resources</button>
         </div>
@@ -120,6 +121,34 @@
               </tr>
             </thead>
             <tbody id="submissionTable"></tbody>
+          </table>
+        </div>
+
+        <!-- QUIZZES -->
+        <div id="quizzes" class="tab-content">
+          <h3>Manage Quizzes</h3>
+          <div class="quiz-form">
+            <input id="quizTitle" placeholder="Quiz Title">
+            <input type="date" id="quizDeadline">
+            <div id="questionList">
+              <!-- Questions will be added here -->
+            </div>
+            <button class="secondary-btn" onclick="addQuestionUI()">+ Add Question</button>
+            <br><br>
+            <button onclick="createQuiz()">Assign Quiz</button>
+          </div>
+
+          <table style="width:100%; margin-top:15px">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Week</th>
+                <th>Deadline</th>
+                <th>Questions</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody id="quizTable"></tbody>
           </table>
         </div>
 

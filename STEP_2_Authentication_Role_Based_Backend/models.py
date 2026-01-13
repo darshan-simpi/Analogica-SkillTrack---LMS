@@ -243,3 +243,39 @@ class Certificate(db.Model):
     course_id = db.Column(db.Integer, db.ForeignKey("courses.id"), nullable=False)
     certificate_url = db.Column(db.String(255))
     issued_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+# ================= QUIZZES =================
+class Quiz(db.Model):
+    __tablename__ = "quizzes"
+
+    id = db.Column(db.Integer, primary_key=True)
+    course_id = db.Column(db.Integer, db.ForeignKey("courses.id"), nullable=False)
+    title = db.Column(db.String(150), nullable=False)
+    week_number = db.Column(db.Integer, default=1)
+    deadline = db.Column(db.String(50))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    questions = db.relationship("Question", backref="quiz", lazy=True, cascade="all, delete-orphan")
+    submissions = db.relationship("QuizSubmission", backref="quiz", lazy=True, cascade="all, delete-orphan")
+
+class Question(db.Model):
+    __tablename__ = "questions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    quiz_id = db.Column(db.Integer, db.ForeignKey("quizzes.id"), nullable=False)
+    text = db.Column(db.Text, nullable=False)
+    option_a = db.Column(db.String(200), nullable=False)
+    option_b = db.Column(db.String(200), nullable=False)
+    option_c = db.Column(db.String(200), nullable=False)
+    option_d = db.Column(db.String(200), nullable=False)
+    correct_answer = db.Column(db.String(1), nullable=False) # 'A', 'B', 'C', or 'D'
+
+class QuizSubmission(db.Model):
+    __tablename__ = "quiz_submissions"
+
+    id = db.Column(db.Integer, primary_key=True)
+    quiz_id = db.Column(db.Integer, db.ForeignKey("quizzes.id"), nullable=False)
+    student_id = db.Column(db.Integer, db.ForeignKey("users.id"), nullable=False)
+    score = db.Column(db.Integer, nullable=False)
+    total_questions = db.Column(db.Integer, nullable=False)
+    submitted_at = db.Column(db.DateTime, default=datetime.utcnow)

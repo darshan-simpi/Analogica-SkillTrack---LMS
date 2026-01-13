@@ -76,6 +76,7 @@ function openCourse(courseId, courseName) {
   document.getElementById("courseTitle").innerText = courseName;
 
   loadAssignments(selectedCourseId);
+  loadQuizzes();
   loadResources();
 }
 function backToCourses() {
@@ -400,6 +401,144 @@ function switchTab(tab, preventReload = false) {
   if (tab === 'submissions' && !preventReload) {
     loadCourseSubmissions(selectedCourseId);
   }
+  if (tab === 'quizzes') {
+    loadQuizzes();
+  }
+}
+
+/* ================= QUIZZES ================= */
+let questionCount = 0;
+
+function addQuestionUI() {
+  questionCount++;
+  const container = document.getElementById("questionList");
+  const div = document.createElement("div");
+  div.className = "question-item";
+  div.id = `question-${questionCount}`;
+  div.innerHTML = `
+    <hr>
+    <div style="display:flex; justify-content:space-between">
+      <h4>Question ${questionCount}</h4>
+      <button onclick="removeQuestionUI(${questionCount})" style="background:red; padding:2px 5px">X</button>
+    </div>
+    <textarea placeholder="Enter Question Text" class="q-text" style="width:100%"></textarea>
+    <div class="options-grid">
+      <input placeholder="Option A" class="q-a">
+      <input placeholder="Option B" class="q-b">
+      <input placeholder="Option C" class="q-c">
+      <input placeholder="Option D" class="q-d">
+    </div>
+    <select class="q-correct">
+      <option value="">Select Correct Answer</option>
+      <option value="A">A</option>
+      <option value="B">B</option>
+      <option value="C">C</option>
+      <option value="D">D</option>
+    </select>
+  `;
+  container.appendChild(div);
+}
+
+function removeQuestionUI(id) {
+  document.getElementById(`question-${id}`).remove();
+}
+
+async function createQuiz() {
+  const title = document.getElementById("quizTitle").value;
+  const deadline = document.getElementById("quizDeadline").value;
+
+  if (!title || !deadline) return alert("Title and Deadline are required");
+
+  const questionElements = document.querySelectorAll(".question-item");
+  const questions = [];
+
+  questionElements.forEach(el => {
+    questions.push({
+      text: el.querySelector(".q-text").value,
+      option_a: el.querySelector(".q-a").value,
+      option_b: el.querySelector(".q-b").value,
+      option_c: el.querySelector(".q-c").value,
+      option_d: el.querySelector(".q-d").value,
+      correct_answer: el.querySelector(".q-correct").value
+    });
+  });
+
+  if (questions.length === 0) return alert("Add at least one question");
+
+  const res = await fetch(`${API}/trainer/quiz/assign`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`
+    },
+    body: JSON.stringify({
+      course_id: selectedCourseId,
+      title,
+      deadline,
+      questions
+    })
+  });
+
+  if (res.ok) {
+    alert("Quiz Assigned!");
+    document.getElementById("quizTitle").value = "";
+    document.getElementById("quizDeadline").value = "";
+    document.getElementById("questionList").innerHTML = "";
+    questionCount = 0;
+    loadQuizzes();
+  } else {
+    const data = await res.json();
+    alert(data.error || "Failed to assign quiz");
+  }
+}
+
+async function loadQuizzes() {
+  const res = await fetch(`${API}/trainer/course/${selectedCourseId}/quizzes`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const data = await res.json();
+  const table = document.getElementById("quizTable");
+  table.innerHTML = "";
+
+  data.forEach(q => {
+    table.innerHTML += `
+      <tr>
+        <td>Week ${q.week_number}: <b>${q.title}</b></td>
+        <td>${q.week_number}</td>
+        <td>${q.deadline}</td>
+        <td>${q.question_count} Qs</td>
+        <td>
+          <button class="btn-small" onclick="viewQuizResults(${q.id})">Results</button>
+          <button class="btn-small" style="background:red" onclick="deleteQuiz(${q.id})">Delete</button>
+        </td>
+      </tr>
+    `;
+  });
+}
+
+async function deleteQuiz(id) {
+  if (!confirm("Are you sure?")) return;
+  await fetch(`${API}/trainer/quiz/${id}`, {
+    method: "DELETE",
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  loadQuizzes();
+}
+
+async function viewQuizResults(id) {
+  const res = await fetch(`${API}/trainer/quiz/${id}/results`, {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const data = await res.json();
+
+  let msg = "Quiz Results:\n\n";
+  if (data.length === 0) msg += "No submissions yet.";
+  else {
+    data.forEach(r => {
+      msg += `${r.student_name}: ${r.score}/${r.total} (${r.submitted_at})\n`;
+    });
+  }
+  alert(msg);
 }
 /* ================= INTERNSHIPS ================= */
 /* ================= INTERNSHIPS ================= */

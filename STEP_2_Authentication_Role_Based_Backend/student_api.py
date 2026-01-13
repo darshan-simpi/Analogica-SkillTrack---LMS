@@ -8,7 +8,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor
 
-from models import Enrollment, Course, Assignment, Submission, StudentProgress, CourseResource, Certificate, User
+from models import Enrollment, Course, Assignment, Submission, StudentProgress, CourseResource, Certificate, User, Quiz, Question, QuizSubmission
 from extensions import db
 
 student_bp = Blueprint("student", __name__)
@@ -204,6 +204,117 @@ def student_dashboard():
         "study_streak": student.current_streak,
         "overall_grade": overall_grade_str
     }), 200
+
+# ================= QUIZ LOGIC =================
+@student_bp.route("/student/course/<int:course_id>/quizzes", methods=["GET"])
+@jwt_required()
+def get_student_quizzes(course_id):
+    student_id = int(get_jwt_identity())
+    course = Course.query.get_or_404(course_id)
+    
+    quizzes = Quiz.query.filter_by(course_id=course_id).all()
+    submissions = QuizSubmission.query.filter_by(student_id=student_id).all()
+    submitted_quiz_ids = {s.quiz_id for s in submissions}
+    
+    # Sort quizzes by week
+    quizzes = sorted(quizzes, key=lambda x: x.week_number)
+    
+    required_count = get_required_assignments(course.duration) # Reuse same logic
+    
+    result = []
+    can_see_next = True
+    
+    for i in range(1, required_count + 1):
+        q = next((quiz for quiz in quizzes if quiz.week_number == i), None)
+        
+        is_submitted = q.id in submitted_quiz_ids if q else False
+        is_past_deadline = False
+        
+        if q and q.deadline:
+            try:
+                deadline_obj = datetime.strptime(q.deadline, '%Y-%m-%d')
+                is_past_deadline = datetime.utcnow() >= (deadline_obj + timedelta(days=1))
+            except: pass
+
+        # Visibility Rule: shows only after previous deadline is completed
+        # "each quize should visible to the student once the first quize deadline should be completed"
+        # I interprets this as: Week N is visible if Week N-1's deadline has passed.
+        # However, for Week 1, it should always be visible (or visible once course starts).
+        
+        is_visible = False
+        if i == 1:
+            is_visible = True
+        else:
+            # Check previous quiz's deadline
+            prev_q = next((quiz for quiz in quizzes if quiz.week_number == i-1), None)
+            if prev_q and prev_q.deadline:
+                try:
+                    prev_deadline = datetime.strptime(prev_q.deadline, '%Y-%m-%d')
+                    # User: "once the first quize deadline should be completed"
+                    if datetime.utcnow() >= (prev_deadline + timedelta(days=1)):
+                        is_visible = True
+                except: pass
+
+        result.append({
+            "id": q.id if q else None,
+            "title": (q.title if q else "TBD") if is_visible else "Locked Quiz",
+            "week_number": i,
+            "deadline": q.deadline if (q and is_visible) else "Hidden",
+            "is_visible": is_visible,
+            "is_submitted": is_submitted,
+            "score": next((s.score for s in submissions if s.quiz_id == q.id), None) if (q and is_submitted) else None,
+            "total": next((s.total_questions for s in submissions if s.quiz_id == q.id), None) if (q and is_submitted) else None
+        })
+
+    return jsonify(result), 200
+
+@student_bp.route("/student/quiz/<int:quiz_id>", methods=["GET"])
+@jwt_required()
+def get_quiz_details(quiz_id):
+    quiz = Quiz.query.get_or_404(quiz_id)
+    questions = [{
+        "id": q.id,
+        "text": q.text,
+        "option_a": q.option_a,
+        "option_b": q.option_b,
+        "option_c": q.option_c,
+        "option_d": q.option_d
+    } for q in quiz.questions]
+    
+    return jsonify({
+        "id": quiz.id,
+        "title": quiz.title,
+        "questions": questions
+    }), 200
+
+@student_bp.route("/student/quiz/<int:quiz_id>/submit", methods=["POST"])
+@jwt_required()
+def submit_quiz(quiz_id):
+    student_id = int(get_jwt_identity())
+    quiz = Quiz.query.get_or_404(quiz_id)
+    data = request.get_json() # { answers: { question_id: 'A', ... } }
+    
+    if QuizSubmission.query.filter_by(student_id=student_id, quiz_id=quiz_id).first():
+        return jsonify({"error": "Already submitted"}), 400
+
+    score = 0
+    total = len(quiz.questions)
+    
+    for q in quiz.questions:
+        student_ans = data.get("answers", {}).get(str(q.id))
+        if student_ans == q.correct_answer:
+            score += 1
+            
+    submission = QuizSubmission(
+        quiz_id=quiz_id,
+        student_id=student_id,
+        score=score,
+        total_questions=total
+    )
+    db.session.add(submission)
+    db.session.commit()
+    
+    return jsonify({"message": "Quiz submitted", "score": score, "total": total}), 200
 
 
 @student_bp.route("/student/submit", methods=["POST"])

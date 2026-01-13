@@ -438,3 +438,35 @@ tbody tr:hover {
 .btn-small:last-child {
   margin-right: 0;
 }
+
+/* ================= QUIZ UI ================= */
+.quiz-form {
+  background: #f8fafc;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+}
+
+.question-item {
+  margin-bottom: 25px;
+  padding: 15px;
+  background: #fff;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+}
+
+.options-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin: 10px 0;
+}
+
+.secondary-btn {
+  background: #64748b;
+  color: #fff;
+  border: none;
+  padding: 8px 15px;
+  border-radius: 6px;
+  cursor: pointer;
+}

@@ -1,367 +1,386 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>Admin Dashboard | Analogica SkillTrack — LMS</title>
   <link rel="stylesheet" href="admin.css">
 </head>
+
 <body>
 
-<!-- 🔐 ROLE PROTECTION -->
-<script>
-  const role = localStorage.getItem("role");
-  if (!role || role !== "ADMIN") {
-    window.location.href = "index.html";
-  }
-</script>
+  <!-- 🔐 ROLE PROTECTION -->
+  <script>
+    const role = localStorage.getItem("role");
+    if (!role || role !== "ADMIN") {
+      window.location.href = "index.html";
+    }
+  </script>
 
-<div class="layout">
+  <div class="layout">
 
-  <!-- SIDEBAR -->
-  <aside class="sidebar">
-    <h2>SkillTrack</h2>
-    <ul>
-      <li onclick="showSection('dashboard')" class="active">Dashboard</li>
-      <li onclick="showSection('users')">Users</li>
-      <li onclick="showSection('courses')">Courses</li>
-      <li onclick="showSection('workshops')">Workshops</li>
-      <li onclick="showSection('internships')">Internships</li>
-      <li onclick="logout()">Logout</li>
-    </ul>
-  </aside>
+    <!-- SIDEBAR -->
+    <aside class="sidebar">
+      <h2>SkillTrack</h2>
+      <ul>
+        <li onclick="showSection('dashboard')" class="active">Dashboard</li>
+        <li onclick="showSection('users')">Users</li>
+        <li onclick="showSection('courses')">Courses</li>
+        <li onclick="showSection('workshops')">Workshops</li>
+        <li onclick="showSection('internships')">Internships</li>
+        <li onclick="logout()">Logout</li>
+      </ul>
+    </aside>
 
-  <!-- MAIN -->
-  <main class="main">
+    <!-- MAIN -->
+    <main class="main">
 
-    <!-- TOP BAR -->
-    <header class="topbar">
-      <h3 id="adminName"></h3>
-      <div class="search-box">
-  <span class="search-icon"></span>
-  <input
-    type="text"
-    id="globalSearch"
-    placeholder="Search courses, workshops, internships..."
-    onkeyup="globalSearch()"
-    class="search-input"
-  />
-</div>
+      <!-- TOP BAR -->
+      <header class="topbar">
+        <h3 id="adminName"></h3>
+        <div class="search-box">
+          <span class="search-icon"></span>
+          <input type="text" id="globalSearch" placeholder="Search courses, workshops, internships..."
+            onkeyup="globalSearch()" class="search-input" />
+        </div>
 
 
-    </header>
+      </header>
 
-    <!-- ================= DASHBOARD ================= -->
-    <section id="dashboard" class="section">
+      <!-- ================= DASHBOARD ================= -->
+      <section id="dashboard" class="section">
 
-      <section class="cards">
-        <div class="card"><h4>Total Students</h4><p>120</p></div>
-        <div class="card"><h4>Total Trainers</h4><p>8</p></div>
-        <div class="card"><h4>Total Interns</h4><p>35</p></div>
-        <div class="card"><h4>Total Courses</h4><p id="courseCount">0</p></div>
+        <section class="cards">
+          <div class="card">
+            <h4>Total Students</h4>
+            <p>120</p>
+          </div>
+          <div class="card">
+            <h4>Total Trainers</h4>
+            <p>8</p>
+          </div>
+          <div class="card">
+            <h4>Total Interns</h4>
+            <p>35</p>
+          </div>
+          <div class="card">
+            <h4>Total Courses</h4>
+            <p id="courseCount">0</p>
+          </div>
+        </section>
+
+        <section class="content">
+          <!-- ================= DASHBOARD TABLES ================= -->
+
+          <h3>📚 Courses</h3>
+          <table class="dashboard-table">
+            <thead>
+              <tr>
+                <th>Name</th>
+                <th>Start Date</th>
+                <th>Mentor</th>
+                <th>Duration</th>
+              </tr>
+            </thead>
+            <tbody id="courseTable"></tbody>
+          </table>
+
+          <br>
+
+          <h3>🧑‍🏫 Workshops</h3>
+          <table class="dashboard-table">
+            <thead>
+              <tr>
+                <th>Title</th>
+                <th>Trainer</th>
+                <th>Date</th>
+              </tr>
+            </thead>
+            <tbody id="workshopDashboardTable"></tbody>
+          </table>
+
+          <br>
+
+          <h3>🎓 Internships</h3>
+          <table class="dashboard-table">
+            <thead>
+              <tr>
+                <th>Intern</th>
+                <th>Mentor</th>
+                <th>Duration</th>
+              </tr>
+            </thead>
+            <tbody id="internDashboardTable"></tbody>
+          </table>
+
+        </section>
       </section>
 
-      <section class="content">
-        <!-- ================= DASHBOARD TABLES ================= -->
+      <!-- ================= USERS ================= -->
+      <section id="users" class="section hidden">
+        <h3>👥 Users Management</h3>
 
-<h3>📚 Courses</h3>
-<table class="dashboard-table">
-  <thead>
-    <tr>
-      <th>Name</th>
-      <th>Start Date</th>
-      <th>Mentor</th>
-      <th>Duration</th>
-    </tr>
-  </thead>
-  <tbody id="courseTable"></tbody>
-</table>
+        <h4>🧑‍🏫 Trainers</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="trainerTable"></tbody>
+        </table>
 
-<br>
-
-<h3>🧑‍🏫 Workshops</h3>
-<table class="dashboard-table">
-  <thead>
-    <tr>
-      <th>Title</th>
-      <th>Trainer</th>
-      <th>Date</th>
-    </tr>
-  </thead>
-  <tbody id="workshopDashboardTable"></tbody>
-</table>
-
-<br>
-
-<h3>🎓 Internships</h3>
-<table class="dashboard-table">
-  <thead>
-    <tr>
-      <th>Intern</th>
-      <th>Mentor</th>
-      <th>Duration</th>
-    </tr>
-  </thead>
-  <tbody id="internDashboardTable"></tbody>
-</table>
-
+        <h4>🧑‍💼 Interns</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="internUserTable"></tbody>
+        </table>
+        <h4>🎓 Students</h4>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="studentTable"></tbody>
+        </table>
       </section>
-    </section>
-
-    <!-- ================= USERS ================= -->
-    <section id="users" class="section hidden">
-  <h3>👥 Users Management</h3>
-
-  <h4>🧑‍🏫 Trainers</h4>
-  <table>
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Name</th>
-        <th>Email</th>
-      </tr>
-    </thead>
-    <tbody id="trainerTable"></tbody>
-  </table>
-
-  <h4>🧑‍💼 Interns</h4>
-  <table>
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Name</th>
-        <th>Email</th>
-      </tr>
-    </thead>
-    <tbody id="internUserTable"></tbody>
-  </table>
-  <h4>🎓 Students</h4>
-  <table>
-    <thead>
-      <tr>
-        <th>ID</th>
-        <th>Name</th>
-        <th>Email</th>
-      </tr>
-    </thead>
-    <tbody id="studentTable"></tbody>
-  </table>
-</section>
 
 
-    <!-- ================= COURSES ================= -->
-    <section id="courses" class="section hidden">
-      <h3>📘 Course Management</h3>
-      <div class="form-row">
-      <input id="courseName" placeholder="Course Name">
-      <input type="date" id="courseDate">
-      <select id="courseMentor">
-          <option value="">Select Mentor</option>
-      </select>
-      <input id="courseDuration" placeholder="Duration (e.g. 3 Months)">
-      <button onclick="addCourse()">Add Course</button>
+      <!-- ================= COURSES ================= -->
+      <section id="courses" class="section hidden">
+        <h3>📘 Course Management</h3>
+        <div class="form-row">
+          <input id="courseName" placeholder="Course Name">
+          <input type="date" id="courseDate">
+          <select id="courseMentor">
+            <option value="">Select Mentor</option>
+          </select>
+          <input id="courseDuration" placeholder="Duration (e.g. 3 Months)">
+          <button onclick="addCourse()">Add Course</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Start Date</th>
+              <th>Mentor</th>
+              <th>Duration</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="courseManageTable"></tbody>
+        </table>
+      </section>
+
+      <!-- ================= WORKSHOPS ================= -->
+      <section id="workshops" class="section hidden">
+        <h3>🧑‍🏫 Workshops</h3>
+        <div class="form-row">
+          <input id="workshopTitle" placeholder="Workshop Title">
+          <select id="workshopTrainer">
+            <option value="">Select Trainer</option>
+          </select>
+          <input type="date" id="workshopDate">
+          <button onclick="addWorkshop()">Add Workshop</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Title</th>
+              <th>Trainer</th>
+              <th>Date</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="workshopTable"></tbody>
+        </table>
+      </section>
+
+      <!-- ================= INTERNSHIPS ================= -->
+      <section id="internships" class="section hidden">
+        <h3>🎓 Internships</h3>
+        <div class="form-row">
+          <input id="internName" placeholder="Intern Name">
+          <select id="mentorName">
+            <option value="">Select Mentor</option>
+          </select>
+          <input id="duration" placeholder="Duration">
+          <button onclick="addIntern()">Add Internship</button>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Intern</th>
+              <th>Mentor</th>
+              <th>Duration</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody id="internTable"></tbody>
+        </table>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- Edit Modal -->
+  <div id="editModal" class="modal">
+    <div class="modal-content">
+      <span class="close" onclick="closeModal()">&times;</span>
+      <h3 id="modalTitle">Edit Item</h3>
+      <div id="modalForm">
+        <!-- Fields injected here -->
       </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Name</th>
-            <th>Start Date</th>
-            <th>Mentor</th>
-            <th>Duration</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="courseManageTable"></tbody>
-      </table>
-    </section>
+      <button id="modalSaveBtn" onclick="saveModalChanges()">Save Changes</button>
+    </div>
+  </div>
 
-    <!-- ================= WORKSHOPS ================= -->
-    <section id="workshops" class="section hidden">
-      <h3>🧑‍🏫 Workshops</h3>
-      <div class="form-row">
-      <input id="workshopTitle" placeholder="Workshop Title">
-<select id="workshopTrainer">
-  <option value="">Select Trainer</option>
-</select>
-<input type="date" id="workshopDate">
-      <button onclick="addWorkshop()">Add Workshop</button>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Title</th>
-            <th>Trainer</th>
-            <th>Date</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="workshopTable"></tbody>
-      </table>
-    </section>
+  <!-- ================= SCRIPT ================= -->
+  <script>
+    const API = "http://127.0.0.1:5000/api";
+    const token = localStorage.getItem("token");
+    const courseTable = document.getElementById("courseTable");
+    const workshopDashboardTable = document.getElementById("workshopDashboardTable");
+    const internDashboardTable = document.getElementById("internDashboardTable");
 
-    <!-- ================= INTERNSHIPS ================= -->
-    <section id="internships" class="section hidden">
-      <h3>🎓 Internships</h3>
-      <div class="form-row">
-      <input id="internName" placeholder="Intern Name">
-<select id="mentorName">
-  <option value="">Select Mentor</option>
-</select>
-      <input id="duration" placeholder="Duration">
-      <button onclick="addIntern()">Add Internship</button>
-      </div>
-      <table>
-        <thead>
-          <tr>
-            <th>Intern</th>
-            <th>Mentor</th>
-            <th>Duration</th>
-            <th>Action</th>
-          </tr>
-        </thead>
-        <tbody id="internTable"></tbody>
-      </table>
-    </section>
+    if (!token || localStorage.getItem("role") !== "ADMIN") {
+      window.location.href = "index.html";
+    }
 
-  </main>
-</div>
+    document.getElementById("adminName").innerText =
+      "Welcome, " + localStorage.getItem("name");
 
-<!-- ================= SCRIPT ================= -->
-<script>
-const API = "http://127.0.0.1:5000/api";
-const token = localStorage.getItem("token");
-const courseTable = document.getElementById("courseTable");
-const workshopDashboardTable = document.getElementById("workshopDashboardTable");
-const internDashboardTable = document.getElementById("internDashboardTable");
+    let currentEditType = null;
+    let currentEditId = null;
 
-if (!token || localStorage.getItem("role") !== "ADMIN") {
-  window.location.href = "index.html";
-}
+    /* ================= NAV ================= */
+    function showSection(id) {
+      document.querySelectorAll(".section").forEach(s => s.classList.add("hidden"));
+      document.getElementById(id).classList.remove("hidden");
 
-document.getElementById("adminName").innerText =
-  "Welcome, " + localStorage.getItem("name");
-
-/* ================= NAV ================= */
-function showSection(id) {
-  document.querySelectorAll(".section").forEach(s => s.classList.add("hidden"));
-  document.getElementById(id).classList.remove("hidden");
-
-  if (id === "dashboard") {
-    loadDashboard(); // ✅ reload dashboard data
-  }
-}
+      if (id === "dashboard") {
+        loadDashboard(); // ✅ reload dashboard data
+      }
+    }
 
 
 
-function logout() {
-  localStorage.clear();
-  window.location.href = "index.html";
-}
+    function logout() {
+      localStorage.clear();
+      window.location.href = "index.html";
+    }
 
-/* ================= DASHBOARD ================= */
-async function loadDashboard() {
-  /* ===== STATS ===== */
-  const statsRes = await fetch(`${API}/admin/stats`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  const d = await statsRes.json();
+    /* ================= DASHBOARD ================= */
+    async function loadDashboard() {
+      /* ===== STATS ===== */
+      const statsRes = await fetch(`${API}/admin/stats`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const d = await statsRes.json();
 
-  document.querySelector(".card:nth-child(1) p").innerText = d.students;
-  document.querySelector(".card:nth-child(2) p").innerText = d.trainers;
-  document.querySelector(".card:nth-child(3) p").innerText = d.interns;
-  document.getElementById("courseCount").innerText = d.courses;
+      document.querySelector(".card:nth-child(1) p").innerText = d.students;
+      document.querySelector(".card:nth-child(2) p").innerText = d.trainers;
+      document.querySelector(".card:nth-child(3) p").innerText = d.interns;
+      document.getElementById("courseCount").innerText = d.courses;
 
-  /* ===== COURSES ===== */
-  const courseRes = await fetch(`${API}/courses`);
-  const courses = await courseRes.json();
-  courseTable.innerHTML = "";
+      /* ===== COURSES ===== */
+      const courseRes = await fetch(`${API}/courses`);
+      const courses = await courseRes.json();
+      courseTable.innerHTML = "";
 
-  courses.forEach(c => {
-      courseTable.innerHTML += `
+      courses.forEach(c => {
+        courseTable.innerHTML += `
       <tr>
         <td>${c.name}</td>
         <td>${c.date}</td>
         <td>${c.mentor_name || "-"}</td>
         <td>${c.duration || "-"}</td>
       </tr>`;
-  });
+      });
 
-  /* ===== WORKSHOPS ===== */
-  const workshopRes = await fetch(`${API}/workshops`);
-  const workshops = await workshopRes.json();
-  workshopDashboardTable.innerHTML = "";
+      /* ===== WORKSHOPS ===== */
+      const workshopRes = await fetch(`${API}/workshops`);
+      const workshops = await workshopRes.json();
+      workshopDashboardTable.innerHTML = "";
 
-  workshops.forEach(w => {
-    workshopDashboardTable.innerHTML += `
+      workshops.forEach(w => {
+        workshopDashboardTable.innerHTML += `
       <tr>
         <td>${w.title}</td>
         <td>${w.trainer_name}</td>
         <td>${w.date}</td>
       </tr>`;
-  });
+      });
 
-  /* ===== INTERNSHIPS ===== */
-  const internRes = await fetch(`${API}/internships`);
-  const interns = await internRes.json();
-  internDashboardTable.innerHTML = "";
+      /* ===== INTERNSHIPS ===== */
+      const internRes = await fetch(`${API}/internships`);
+      const interns = await internRes.json();
+      internDashboardTable.innerHTML = "";
 
-  interns.forEach(i => {
-    internDashboardTable.innerHTML += `
+      interns.forEach(i => {
+        internDashboardTable.innerHTML += `
       <tr>
         <td>${i.intern_name}</td>
         <td>${i.mentor_name}</td>
         <td>${i.duration}</td>
       </tr>`;
-  });
-}
+      });
+    }
 
-async function loadUsers(role, tableId) {
-  const res = await fetch(`${API}/auth/users?role=${role}`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  const data = await res.json();
+    async function loadUsers(role, tableId) {
+      const res = await fetch(`${API}/auth/users?role=${role}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const data = await res.json();
 
-  const table = document.getElementById(tableId);
-  table.innerHTML = "";
+      const table = document.getElementById(tableId);
+      table.innerHTML = "";
 
-  data.forEach(u => {
-  table.innerHTML += `
+      data.forEach(u => {
+        table.innerHTML += `
     <tr>
       <td>${u.id}</td>
       <td>${u.name}</td>
       <td>${u.email}</td>
 
       <td>
-        <select onchange="updateUserRole(${u.id}, this.value)">
-          <option value="STUDENT" ${u.role === "STUDENT" ? "selected" : ""}>STUDENT</option>
-          <option value="TRAINER" ${u.role === "TRAINER" ? "selected" : ""}>TRAINER</option>
-          <option value="INTERN" ${u.role === "INTERN" ? "selected" : ""}>INTERN</option>
-        </select>
-      </td>
-
-      <td>
         <button onclick="deleteUser(${u.id})" class="danger-btn">Delete</button>
       </td>
     </tr>`;
-});
+      });
 
-}
+    }
 
-/* ================= COURSES ================= */
-async function loadCourses() {
-  const res = await fetch(`${API}/courses`);
-  const data = await res.json();
+    /* ================= COURSES ================= */
+    async function loadCourses() {
+      const res = await fetch(`${API}/courses`);
+      const data = await res.json();
 
-  courseTable.innerHTML = "";
-  courseManageTable.innerHTML = "";
+      courseTable.innerHTML = "";
+      courseManageTable.innerHTML = "";
 
-  data.forEach(c => {
-    courseTable.innerHTML += `
+      data.forEach(c => {
+        courseTable.innerHTML += `
       <tr>
         <td>${c.name}</td>
         <td>${c.date}</td>
       </tr>`;
 
-    courseManageTable.innerHTML += `
+        courseManageTable.innerHTML += `
       <tr>
         <td>${c.name}</td>
         <td>${c.date}</td>
@@ -373,80 +392,62 @@ async function loadCourses() {
 </td>
 
       </tr>`;
-  });
-}
+      });
+    }
 
-async function addCourse() {
-  if (!courseMentor.value) {
-  alert("Please select a mentor");
-  return;
-}
-  await fetch(`${API}/courses`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    },
-    body: JSON.stringify({
-      name: courseName.value,
-      date: courseDate.value,
-      mentor_name: courseMentor.value,
-      duration: courseDuration.value
-    })
-  });
+    async function addCourse() {
+      if (!courseMentor.value) {
+        alert("Please select a mentor");
+        return;
+      }
+      await fetch(`${API}/courses`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          name: courseName.value,
+          date: courseDate.value,
+          mentor_name: courseMentor.value,
+          duration: courseDuration.value
+        })
+      });
 
-  courseName.value = "";
-  courseDate.value = "";
-  courseMentor.value = "";
-  courseDuration.value = "";
+      courseName.value = "";
+      courseDate.value = "";
+      courseMentor.value = "";
+      courseDuration.value = "";
 
-  loadCourses();
-  loadDashboard();
-}
+      loadCourses();
+      loadDashboard();
+    }
 
-async function deleteCourse(id) {
-  await fetch(`${API}/courses/${id}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  loadCourses();
-  loadDashboard();
-}
-async function editCourse(id) {
-  const name = prompt("Enter new course name:");
-  const date = prompt("Enter new start date (YYYY-MM-DD):");
-  const mentor = prompt("Enter mentor name:");
-  const duration = prompt("Enter duration:");
-
-  if (!name || !date) return;
-
-  await fetch(`${API}/courses/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    },
-    body: JSON.stringify({
-      name,
-      date,
-      mentor_name: mentor,
-      duration
-    })
-  });
-
-  loadCourses();
-  loadDashboard();
-}
+    async function deleteCourse(id) {
+      await fetch(`${API}/courses/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      loadCourses();
+      loadDashboard();
+    }
+    async function editCourse(id) {
+      const res = await fetch(`${API}/courses`);
+      const courses = await res.json();
+      const c = courses.find(item => item.id === id);
+      if (!c) return;
+      openModal('course', id, c);
+    }
 
 
-/* ================= WORKSHOPS ================= */
-async function loadWorkshops() {
-  const res = await fetch(`${API}/workshops`);
-  const data = await res.json();
-  workshopTable.innerHTML = "";
+    /* ================= WORKSHOPS ================= */
+    async function loadWorkshops() {
+      const res = await fetch(`${API}/workshops`);
+      const data = await res.json();
+      workshopTable.innerHTML = "";
 
-  data.forEach(w => {
-    workshopTable.innerHTML += `
+      data.forEach(w => {
+        workshopTable.innerHTML += `
       <tr>
         <td>${w.title}</td>
         <td>${w.trainer_name}</td>
@@ -456,66 +457,50 @@ async function loadWorkshops() {
   <button onclick="deleteWorkshop(${w.id})">Delete</button>
 </td>
       </tr>`;
-  });
-}
+      });
+    }
 
-async function addWorkshop() {
-  await fetch(`${API}/workshops`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    },
-    body: JSON.stringify({
-      title: workshopTitle.value,
-      trainer_name: workshopTrainer.value,
-      date: workshopDate.value
-    })
-  });
+    async function addWorkshop() {
+      await fetch(`${API}/workshops`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          title: workshopTitle.value,
+          trainer_name: workshopTrainer.value,
+          date: workshopDate.value
+        })
+      });
 
-  workshopTitle.value = workshopTrainer.value = workshopDate.value = "";
-  loadWorkshops();
-}
+      workshopTitle.value = workshopTrainer.value = workshopDate.value = "";
+      loadWorkshops();
+    }
 
-async function deleteWorkshop(id) {
-  await fetch(`${API}/workshops/${id}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  loadWorkshops();
-}
-async function editWorkshop(id) {
-  const title = prompt("Enter new workshop title:");
-  const trainer = prompt("Enter trainer name:");
-  const date = prompt("Enter date (YYYY-MM-DD):");
+    async function deleteWorkshop(id) {
+      await fetch(`${API}/workshops/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      loadWorkshops();
+    }
+    async function editWorkshop(id) {
+      const res = await fetch(`${API}/workshops`);
+      const workshops = await res.json();
+      const w = workshops.find(item => item.id === id);
+      if (!w) return;
+      openModal('workshop', id, w);
+    }
 
-  if (!title || !date) return;
+    /* ================= INTERNSHIPS ================= */
+    async function loadInternships() {
+      const res = await fetch(`${API}/internships`);
+      const data = await res.json();
+      internTable.innerHTML = "";
 
-  await fetch(`${API}/workshops/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    },
-    body: JSON.stringify({
-      title,
-      trainer_name: trainer,
-      date
-    })
-  });
-
-  loadWorkshops();
-  loadDashboard();
-}
-
-/* ================= INTERNSHIPS ================= */
-async function loadInternships() {
-  const res = await fetch(`${API}/internships`);
-  const data = await res.json();
-  internTable.innerHTML = "";
-
-  data.forEach(i => {
-    internTable.innerHTML += `
+      data.forEach(i => {
+        internTable.innerHTML += `
       <tr>
         <td>${i.intern_name}</td>
         <td>${i.mentor_name}</td>
@@ -525,138 +510,198 @@ async function loadInternships() {
   <button onclick="deleteIntern(${i.id})">Delete</button>
 </td>
       </tr>`;
-  });
-}
+      });
+    }
 
-async function addIntern() {
-  await fetch(`${API}/internships`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    },
-    body: JSON.stringify({
-      intern_name: internName.value,
-      mentor_name: mentorName.value,
-      duration: duration.value
-    })
-  });
+    async function addIntern() {
+      await fetch(`${API}/internships`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": `Bearer ${token}`
+        },
+        body: JSON.stringify({
+          intern_name: internName.value,
+          mentor_name: mentorName.value,
+          duration: duration.value
+        })
+      });
 
-  internName.value = mentorName.value = duration.value = "";
-  loadInternships();
-}
+      internName.value = mentorName.value = duration.value = "";
+      loadInternships();
+    }
 
-async function deleteIntern(id) {
-  await fetch(`${API}/internships/${id}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  loadInternships();
-}
-async function editIntern(id) {
-  const intern = prompt("Enter intern name:");
-  const mentor = prompt("Enter mentor name:");
-  const duration = prompt("Enter duration:");
+    async function deleteIntern(id) {
+      await fetch(`${API}/internships/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      loadInternships();
+    }
+    async function editIntern(id) {
+      const res = await fetch(`${API}/internships`);
+      const interns = await res.json();
+      const i = interns.find(item => item.id === id);
+      if (!i) return;
+      openModal('internship', id, i);
+    }
 
-  if (!intern || !duration) return;
+    /* ================= MODAL LOGIC ================= */
+    function openModal(type, id, data) {
+      currentEditType = type;
+      currentEditId = id;
+      const modal = document.getElementById("editModal");
+      const form = document.getElementById("modalForm");
+      const title = document.getElementById("modalTitle");
 
-  await fetch(`${API}/internships/${id}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    },
-    body: JSON.stringify({
-      intern_name: intern,
-      mentor_name: mentor,
-      duration
-    })
-  });
+      form.innerHTML = "";
+      modal.style.display = "block";
 
-  loadInternships();
-  loadDashboard();
-}
-/*=================== LOAD MENTORS =================*/
-async function loadMentors() {
-  const res = await fetch(`${API}/mentors`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  const mentors = await res.json();
+      if (type === 'course') {
+        title.innerText = "Edit Course";
+        form.innerHTML = `
+          <input id="editName" value="${data.name}" placeholder="Course Name">
+          <input type="date" id="editDate" value="${data.date}">
+          <input id="editMentor" value="${data.mentor_name}" placeholder="Mentor Name">
+          <input id="editDuration" value="${data.duration}" placeholder="Duration">
+        `;
+      } else if (type === 'workshop') {
+        title.innerText = "Edit Workshop";
+        form.innerHTML = `
+          <input id="editTitle" value="${data.title}" placeholder="Workshop Title">
+          <input id="editTrainer" value="${data.trainer_name}" placeholder="Trainer Name">
+          <input type="date" id="editDate" value="${data.date}">
+        `;
+      } else if (type === 'internship') {
+        title.innerText = "Edit Internship";
+        form.innerHTML = `
+          <input id="editIntern" value="${data.intern_name}" placeholder="Intern Name">
+          <input id="editMentor" value="${data.mentor_name}" placeholder="Mentor Name">
+          <input id="editDuration" value="${data.duration}" placeholder="Duration">
+        `;
+      }
+    }
 
-const courseMentor = document.getElementById("courseMentor");
-const workshopTrainer = document.getElementById("workshopTrainer");
-const internshipMentor = document.getElementById("mentorName");
+    function closeModal() {
+      document.getElementById("editModal").style.display = "none";
+    }
 
-courseMentor.innerHTML = `<option value="">Select Mentor</option>`;
-workshopTrainer.innerHTML = `<option value="">Select Trainer</option>`;
-internshipMentor.innerHTML = `<option value="">Select Mentor</option>`;
+    async function saveModalChanges() {
+      let data = {};
+      let url = "";
 
-  mentors.forEach(m => {
-    const option = `<option value="${m.name}">${m.name} (${m.email})</option>`;
-    if (courseMentor) courseMentor.innerHTML += option;
-    if (workshopTrainer) workshopTrainer.innerHTML += option;
-    if (internshipMentor) internshipMentor.innerHTML += option;
-  });
-}
-async function deleteUser(userId) {
-  if (!confirm("Are you sure you want to delete this user?")) return;
+      if (currentEditType === 'course') {
+        data = {
+          name: document.getElementById("editName").value,
+          date: document.getElementById("editDate").value,
+          mentor_name: document.getElementById("editMentor").value,
+          duration: document.getElementById("editDuration").value
+        };
+        url = `${API}/courses/${currentEditId}`;
+      } else if (currentEditType === 'workshop') {
+        data = {
+          title: document.getElementById("editTitle").value,
+          trainer_name: document.getElementById("editTrainer").value,
+          date: document.getElementById("editDate").value
+        };
+        url = `${API}/workshops/${currentEditId}`;
+      } else if (currentEditType === 'internship') {
+        data = {
+          intern_name: document.getElementById("editIntern").value,
+          mentor_name: document.getElementById("editMentor").value,
+          duration: document.getElementById("editDuration").value
+        };
+        url = `${API}/internships/${currentEditId}`;
+      }
 
-  await fetch(`${API}/auth/users/${userId}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` }
-  });
+      await fetch(url, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`
+        },
+        body: JSON.stringify(data)
+      });
 
-  // Reload all user tables
-  loadUsers("STUDENT", "studentTable");
-  loadUsers("TRAINER", "trainerTable");
-  loadUsers("INTERN", "internUserTable");
-}
-async function updateUserRole(userId, newRole) {
-  await fetch(`${API}/auth/users/${userId}`, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "application/json",
-      "Authorization": `Bearer ${token}`
-    },
-    body: JSON.stringify({ role: newRole })
-  });
+      closeModal();
+      if (currentEditType === 'course') loadCourses();
+      else if (currentEditType === 'workshop') loadWorkshops();
+      else loadInternships();
+      loadDashboard();
+      alert("Updated successfully! ✅");
+    }
+    /*=================== LOAD MENTORS =================*/
+    async function loadMentors() {
+      const res = await fetch(`${API}/mentors`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      const mentors = await res.json();
 
-  alert("User role updated ✅");
+      const courseMentor = document.getElementById("courseMentor");
+      const workshopTrainer = document.getElementById("workshopTrainer");
+      const internshipMentor = document.getElementById("mentorName");
 
-  loadUsers("STUDENT", "studentTable");
-  loadUsers("TRAINER", "trainerTable");
-  loadUsers("INTERN", "internUserTable");
-}
-function globalSearch() {
-  const query = document.getElementById("globalSearch").value.toLowerCase();
+      courseMentor.innerHTML = `<option value="">Select Mentor</option>`;
+      workshopTrainer.innerHTML = `<option value="">Select Trainer</option>`;
+      internshipMentor.innerHTML = `<option value="">Select Mentor</option>`;
 
-  const tables = document.querySelectorAll("table tbody");
+      mentors.forEach(m => {
+        const option = `<option value="${m.name}">${m.name} (${m.email})</option>`;
+        if (courseMentor) courseMentor.innerHTML += option;
+        if (workshopTrainer) workshopTrainer.innerHTML += option;
+        if (internshipMentor) internshipMentor.innerHTML += option;
+      });
+    }
+    async function deleteUser(userId) {
+      if (!confirm("Are you sure you want to delete this user?")) return;
 
-  tables.forEach(tbody => {
-    const rows = tbody.querySelectorAll("tr");
+      const res = await fetch(`${API}/auth/users/${userId}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
 
-    rows.forEach(row => {
-      const text = row.innerText.toLowerCase();
-      row.style.display = text.includes(query) ? "" : "none";
+      if (res.ok) {
+        alert("User deleted successfully ✅");
+        // Reload all user tables
+        loadUsers("STUDENT", "studentTable");
+        loadUsers("TRAINER", "trainerTable");
+        loadUsers("INTERN", "internUserTable");
+      } else {
+        const err = await res.json();
+        alert("Error: " + (err.error || "Could not delete user."));
+      }
+    }
+    function globalSearch() {
+      const query = document.getElementById("globalSearch").value.toLowerCase();
+
+      const tables = document.querySelectorAll("table tbody");
+
+      tables.forEach(tbody => {
+        const rows = tbody.querySelectorAll("tr");
+
+        rows.forEach(row => {
+          const text = row.innerText.toLowerCase();
+          row.style.display = text.includes(query) ? "" : "none";
+        });
+      });
+    }
+
+
+    /* ================= INIT ================= */
+    document.addEventListener("DOMContentLoaded", () => {
+      loadDashboard();
+      loadCourses();
+      loadWorkshops();
+      loadInternships();
+      loadMentors();
+
+      loadUsers("STUDENT", "studentTable");
+      loadUsers("TRAINER", "trainerTable");
+      loadUsers("INTERN", "internUserTable");
     });
-  });
-}
 
-
-/* ================= INIT ================= */
-document.addEventListener("DOMContentLoaded", () => {
-  loadDashboard();
-  loadCourses();
-  loadWorkshops();
-  loadInternships();
-  loadMentors();
-
-  loadUsers("STUDENT", "studentTable");
-  loadUsers("TRAINER", "trainerTable");
-  loadUsers("INTERN", "internUserTable");
-});
-
-</script>
+  </script>
 
 </body>
+
 </html>

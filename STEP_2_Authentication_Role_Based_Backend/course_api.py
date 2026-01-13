@@ -56,6 +56,25 @@ def delete_course(id):
     return jsonify({"message": "Course deleted"}), 200
 
 
+@course_bp.route("/courses/<int:id>", methods=["PUT"])
+@jwt_required()
+def edit_course(id):
+    claims = get_jwt()
+    if claims.get("role") != "ADMIN":
+        return jsonify({"error": "Admin access required"}), 403
+
+    course = Course.query.get_or_404(id)
+    data = request.get_json()
+
+    course.name = data.get("name", course.name)
+    course.start_date = data.get("date", course.start_date)
+    course.mentor_name = data.get("mentor_name", course.mentor_name)
+    course.duration = data.get("duration", course.duration)
+
+    db.session.commit()
+    return jsonify({"message": "Course updated"}), 200
+
+
 # ================= WORKSHOPS =================
 
 @course_bp.route("/workshops", methods=["GET"])
@@ -103,6 +122,24 @@ def delete_workshop(id):
     return jsonify({"message": "Workshop deleted"}), 200
 
 
+@course_bp.route("/workshops/<int:id>", methods=["PUT"])
+@jwt_required()
+def edit_workshop(id):
+    claims = get_jwt()
+    if claims.get("role") != "ADMIN":
+        return jsonify({"error": "Admin access required"}), 403
+
+    workshop = Workshop.query.get_or_404(id)
+    data = request.get_json()
+
+    workshop.title = data.get("title", workshop.title)
+    workshop.trainer_name = data.get("trainer_name", workshop.trainer_name)
+    workshop.date = data.get("date", workshop.date)
+
+    db.session.commit()
+    return jsonify({"message": "Workshop updated"}), 200
+
+
 # ================= INTERNSHIPS =================
 
 @course_bp.route("/internships", methods=["GET"])
@@ -148,6 +185,24 @@ def delete_internship(id):
     db.session.delete(internship)
     db.session.commit()
     return jsonify({"message": "Internship deleted"}), 200
+
+
+@course_bp.route("/internships/<int:id>", methods=["PUT"])
+@jwt_required()
+def edit_internship(id):
+    claims = get_jwt()
+    if claims.get("role") != "ADMIN":
+        return jsonify({"error": "Admin access required"}), 403
+
+    internship = Internship.query.get_or_404(id)
+    data = request.get_json()
+
+    internship.intern_name = data.get("intern_name", internship.intern_name)
+    internship.mentor_name = data.get("mentor_name", internship.mentor_name)
+    internship.duration = data.get("duration", internship.duration)
+
+    db.session.commit()
+    return jsonify({"message": "Internship updated"}), 200
 
 
 # ================= ADMIN DASHBOARD STATS =================

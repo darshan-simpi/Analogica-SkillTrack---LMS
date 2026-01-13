@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt_identity
-from models import Course, Enrollment, Assignment, Submission, User, CourseResource, StudentProgress, Internship, Task, TaskSubmission, InternshipResource
+from models import Course, Enrollment, Assignment, Submission, User, CourseResource, StudentProgress, Internship, Task, TaskSubmission, InternshipResource, Quiz, Question, QuizSubmission
 from extensions import db
 from werkzeug.utils import secure_filename
 import os
@@ -439,3 +439,90 @@ def delete_internship_resource(resource_id):
     db.session.delete(resource)
     db.session.commit()
     return jsonify({"message": "Resource deleted"}), 200
+
+# ================= QUIZ MANAGEMENT =================
+@trainer_bp.route("/trainer/course/<int:course_id>/quizzes", methods=["GET"])
+@jwt_required()
+def get_course_quizzes(course_id):
+    quizzes = Quiz.query.filter_by(course_id=course_id).all()
+    result = []
+    for q in quizzes:
+        result.append({
+            "id": q.id,
+            "title": q.title,
+            "week_number": q.week_number,
+            "deadline": q.deadline,
+            "question_count": len(q.questions)
+        })
+    return jsonify(sorted(result, key=lambda x: x["week_number"])), 200
+
+@trainer_bp.route("/trainer/quiz/assign", methods=["POST"])
+@jwt_required()
+def assign_quiz():
+    data = request.get_json()
+    course = Course.query.get_or_404(data["course_id"])
+    
+    # 🔍 DURATION BASED LIMIT (Similar to assignments)
+    max_quizzes = 4
+    try:
+        duration_str = course.duration.lower()
+        import re
+        match = re.search(r'(\d+)', duration_str)
+        num = int(match.group(1)) if match else 1
+        if "month" in duration_str: max_quizzes = num * 4
+        elif "week" in duration_str: max_quizzes = num
+    except: pass
+
+    current_count = Quiz.query.filter_by(course_id=course.id).count()
+    if current_count >= max_quizzes:
+        return jsonify({"error": f"Limit reached! Max {max_quizzes} quizzes for this course."}), 400
+
+    week_num = current_count + 1
+
+    quiz = Quiz(
+        course_id=data["course_id"],
+        title=data["title"],
+        week_number=week_num,
+        deadline=data["deadline"]
+    )
+    db.session.add(quiz)
+    db.session.flush() # Get quiz id
+
+    # Add questions
+    for q_data in data.get("questions", []):
+        question = Question(
+            quiz_id=quiz.id,
+            text=q_data["text"],
+            option_a=q_data["option_a"],
+            option_b=q_data["option_b"],
+            option_c=q_data["option_c"],
+            option_d=q_data["option_d"],
+            correct_answer=q_data["correct_answer"]
+        )
+        db.session.add(question)
+
+    db.session.commit()
+    return jsonify({"message": "Quiz assigned successfully"}), 201
+
+@trainer_bp.route("/trainer/quiz/<int:quiz_id>", methods=["DELETE"])
+@jwt_required()
+def delete_quiz(quiz_id):
+    quiz = Quiz.query.get_or_404(quiz_id)
+    db.session.delete(quiz)
+    db.session.commit()
+    return jsonify({"message": "Quiz deleted"}), 200
+
+@trainer_bp.route("/trainer/quiz/<int:quiz_id>/results", methods=["GET"])
+@jwt_required()
+def get_quiz_results(quiz_id):
+    submissions = QuizSubmission.query.filter_by(quiz_id=quiz_id).all()
+    result = []
+    for s in submissions:
+        student = User.query.get(s.student_id)
+        result.append({
+            "student_name": student.name if student else "Unknown",
+            "score": s.score,
+            "total": s.total_questions,
+            "submitted_at": s.submitted_at.strftime("%Y-%m-%d %H:%M")
+        })
+    return jsonify(result), 200
