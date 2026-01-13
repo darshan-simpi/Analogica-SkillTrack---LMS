@@ -15,44 +15,81 @@ student_bp = Blueprint("student", __name__)
 
 UPLOAD_FOLDER = "uploads"
 def get_required_assignments(duration_str):
+    if not duration_str:
+        return 4
     try:
-        # Example: "2 Months" -> 2
-        # Example: "1 Month" -> 1
-        parts = duration_str.lower().split()
-        if len(parts) >= 2:
-            if "month" in parts[1]:
-                return int(parts[0]) * 4
-            elif "week" in parts[1]:
-                return int(parts[0])
-        return 4 # Default to 1 month (4 assignments)
+        # Match digits for flexible strings like "1month", "3 months", etc.
+        import re
+        match = re.search(r'(\d+)', str(duration_str))
+        num = int(match.group(1)) if match else 1
+        if num <= 0: num = 1
+        
+        low_dur = str(duration_str).lower()
+        if "month" in low_dur:
+            return num * 4
+        elif "week" in low_dur:
+            return num
+        return 4
     except:
         return 4
 
-# ✅ NEW PROGRESS ENDPOINT
 @student_bp.route("/student/progress", methods=["GET"])
 @jwt_required()
 def student_progress():
-    student_id = int(get_jwt_identity())
-    enrollments = Enrollment.query.filter_by(user_id=student_id).all()
-    response = []
+    try:
+        student_id = int(get_jwt_identity())
+        
+        # Collect all course IDs from BOTH Enrollment and StudentProgress
+        # Some legacy data might only be in one of them
+        enroll_ids = {e.course_id for e in Enrollment.query.filter_by(user_id=student_id).all()}
+        prog_ids = {p.course_id for p in StudentProgress.query.filter_by(user_id=student_id).all()}
+        all_course_ids = enroll_ids.union(prog_ids)
+        
+        response = []
+        for cid in all_course_ids:
+            course = Course.query.get(cid)
+            if not course: continue
+            
+            # 1. Assignments Completed
+            subs = Submission.query.filter_by(student_id=student_id).all()
+            asgn_ids = {a.id for a in Assignment.query.filter_by(course_id=cid).all()}
+            asgn_done = len({s.assignment_id for s in subs if s.assignment_id in asgn_ids})
+            
+            # 2. Quizzes Completed
+            q_subs = QuizSubmission.query.filter_by(student_id=student_id).all()
+            q_ids = {q.id for q in Quiz.query.filter_by(course_id=course.id).all()}
+            quiz_done = len({s.quiz_id for s in q_subs if s.quiz_id in q_ids})
+            
+            # 3. Required Count (Force at least 4)
+            req = get_required_assignments(course.duration)
+            if not req or not isinstance(req, int) or req <= 0: 
+                req = 4
+            
+            total_tasks = req * 2 # Asgn + Quiz
+            done_tasks = asgn_done + quiz_done
+            prog_val = int((done_tasks / max(total_tasks, 1)) * 100)
+            
+            # 4. Duration Safety
+            raw_dur = str(course.duration) if (course.duration and str(course.duration).strip()) else "1 Month"
 
-    for e in enrollments:
-        course = Course.query.get(e.course_id)
-        if not course: continue
-        
-        progress = StudentProgress.query.filter_by(user_id=student_id, course_id=course.id).first()
-        
-        if progress:
-            response.append({
+            item = {
                 "course_id": course.id,
+                "course": course.name,
                 "course_name": course.name,
-                "progress": min(progress.progress, 100),
-                "status": progress.status,
-                "assignments_completed": progress.assignments_completed,
-                "total_assignments": progress.total_assignments
-            })
+                "progress": min(prog_val, 100),
+                "status": "Completed" if prog_val >= 100 else "On Track",
+                "assignments_completed": asgn_done,
+                "total_assignments": req,
+                "quizzes_completed": quiz_done,
+                "total_quizzes": req,
+                "duration": raw_dur
+            }
+            response.append(item)
 
-    return jsonify(response), 200
+        return jsonify(response), 200
+    except Exception as e:
+        print(f"ERROR in student_progress: {str(e)}")
+        return jsonify({"error": str(e), "fallback": True}), 200 # Return 200 to avoid JS crash but show error
 
 # ✅ MAIN DASHBOARD ENDPOINT
 @student_bp.route("/student/dashboard", methods=["GET"])
@@ -97,13 +134,15 @@ def student_dashboard():
     else:
         overall_grade_str = "N/A"
 
-    enrollments = Enrollment.query.filter_by(user_id=student_id).all()
+    # Merge course IDs from both sources
+    enroll_ids = {e.course_id for e in Enrollment.query.filter_by(user_id=student_id).all()}
+    prog_ids = {p.course_id for p in StudentProgress.query.filter_by(user_id=student_id).all()}
+    all_course_ids = enroll_ids.union(prog_ids)
+    
     response = []
-
-    for e in enrollments:
-        course = Course.query.get(e.course_id)
-        if not course:
-            continue
+    for cid in all_course_ids:
+        course = Course.query.get(cid)
+        if not course: continue
             
         assignments = Assignment.query.filter_by(course_id=course.id).all()
 
@@ -178,25 +217,43 @@ def student_dashboard():
             if is_submitted:
                 completed_count += 1
 
-        # Calculate dynamic progress based on actual assignments
-        # Use required_count as total to reflect Course Progress
-        total_count = required_count 
-        progress_val = int((completed_count / max(total_count, 1)) * 100)
+        # Get quizzes for this course
+        quizzes = Quiz.query.filter_by(course_id=course.id).all()
+        quiz_submissions = QuizSubmission.query.filter_by(student_id=student_id).all()
+        submitted_quiz_ids = {s.quiz_id for s in quiz_submissions}
+        
+        quizzes_completed = 0
+        for quiz in quizzes:
+            if quiz.id in submitted_quiz_ids:
+                quizzes_completed += 1
+
+        # Calculate dynamic progress based on BOTH assignments and quizzes
+        # User: "after completeing the assigned quizes and assignment then only he is eligible to get certificate"
+        total_tasks = required_count * 2 # required_count assignments + required_count quizzes
+        completed_tasks = completed_count + quizzes_completed
+        progress_val = int((completed_tasks / max(total_tasks, 1)) * 100)
         dynamic_progress = min(progress_val, 100)
 
         # Check if certificate already exists
         cert_record = Certificate.query.filter_by(user_id=student_id, course_id=course.id).first()
         cert_url = cert_record.certificate_url if cert_record else None
 
+        # Dashboard sync
+        final_duration = str(course.duration) if course.duration else "1 Month"
+
         response.append({
             "course_id": course.id,
             "course": course.name,
+            "course_name": course.name,
             "progress": dynamic_progress,
             "assignments": assignments_list,
             "can_generate_certificate": dynamic_progress >= 100,
             "certificate_url": cert_url,
-            "total_assignments": total_count,
-            "assignments_completed": completed_count
+            "total_assignments": required_count,
+            "assignments_completed": completed_count,
+            "total_quizzes": required_count,
+            "quizzes_completed": quizzes_completed,
+            "duration": final_duration
         })
 
     return jsonify({
@@ -312,6 +369,28 @@ def submit_quiz(quiz_id):
         total_questions=total
     )
     db.session.add(submission)
+    
+    # Update StudentProgress DB record for Trainer Visibility
+    progress = StudentProgress.query.filter_by(user_id=student_id, course_id=quiz.course_id).first()
+    if progress:
+        course = Course.query.get(quiz.course_id)
+        req = get_required_assignments(course.duration)
+        
+        # Count all completed
+        subs = Submission.query.filter_by(student_id=student_id).all()
+        asgn_ids = {a.id for a in Assignment.query.filter_by(course_id=quiz.course_id).all()}
+        asgn_done = len({s.assignment_id for s in subs if s.assignment_id in asgn_ids})
+        
+        q_subs = QuizSubmission.query.filter_by(student_id=student_id).all()
+        q_ids = {q.id for q in Quiz.query.filter_by(course_id=quiz.course_id).all()}
+        quiz_done = len({s.quiz_id for s in q_subs if s.quiz_id in q_ids})
+        
+        total_tasks = req * 2
+        done_tasks = asgn_done + quiz_done
+        progress.progress = min(int((done_tasks / max(total_tasks, 1)) * 100), 100)
+        if progress.progress >= 100:
+            progress.status = "Completed"
+
     db.session.commit()
     
     return jsonify({"message": "Quiz submitted", "score": score, "total": total}), 200
@@ -348,18 +427,23 @@ def submit_assignment():
     ).first()
 
     if progress:
-        # Re-calculate unique submissions count for this student+course
-        all_subs = Submission.query.filter_by(student_id=student_id).all()
-        course_asgn_ids = {a.id for a in Assignment.query.filter_by(course_id=assignment.course_id).all()}
-        unique_submitted = len({s.assignment_id for s in all_subs if s.assignment_id in course_asgn_ids})
-        
         course = Course.query.get(assignment.course_id)
-        required = get_required_assignments(course.duration) if course else 4
+        req = get_required_assignments(course.duration)
         
-        progress.assignments_completed = unique_submitted
-        progress.total_assignments = required
-        new_progress = int((unique_submitted / max(required, 1)) * 100)
-        progress.progress = min(new_progress, 100)
+        # Count all completed
+        subs = Submission.query.filter_by(student_id=student_id).all()
+        asgn_ids = {a.id for a in Assignment.query.filter_by(course_id=assignment.course_id).all()}
+        asgn_done = len({s.assignment_id for s in subs if s.assignment_id in asgn_ids})
+        
+        q_subs = QuizSubmission.query.filter_by(student_id=student_id).all()
+        q_ids = {q.id for q in Quiz.query.filter_by(course_id=assignment.course_id).all()}
+        quiz_done = len({s.quiz_id for s in q_subs if s.quiz_id in q_ids})
+        
+        total_tasks = req * 2
+        done_tasks = asgn_done + quiz_done
+        progress.assignments_completed = asgn_done
+        progress.total_assignments = req
+        progress.progress = min(int((done_tasks / max(total_tasks, 1)) * 100), 100)
         if progress.progress >= 100:
             progress.status = "Completed"
 
@@ -437,14 +521,25 @@ def generate_certificate(course_id):
         return jsonify({"error": "Resource not found"}), 404
         
     # Check eligibility (must be 100% progress)
+    # 1. Assignments
     submissions = Submission.query.filter_by(student_id=student_id).all()
     course_assignments = Assignment.query.filter_by(course_id=course_id).all()
     course_assignment_ids = {a.id for a in course_assignments}
-    completed_count = len({s.assignment_id for s in submissions if s.assignment_id in course_assignment_ids})
+    asgn_completed = len({s.assignment_id for s in submissions if s.assignment_id in course_assignment_ids})
     
+    # 2. Quizzes
+    quiz_subs = QuizSubmission.query.filter_by(student_id=student_id).all()
+    course_quizzes = Quiz.query.filter_by(course_id=course_id).all()
+    course_quiz_ids = {q.id for q in course_quizzes}
+    quiz_completed = len({s.quiz_id for s in quiz_subs if s.quiz_id in course_quiz_ids})
+
     required_count = get_required_assignments(course.duration)
-    if completed_count < required_count:
-        return jsonify({"error": f"Certificate locked. Please complete all {required_count} assignments."}), 403
+    
+    # Must complete ALL required assignments AND ALL required quizzes
+    if asgn_completed < required_count or quiz_completed < required_count:
+        return jsonify({
+            "error": f"Certificate locked. You must complete all {required_count} assignments AND all {required_count} quizzes."
+        }), 403
 
     # Generate filename
     CERT_FOLDER = "certificates"

@@ -26,7 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
 async function loadProgress() {
   try {
-    const res = await fetch(`${API}/student/progress`, {
+    const res = await fetch(`${API}/student/progress?v=${Date.now()}`, {
       headers: { "Authorization": `Bearer ${token}` }
     });
 
@@ -34,6 +34,7 @@ async function loadProgress() {
     if (!res.ok) throw new Error("Progress load failed");
 
     const progressData = await res.json();
+    console.log("📊 Received Progress Data:", progressData);
 
     // Calculate Average Completion
     if (progressData.length > 0) {
@@ -67,8 +68,10 @@ function renderProgressPage(data) {
   }
 
   data.forEach(c => {
+    console.log("🛠️ Rendering Course Progress Item:", c);
     container.innerHTML += `
             <div class="box glow" style="margin-bottom:20px; padding:25px; border-left: 5px solid ${c.progress >= 100 ? '#22c55e' : '#4f46e5'}">
+                <div style="font-size: 0.7em; color: #cbd5e1; margin-bottom: 5px; text-align: right;">System Sync: ${new Date().toLocaleTimeString()}</div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
                     <h3 style="margin:0; font-size:1.2em">${c.course_name}</h3>
                     <span class="tag" style="background:${c.progress >= 100 ? '#dcfce7' : '#e0ecff'}; color:${c.progress >= 100 ? '#166534' : '#3730a3'}">${c.status}</span>
@@ -78,13 +81,18 @@ function renderProgressPage(data) {
                     <div class="fill" style="width:${c.progress}%; background: ${c.progress >= 100 ? '#22c55e' : '#4f46e5'}; height:100%"></div>
                 </div>
                 
-                <div style="display:flex; justify-content:space-between; font-size:0.9em; color:#64748b">
-                    <span><b>${c.progress}%</b> Completed</span>
-                    <span>${c.assignments_completed} / ${c.total_assignments} Assignments</span>
+                <div style="display:flex; flex-direction:column; gap:5px; font-size:0.9em; color:#64748b">
+                    <div style="display:flex; justify-content:space-between">
+                        <span><b>${c.progress}%</b> Overall Progress</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between">
+                        <span>Assignments: ${c.assignments_completed || 0} / ${c.total_assignments || 0}</span>
+                        <span>Quizzes: ${c.quizzes_completed || 0} / ${c.total_quizzes || 0}</span>
+                    </div>
                 </div>
                 
                 <div style="margin-top:15px; padding-top:15px; border-top:1px solid #f1f5f9; display:flex; gap:20px; font-size:0.85em">
-                   <span><i class="fa-solid fa-clock"></i> Duration: ${c.duration}</span>
+                   <span><i class="fa-solid fa-clock"></i> Duration: ${c.duration || 'N/A'}</span>
                    <span><i class="fa-solid fa-trophy"></i> Certificate: ${c.progress >= 100 ? 'Unlocked 🔓' : 'Locked 🔒'}</span>
                 </div>
             </div>
@@ -339,7 +347,7 @@ async function loadAssignments() {
         console.log("⏳ Not currently eligible for any certificates.");
         if (certHeader) certHeader.style.color = "#64748b";
         if (certHeader) certHeader.innerText = "🎓 Course Certification";
-        if (certMsg) certMsg.innerText = "Submit all assignments to unlock your certificate.";
+        if (certMsg) certMsg.innerText = "Complete all assignments and quizzes to unlock your certificate.";
 
         certBtn.disabled = true;
         certBtn.style.background = "#94a3b8";
@@ -746,6 +754,8 @@ async function submitQuizAnswers() {
     alert(`Quiz Submitted! Your score: ${data.score}/${data.total}`);
     closeQuizModal();
     loadStudentQuizzes();
+    loadAssignments(); // Refresh Certificate Status
+    loadProgress();    // Refresh Progress Bar
   } else {
     const data = await res.json();
     alert(data.error || "Failed to submit quiz");
