@@ -322,9 +322,14 @@ def assign_intern_task():
     
     # Create the task
     # We need to know WHO to assign it to. 
-    # Usually, an Internship record should probably have an intern_id, but the current model just has intern_name.
-    # We'll try to find a user with that name and role INTERN.
-    intern = User.query.filter_by(name=internship.intern_name, role="INTERN").first()
+    # Use Enrollment to find the intern ID reliably.
+    enrollment = Enrollment.query.filter_by(internship_id=internship.id).first()
+    
+    assigned_to_id = enrollment.user_id if enrollment else get_jwt_identity()
+    
+    # Optional: Log if fallback used
+    if not enrollment:
+        print(f"Warning: No enrollment found for internship {internship.id}. Assigning to trainer.")
     
     task = Task(
         title=data["title"],
@@ -332,7 +337,7 @@ def assign_intern_task():
         week_number=week_num,
         internship_id=internship.id,
         assigned_by=get_jwt_identity(),
-        assigned_to=intern.id if intern else get_jwt_identity() # Fallback
+        assigned_to=assigned_to_id 
     )
     db.session.add(task)
     db.session.commit()
@@ -352,6 +357,10 @@ def update_intern_task(task_id):
 @jwt_required()
 def delete_intern_task(task_id):
     task = Task.query.get_or_404(task_id)
+    
+    # Manually delete submissions first due to missing cascade
+    TaskSubmission.query.filter_by(task_id=task.id).delete()
+    
     db.session.delete(task)
     db.session.commit()
     return jsonify({"message": "Task deleted"}), 200
@@ -390,7 +399,9 @@ def update_task_submission():
     
     if "feedback" in data: submission.feedback = data["feedback"]
     if "grade" in data: submission.grade = data["grade"]
-    if "status" in data: submission.status = data["status"]
+    if "feedback" in data: submission.feedback = data["feedback"]
+    if "grade" in data: submission.grade = data["grade"]
+    if "status" in data: submission.status = data["status"] # Allow status update
 
     db.session.commit()
     return jsonify({"message": "Task Submission updated", "status": submission.status})

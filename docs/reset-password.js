@@ -36,7 +36,7 @@ function resetPassword() {
     return;
   }
 
-  fetch("http://127.0.0.1:5000/api/auth/reset-password", {
+  fetch("http://127.0.0.1:5005/api/auth/reset-password", {
     method: "POST",
     headers: {
       "Content-Type": "application/json"

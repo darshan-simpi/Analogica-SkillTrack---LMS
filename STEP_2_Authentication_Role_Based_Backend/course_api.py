@@ -1,7 +1,8 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
+from datetime import datetime
 from extensions import db
-from models import Course, Workshop, Internship, User, Task, Submission, Enrollment, StudentProgress
+from models import Course, Workshop, Internship, User, Task, Submission, Enrollment, StudentProgress, TaskSubmission
 
 course_bp = Blueprint("course_api", __name__)
 
@@ -242,24 +243,55 @@ def get_tasks():
     role = claims.get("role")
 
     if role == "INTERN" or role == "STUDENT":
-        tasks = Task.query.filter_by(assigned_to=user_id).all()
+        # Intern tasks with "Weekly" structure logic
+        raw_tasks = Task.query.filter_by(assigned_to=user_id).order_by(Task.id).all()
+        
+        # Simulate Weekly structure (4 tasks = 4 weeks)
+        # Or just map index to week.
+        tasks = []
+        is_previous_completed = True # First task is always unlocked
+        
+        for index, t in enumerate(raw_tasks):
+            week_num = index + 1
+            is_unlocked = is_previous_completed
+            is_submitted = (t.status == 'Completed') # Using status='Completed' as submitted for interns
+            
+            tasks.append({
+                "id": t.id,
+                "title": t.title,
+                "description": t.description,
+                "status": t.status,
+                "priority": t.priority,
+                "due_date": t.due_date,
+                "week_number": week_num,
+                "is_unlocked": is_unlocked,
+                "is_submitted": is_submitted,
+                "display_week": f"Week {week_num}",
+                "assigned_by": User.query.get(t.assigned_by).name if t.assigned_by else None
+            })
+            
+            # Next task unlocks only if this one is completed
+            if not is_submitted:
+                is_previous_completed = False
+
+        return jsonify(tasks), 200
+
     elif role == "TRAINER":
         tasks = Task.query.filter_by(assigned_by=user_id).all()
+        return jsonify([
+            {
+                "id": t.id,
+                "title": t.title,
+                "description": t.description,
+                "status": t.status,
+                "priority": t.priority,
+                "due_date": t.due_date,
+                "assigned_by": User.query.get(t.assigned_by).name if t.assigned_by else None
+            }
+            for t in tasks
+        ]), 200
     else:
         return jsonify({"error": "Unauthorized"}), 403
-
-    return jsonify([
-        {
-            "id": t.id,
-            "title": t.title,
-            "description": t.description,
-            "status": t.status,
-            "priority": t.priority,
-            "due_date": t.due_date,
-            "assigned_by": User.query.get(t.assigned_by).name if t.assigned_by else None
-        }
-        for t in tasks
-    ]), 200
 
 
 @course_bp.route("/student/courses", methods=["GET"])
@@ -487,7 +519,7 @@ def get_mentors():
         # Fallback for admin/trainer/intern: show all trainers (or adjust if needed)
         trainers = User.query.filter_by(role="TRAINER").all()
         
-    return jsonify([
+        return jsonify([
         {
             "id": t.id, 
             "name": t.name, 
@@ -496,3 +528,201 @@ def get_mentors():
         }
         for t in trainers
     ]), 200
+
+# ================= INTERN DASHBOARD STATS =================
+
+@course_bp.route("/intern/stats", methods=["GET"])
+@jwt_required()
+def get_intern_stats():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    # 1. Tasks Stats
+    tasks = Task.query.filter_by(assigned_to=user_id).all()
+    total_tasks = len(tasks)
+    completed_tasks = len([t for t in tasks if t.status == 'Completed'])
+    pending_tasks = total_tasks - completed_tasks
+    
+    # 2. Enrollment Stats
+    enrollments = Enrollment.query.filter_by(user_id=user_id).all()
+    enrolled_count = len(enrollments)
+    
+    # 3. Overall Progress (Average of all enrolled internships/courses)
+    # For now, simple calculation: (completed_tasks / total_tasks) * 100
+    if total_tasks > 0:
+        overall_progress = int((completed_tasks / total_tasks) * 100)
+    else:
+        overall_progress = 0
+        
+    # 4. Today's Focus (Tasks due today or high priority pending)
+    today = datetime.utcnow().date()
+    tasks_done_today = 0
+    
+    submissions = TaskSubmission.query.filter_by(student_id=user_id).all()
+    tasks_done_today = len([
+        s for s in submissions 
+        if s.submitted_at.date() == today
+    ])
+    
+    # 5. Mentor Details
+    mentor_name = "Not Assigned"
+    if enrollments:
+        # Assuming last enrollment is current
+        last_enrollment = enrollments[-1] 
+        if last_enrollment.internship_id:
+             internship = Internship.query.get(last_enrollment.internship_id)
+             if internship:
+                 mentor_name = internship.mentor_name
+
+    return jsonify({
+        "tasks_completed": completed_tasks,
+        "tasks_pending": pending_tasks,
+        "overall_progress": overall_progress,
+        "internships_enrolled": enrolled_count,
+        "tasks_done_today": tasks_done_today,
+        "current_streak": user.current_streak if user.current_streak else 0,
+        "mentor_name": mentor_name
+    }), 200
+
+@course_bp.route("/intern/certificate", methods=["POST"])
+@jwt_required()
+def generate_intern_certificate():
+    user_id = get_jwt_identity()
+    user = User.query.get(user_id)
+    
+    # Verify eligibility (simple check: 100% progress or all assigned tasks completed)
+    tasks = Task.query.filter_by(assigned_to=user_id).all()
+    if not tasks:
+        return jsonify({"error": "No tasks assigned"}), 400
+        
+    completed = [t for t in tasks if t.status == 'Completed']
+    if len(completed) < len(tasks):
+        return jsonify({"error": "Complete all tasks first"}), 400
+        
+    # Generate PDF
+    try:
+        from reportlab.lib.pagesizes import letter
+        from reportlab.pdfgen import canvas
+        import os
+        
+        # Ensure static folder for certs
+        cert_dir = os.path.join(os.getcwd(), 'static', 'certificates')
+        os.makedirs(cert_dir, exist_ok=True)
+        
+        filename = f"Intern_Certificate_{user_id}.pdf"
+        filepath = os.path.join(cert_dir, filename)
+        
+        c = canvas.Canvas(filepath, pagesize=letter)
+        width, height = letter
+        
+        # Fetch Internship Details
+        internship_name = "Internship Program" # Default
+        enrollment = Enrollment.query.filter_by(user_id=user_id).first()
+        if enrollment and enrollment.internship_id:
+            intern = Internship.query.get(enrollment.internship_id)
+            if intern:
+                # model has 'intern_name', likely storing the role/title like "Web Development"
+                name = intern.intern_name.strip()
+                if not name.lower().endswith("internship"):
+                    internship_name = f"{name} Internship"
+                else:
+                    internship_name = name 
+
+        # Design
+        c.setStrokeColorRGB(0.2, 0.2, 0.2)
+        c.rect(50, 50, width - 100, height - 100) # Border
+        
+        c.setFont("Helvetica-Bold", 30)
+        c.drawCentredString(width / 2, height - 180, "CERTIFICATE OF COMPLETION")
+        
+        c.setFont("Helvetica", 14)
+        c.drawCentredString(width / 2, height - 230, "This is to certify that")
+        
+        c.setFont("Helvetica-Bold", 26)
+        c.drawCentredString(width / 2, height - 280, user.name)
+        
+        c.setFont("Helvetica", 14)
+        c.drawCentredString(width / 2, height - 330, "has successfully completed the")
+        
+        c.setFont("Helvetica-Bold", 20)
+        c.drawCentredString(width / 2, height - 370, internship_name)
+        
+        c.setFont("Helvetica", 12)
+        date_str = datetime.utcnow().strftime('%B %d, %Y')
+        c.drawCentredString(width / 2, height - 420, f"Date of Issue: {date_str}")
+        
+        # Signature
+        c.line(width - 250, 150, width - 100, 150)
+        c.setFont("Helvetica-Bold", 12)
+        c.drawRightString(width - 120, 130, "Authorized Signatory")
+        c.setFont("Helvetica", 10)
+        c.drawRightString(width - 125, 115, "Analogica SkillTrack")
+        
+        c.save()
+        
+        return jsonify({"message": "Certificate generated", "url": f"/certificates/{filename}"}), 200
+        
+    except Exception as e:
+        print(f"Cert Error: {e}")
+        # Return actual error for debugging
+        return jsonify({"error": f"Gen Error: {str(e)}"}), 500
+
+@course_bp.route("/intern/task/<int:task_id>/complete", methods=["POST"])
+@jwt_required()
+def complete_intern_task(task_id):
+    user_id = get_jwt_identity()
+    task = Task.query.get(task_id)
+    
+    if not task:
+        return jsonify({"error": "Task not found"}), 404
+        
+    if task.assigned_to != int(user_id):
+        return jsonify({"error": "Unauthorized"}), 403
+
+    # Handle File Upload
+    file = request.files.get("file")  # Restored missing line
+    file_path = None
+    
+    if file:
+        import os
+        from werkzeug.utils import secure_filename
+        
+        # Use absolute path for safety
+        BASE_DIR = os.getcwd() # Or use app.root_path if available
+        upload_folder = os.path.join(BASE_DIR, 'static', 'uploads', 'intern_tasks')
+        os.makedirs(upload_folder, exist_ok=True)
+        
+        filename = secure_filename(file.filename)
+        # Unique filename to prevent overwrite
+        import uuid
+        unique_name = f"{uuid.uuid4().hex}_{filename}"
+        
+        # Save file
+        full_path = os.path.join(upload_folder, unique_name)
+        file.save(full_path)
+        
+        # Store relative path for serving
+        file_path = f"static/uploads/intern_tasks/{unique_name}"
+        
+    # Mark as completed
+    task.status = "Completed"
+    
+    # Create or Update Submission
+    existing_sub = TaskSubmission.query.filter_by(task_id=task.id, student_id=user_id).first()
+    if not existing_sub:
+        new_sub = TaskSubmission(
+            task_id=task.id,
+            student_id=user_id,
+            # content="Marked as completed by Intern", # Field does not exist in TaskSubmission
+            file_path=file_path, 
+            submitted_at=datetime.utcnow()
+        )
+        db.session.add(new_sub)
+    else:
+        existing_sub.submitted_at = datetime.utcnow()
+        if file_path:
+            existing_sub.file_path = file_path # Update file path if re-submitted
+        
+    db.session.commit()
+    
+    return jsonify({"message": "Task completed"}), 200

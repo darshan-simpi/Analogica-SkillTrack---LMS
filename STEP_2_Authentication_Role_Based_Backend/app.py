@@ -56,7 +56,7 @@ def create_app():
 
     @app.route("/api/certificates/<path:filename>")
     def serve_certificates(filename):
-        return send_from_directory("certificates", filename)
+        return send_from_directory("static/certificates", filename)
 
     @app.route("/")
     def home():
@@ -82,6 +82,16 @@ def create_app():
             try:
                 conn.execute(db.text("ALTER TABLE tasks ADD COLUMN internship_id INTEGER"))
             except Exception: pass
+
+            try:
+                conn.execute(db.text("ALTER TABLE enrollments ADD COLUMN internship_id INTEGER"))
+            except Exception: pass
+            
+            try:
+                # Modify course_id to be nullable. Syntax depends on DB. 
+                # For MySQL: MODIFY COLUMN course_id INTEGER NULL
+                conn.execute(db.text("ALTER TABLE enrollments MODIFY COLUMN course_id INTEGER NULL"))
+            except Exception: pass
             
             print("✅ Verified DB Schema")
 
@@ -92,4 +102,4 @@ def create_app():
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=5005)

@@ -67,67 +67,47 @@
           </div>
         </div>
 
-        <h2 class="group-title">Today’s Focus</h2>
-        <div class="task-grid">
-          <div class="task soft big">Fix UI Bugs <span class="tag high">High</span></div>
-          <div class="task soft big">API Integration <span class="tag medium">Medium</span></div>
-          <div class="task soft big">Weekly Report <span class="tag low">Low</span></div>
+        <!-- DASHBOARD CERTIFICATE SECTION (Student Style) -->
+        <div id="dashboard-certificate-section" style="margin-top: 30px; display: none;">
+          <div id="certificateContainer"
+            style="text-align: center; background: rgba(34, 197, 94, 0.05); padding: 25px; border-radius: 12px; border: 1px dashed #22c55e;">
+            <h3 id="certHeader" style="color: #64748b; margin-bottom: 10px;">🎓 Internship Certification</h3>
+            <p id="dashboard-cert-message" style="margin-bottom: 15px; color: #64748b; font-size: 0.9em;">
+              Complete all tasks to unlock your certificate.
+            </p>
+            <div id="dashboard-cert-result" style="margin-bottom: 15px;"></div>
+            <button id="dashboard-download-cert-btn" disabled class="btn-primary"
+              style="background: #94a3b8; border: none; padding: 12px 24px; border-radius: 6px; color: white; cursor: not-allowed; font-weight: bold; transition: all 0.3s ease;">
+              <i class="fa-solid fa-lock"></i> Certificate Locked
+            </button>
+          </div>
         </div>
 
-        <h2 class="group-title">Recent Activity</h2>
-        <div class="activity-list">
-          <div class="activity">✅ UI Improved</div>
-          <div class="activity">📌 API Connected</div>
-          <div class="activity">📝 Docs Updated</div>
-          <div class="activity">🚀 Dashboard Finalized</div>
-        </div>
+
       </section>
 
       <!-- TASKS -->
       <section id="tasks" class="page">
-        <h2 class="group-title">Today</h2>
-        <div class="task-grid">
-          <div class="task soft big priority-high">
-            <div class="task-head"><span>Fix UI bugs</span><span class="tag high">High</span></div>
-            <ul class="subtasks">
-              <li><input type="checkbox"> Navbar alignment</li>
-              <li><input type="checkbox"> Responsive layout</li>
-            </ul>
-          </div>
-
-          <div class="task soft big priority-medium">
-            <div class="task-head"><span>API Integration</span><span class="tag medium">Medium</span></div>
-            <ul class="subtasks">
-              <li><input type="checkbox"> API testing</li>
-              <li><input type="checkbox"> Error handling</li>
-            </ul>
-          </div>
-        </div>
-
-        <h2 class="group-title">This Week</h2>
-        <div class="task-grid">
-          <div class="task soft big priority-medium">
-            <div class="task-head"><span>Authentication</span><span class="tag medium">Medium</span></div>
-            <ul class="subtasks">
-              <li><input type="checkbox"> Login</li>
-              <li><input type="checkbox"> Session</li>
-            </ul>
-          </div>
-
-          <div class="task soft big priority-low">
-            <div class="task-head"><span>Documentation</span><span class="tag low">Low</span></div>
-            <ul class="subtasks">
-              <li><input type="checkbox"> README</li>
-              <li><input type="checkbox"> Notes</li>
-            </ul>
-          </div>
+        <h2 class="group-title">Internship Tasks</h2>
+        <div id="tasks-container" class="task-grid" style="display:block;">
+          <p>Loading tasks...</p>
         </div>
       </section>
 
       <!-- PROGRESS -->
       <section id="progress" class="page">
-        <h2 class="group-title">Weekly Progress</h2>
-        <canvas id="weeklyChart" height="120"></canvas>
+        <h2 class="group-title">Course Completion</h2>
+
+        <div class="card" style="margin-bottom: 20px;">
+          <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
+            <span id="progress-text" style="font-weight: bold; color: #4b5563;">Progress</span>
+            <span id="progress-percent" style="font-weight: bold; color: #4f46e5;">0%</span>
+          </div>
+          <div class="progress-bar" style="height: 12px; background: #e2e8f0; border-radius: 6px; overflow: hidden;">
+            <div id="progress-fill-main"
+              style="width: 0%; height: 100%; background: #4f46e5; transition: width 0.5s ease;"></div>
+          </div>
+        </div>
 
         <div class="cards">
           <div class="card pastel-green">
@@ -143,24 +123,22 @@
             <h2>90%</h2>
           </div>
         </div>
+
+
       </section>
 
       <!-- MENTOR -->
       <section id="mentor" class="page">
         <h2 class="group-title">Mentor</h2>
-        <div id="mentor-list">
-          <!-- Dynamic Mentor Cards will be loaded here -->
-          <p>Loading mentors...</p>
-        </div>
-
-        <div class="cards">
-          <div class="card pastel-green">
-            <p>Last Review</p>
-            <h2>2 Days Ago</h2>
+        <div class="card"
+          style="background: linear-gradient(135deg, #FFF7D1 0%, #FFD6A5 100%); width: 100%; display: flex; align-items: center; gap: 15px; border: 1px solid #ffeeba;">
+          <div style="background: rgba(255, 255, 255, 0.6); padding: 15px; border-radius: 50%;">
+            <i class="fa-solid fa-user-tie" style="font-size: 1.5em; color: #d97706;"></i>
           </div>
-          <div class="card pastel-lavender">
-            <p>Next Meeting</p>
-            <h2>Friday</h2>
+          <div>
+            <p style="color: #92400e; font-weight: 600; margin-bottom: 5px;">My Mentor</p>
+            <h2 id="mentor-name" style="color: #78350f; font-size: 1.5em; margin: 0;">N/A</h2>
+            <p id="mentor-email" style="font-size: 0.9em; color: #92400e; margin-top: 5px;"></p>
           </div>
         </div>
       </section>
@@ -177,6 +155,26 @@
           <!-- Available internships will be loaded here -->
         </div>
       </section>
+
+      <!-- SUBMISSION MODAL -->
+      <div id="submission-modal" class="modal"
+        style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div class="modal-content"
+          style="background: white; padding: 30px; border-radius: 12px; width: 400px; text-align: center; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+          <h2 style="margin-bottom: 20px; color: #1e293b;">Submit Task</h2>
+          <p style="margin-bottom: 20px; color: #64748b;">Upload your work to complete this task.</p>
+
+          <input type="file" id="submission-file" style="margin-bottom: 20px; width: 100%;">
+
+          <div style="display: flex; gap: 10px; justify-content: center;">
+            <button onclick="closeSubmissionModal()"
+              style="padding: 10px 20px; background: #e2e8f0; color: #475569; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Cancel</button>
+            <button onclick="submitTaskFile()"
+              style="padding: 10px 20px; background: #4f46e5; color: white; border: none; border-radius: 8px; cursor: pointer; font-weight: 600;">Submit</button>
+          </div>
+        </div>
+      </div>
+
     </main>
   </div>
 

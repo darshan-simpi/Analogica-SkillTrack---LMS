@@ -33,3 +33,7 @@ header{display:flex;justify-content:space-between;margin-bottom:30px}
 #mentor .mentor-card, #mentor .cards {
     margin-bottom: 20px;
 }
+
+.internship-list .card {
+    margin-bottom: 20px;
+}

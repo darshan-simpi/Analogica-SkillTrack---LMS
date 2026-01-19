@@ -1,6 +1,6 @@
 const navLinks = document.querySelectorAll(".nav");
 const pages = document.querySelectorAll(".page");
-const API_BASE = 'http://127.0.0.1:5000/api';
+const API_BASE = 'http://127.0.0.1:5005/api';
 const token = localStorage.getItem("token");
 const role = localStorage.getItem("role");
 
@@ -34,8 +34,43 @@ navLinks.forEach(link => {
         if (link.dataset.target === 'mentor') {
             loadMentors();
         }
+        if (link.dataset.target === 'progress') {
+            loadProgressPage();
+        }
     };
 });
+
+async function loadProgressPage() {
+    try {
+        const response = await fetch(API_BASE + '/intern/stats', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const stats = await response.json();
+
+        // Update Progress Page Cards
+        const progressSection = document.getElementById('progress');
+        if (progressSection) {
+            // "Tasks Done" is the 1st card in cards container
+            progressSection.querySelector('.card:nth-child(1) h2').textContent = stats.tasks_completed;
+            // "Hours Worked" (placeholder/streak for now) 2nd card
+            progressSection.querySelector('.card:nth-child(2) h2').textContent = `${stats.current_streak * 2}h (Est)`;
+            // "Efficiency" (overall progress) 3rd card
+            progressSection.querySelector('.card:nth-child(3) h2').textContent = `${stats.overall_progress}%`;
+
+            // Update Progress Bar
+            const pFill = document.getElementById('progress-fill-main');
+            const pText = document.getElementById('progress-percent');
+
+            if (pFill && pText) {
+                pFill.style.width = `${stats.overall_progress}%`;
+                pText.textContent = `${stats.overall_progress}%`;
+            }
+
+            // Check Certificate Eligibility
+            checkCertificateEligibility(stats);
+        }
+    } catch (e) { console.error("Error loading progress page", e); }
+}
 
 async function loadMentors() {
     const list = document.getElementById('mentor-list');
@@ -136,7 +171,8 @@ async function loadInternships() {
                         <h3>${internship.intern_name}</h3>
                         <p>Mentor: ${internship.mentor_name}</p>
                         <p>Duration: ${internship.duration}</p>
-                        <button onclick="enrollInInternship(${internship.id})">Enroll</button>
+                        <!-- <button onclick="enrollInInternship(${internship.id})">Enroll</button> -->
+                        <span class="tag">Available</span>
                     </div>
                 `;
                 availableList.innerHTML += internshipCard;
@@ -177,57 +213,145 @@ async function enrollInInternship(internshipId) {
 // Load dashboard data
 async function loadDashboardData() {
     try {
-        const response = await fetch(API_BASE + '/tasks', {
+        const response = await fetch(API_BASE + '/intern/stats', {
             headers: {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
         });
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
-        }
-        const tasks = await response.json();
 
-        const completed = tasks.filter(t => t.status === 'Completed').length;
-        const pending = tasks.filter(t => t.status === 'Pending').length;
-        const total = tasks.length;
-        const progress = total > 0 ? Math.round((completed / total) * 100) : 0;
+        if (!response.ok) {
+            console.error("Failed to fetch dashboard stats");
+            return;
+        }
+
+        const stats = await response.json();
+
+        // We also need the actual tasks list for the "Today's Focus" grid
+        const tasksResponse = await fetch(API_BASE + '/tasks', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const tasks = tasksResponse.ok ? await tasksResponse.json() : [];
 
         // Update cards
-        document.querySelector('.card:nth-child(1) h2').textContent = completed;
-        document.querySelector('.card:nth-child(2) h2').textContent = pending;
-        document.querySelector('.card:nth-child(3) h2').textContent = `${progress}%`;
+        document.querySelector('.card:nth-child(1) h2').textContent = stats.tasks_completed;
+        document.querySelector('.card:nth-child(2) h2').textContent = stats.tasks_pending;
+        document.querySelector('.card:nth-child(3) h2').textContent = `${stats.overall_progress}%`;
+        document.querySelector('.card:nth-child(4) h2').textContent = stats.internships_enrolled; // Now specific card
 
-        // Load enrolled internships count
-        const enrollResponse = await fetch(API_BASE + '/enrollments', {
-            headers: {
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            }
-        });
-        if (enrollResponse.ok) {
-            const enrollments = await enrollResponse.json();
-            document.getElementById('internships-enrolled').textContent = enrollments.length;
+        // Update secondary cards
+        document.querySelector('.cards:nth-of-type(2) .card:nth-child(1) h2').textContent = `${stats.tasks_done_today} Tasks Done`;
+        document.querySelector('.cards:nth-of-type(2) .card:nth-child(3) h2').textContent = `${stats.current_streak} Days`;
+
+        // Update Weekly Goal (Progress Bar) - 2nd card in 2nd row
+        const weeklyGoalCard = document.querySelector('.cards:nth-of-type(2) .card:nth-child(2)');
+        if (weeklyGoalCard) {
+            weeklyGoalCard.querySelector('h2').textContent = `${stats.overall_progress}%`;
+            weeklyGoalCard.querySelector('.progress-fill').style.width = `${stats.overall_progress}%`;
         }
 
-        // Update today's focus
-        const taskGrid = document.querySelector('#dashboard .task-grid');
-        taskGrid.innerHTML = '';
-        tasks.slice(0, 3).forEach(task => {
-            const priorityClass = task.priority.toLowerCase();
-            const taskDiv = `<div class="task soft big">${task.title} <span class="tag ${priorityClass}">${task.priority}</span></div>`;
-            taskGrid.innerHTML += taskDiv;
-        });
+        // Update Mentor Card
+        const mentorNameEl = document.getElementById("mentor-name");
+        const mentorEmailEl = document.getElementById("mentor-email");
+        if (mentorNameEl) {
+            mentorNameEl.textContent = stats.mentor_name || "Assigned Soon";
+        }
+        if (mentorEmailEl) {
+            // Since we don't have email in DB yet, show generic text or hide
+            mentorEmailEl.textContent = "support@analogica.com";
+        }
+
+        // Update charts
+        updateCharts(stats);
+
+        // Update Dashboard Certificate Section
+        checkCertificateEligibilityForDashboard(stats);
 
     } catch (error) {
         console.error('Error fetching dashboard data:', error);
     }
 }
 
-// Load tasks
+function checkCertificateEligibilityForDashboard(stats) {
+    const certSection = document.getElementById('dashboard-certificate-section');
+    const certBtn = document.getElementById('dashboard-download-cert-btn');
+    const certMsg = document.getElementById('dashboard-cert-message');
+
+    if (certSection && certBtn) {
+        certSection.style.display = 'block';
+        if (stats.tasks_pending === 0 && stats.tasks_completed > 0) {
+            certBtn.disabled = false;
+            certBtn.style.background = '#4f46e5';
+            certBtn.style.cursor = 'pointer';
+            certBtn.innerHTML = 'Download Certificate <i class="fa-solid fa-certificate"></i>';
+            certBtn.onclick = generateCertificate;
+            certMsg.innerText = "Congratulations! You have completed your internship program.";
+            certMsg.style.color = "#166534";
+            certMsg.style.fontWeight = "bold";
+        } else {
+            certBtn.disabled = true;
+            certBtn.style.background = '#94a3b8';
+            certBtn.innerHTML = 'Certificate Locked 🔒';
+            certMsg.innerText = `Complete all tasks to unlock. (${stats.tasks_pending} remaining)`;
+            certMsg.style.color = "#64748b";
+        }
+    }
+}
+
+async function generateCertificateForDashboard(btn, msgDiv) {
+    btn.innerHTML = 'Generating... <i class="fa-solid fa-spinner fa-spin"></i>';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(API_BASE + '/intern/certificate', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            msgDiv.innerHTML = `<a href="${API_BASE.replace('/api', '') + data.url}" target="_blank" class="btn-primary" style="background: #22c55e; color:white; padding: 10px 20px; display: inline-block; margin-top: 10px; text-decoration: none; border-radius: 8px;">Download PDF <i class="fa-solid fa-download"></i></a>`;
+            btn.innerHTML = "Certificate Ready ✅";
+            btn.style.display = 'none';
+        } else {
+            msgDiv.innerText = data.error || "Failed to generate.";
+            btn.innerHTML = "Retry Generation";
+            btn.disabled = false;
+        }
+    } catch (e) {
+        console.error(e);
+        msgDiv.innerText = "Error generating certificate.";
+        btn.innerText = "Download Certificate";
+        btn.disabled = false;
+    }
+}
+
+function updateCharts(stats) {
+    // Update Doughnut Chart (Progress)
+    const dash3Canvas = document.getElementById('dash3');
+    if (dash3Canvas) {
+        // Destroy existing chart if stored (add logic to store chart instance if needed, or just redraw)
+        // For simplicity, we are redrawing. Ideally, track chart instances to destroy them.
+        const chartStatus = Chart.getChart("dash3"); // Chart.js 3+
+        if (chartStatus) chartStatus.destroy();
+
+        new Chart(dash3Canvas, {
+            type: "doughnut",
+            data: {
+                datasets: [{
+                    data: [stats.overall_progress, 100 - stats.overall_progress],
+                    backgroundColor: ["#22c55e", "#e5e7eb"],
+                    cutout: "70%"
+                }]
+            },
+            options: { plugins: { legend: { display: false } } }
+        });
+    }
+}
+
+// Load tasks with Weekly Logic
 async function loadTasks() {
-    const todayTasks = document.querySelector('#tasks .task-grid:nth-of-type(1)');
-    const weekTasks = document.querySelector('#tasks .task-grid:nth-of-type(2)');
-    todayTasks.innerHTML = 'Loading...';
-    weekTasks.innerHTML = 'Loading...';
+    const container = document.getElementById('tasks-container');
+    container.innerHTML = 'Loading...';
 
     try {
         const response = await fetch(API_BASE + '/tasks', {
@@ -235,65 +359,166 @@ async function loadTasks() {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
         });
-        if (!response.ok) {
-            throw new Error(`HTTP error! status: ${response.status}`);
+        const tasks = response.ok ? await response.json() : [];
+
+        container.innerHTML = '';
+
+        if (tasks.length === 0) {
+            container.innerHTML = '<p>No tasks assigned yet.</p>';
+            return;
         }
-        const tasks = await response.json();
 
-        todayTasks.innerHTML = '';
-        weekTasks.innerHTML = '';
+        tasks.forEach((task, index) => {
+            const weekNum = task.week_number || (index + 1);
+            const isUnlocked = task.is_unlocked;
+            const isSubmitted = task.status === 'Completed';
 
-        tasks.forEach(task => {
-            const priorityClass = `priority-${task.priority.toLowerCase()}`;
-            const statusClass = task.status === 'Completed' ? 'completed' : '';
-            const taskDiv = `
-                <div class="task soft big ${priorityClass} ${statusClass}">
-                    <div class="task-head"><span>${task.title}</span><span class="tag ${task.priority.toLowerCase()}">${task.priority}</span></div>
-                    <p>${task.description || ''}</p>
-                    ${task.status !== 'Completed' ? `<button onclick="submitTask(${task.id})">Submit</button>` : '<span>Submitted</span>'}
+            const statusColor = isSubmitted ? '#22c55e' : (isUnlocked ? '#4f46e5' : '#94a3b8');
+            const opacity = isUnlocked ? 1 : 0.7;
+
+            let actionBtn = '';
+            if (isUnlocked && !isSubmitted) {
+                actionBtn = `<button onclick="openSubmissionModal(${task.id})" class="btn-primary" style="padding: 8px 16px; font-size: 0.9em; border-radius: 8px;">Mark Complete</button>`;
+            } else if (isSubmitted) {
+                actionBtn = `<span class="tag" style="background: #dcfce7; color: #166534; font-size: 0.9em;">Completed <i class="fa-solid fa-check"></i></span>`;
+            } else {
+                actionBtn = `<span class="tag" style="background: #f1f5f9; color: #64748b; font-size: 0.9em;"><i class="fa-solid fa-lock"></i> Locked</span>`;
+            }
+
+            const taskCard = `
+                <div class="card" style="border-left: 5px solid ${statusColor}; opacity: ${opacity}; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
+                    <div style="flex: 1;">
+                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
+                            <span class="tag" style="background: ${statusColor}; color: white; font-weight: bold;">Week ${weekNum}</span>
+                             <h3 style="margin: 0; font-size: 1.1em; color: #1e293b;">${task.title}</h3>
+                        </div>
+                        <p style="font-size: 0.95em; color: #64748b; margin: 0 0 5px 0;">${task.description || 'Complete the assigned work for this week.'}</p>
+                         ${task.due_date ? `<small style="color: #94a3b8; font-weight: 500;"><i class="fa-regular fa-calendar"></i> Due: ${task.due_date}</small>` : ''}
+                    </div>
+                    <div style="margin-left: 20px; white-space: nowrap;">
+                        ${actionBtn}
+                    </div>
                 </div>
             `;
-            if (task.due_date && new Date(task.due_date) <= new Date()) {
-                todayTasks.innerHTML += taskDiv;
-            } else {
-                weekTasks.innerHTML += taskDiv;
-            }
+            container.innerHTML += taskCard;
         });
 
     } catch (error) {
-        console.error('Error fetching tasks:', error);
-        todayTasks.innerHTML = '<p>Failed to load tasks.</p>';
-        weekTasks.innerHTML = '<p>Failed to load tasks.</p>';
+        console.error('Error loading tasks:', error);
+        document.getElementById('tasks-container').innerHTML = '<p>Failed to load tasks.</p>';
     }
 }
 
-// Submit task
-async function submitTask(taskId) {
-    const content = prompt('Enter submission content:');
-    if (!content) return;
+// Global variable for current submitting task
+let currentTaskId = null;
+
+function openSubmissionModal(taskId) {
+    currentTaskId = taskId;
+    document.getElementById('submission-modal').style.display = 'flex';
+}
+
+function closeSubmissionModal() {
+    currentTaskId = null;
+    document.getElementById('submission-modal').style.display = 'none';
+    document.getElementById('submission-file').value = ''; // Reset input
+}
+
+async function submitTaskFile() {
+    if (!currentTaskId) return;
+    const fileInput = document.getElementById('submission-file');
+
+    if (!fileInput.files[0]) {
+        alert("Please select a file to upload.");
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('file', fileInput.files[0]);
 
     try {
-        const response = await fetch(API_BASE + `/tasks/${taskId}/submit`, {
+        const res = await fetch(API_BASE + `/intern/task/${currentTaskId}/complete`, {
             method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${localStorage.getItem('token')}`
-            },
-            body: JSON.stringify({ content })
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, // No Content-Type for FormData!
+            body: formData
         });
-        if (response.ok) {
-            alert('Task submitted!');
+
+        if (res.ok) {
+            alert("Task Submitted Successfully!");
+            closeSubmissionModal();
             loadTasks();
+            loadProgressPage();
             loadDashboardData();
         } else {
-            alert('Failed to submit task.');
+            const err = await res.json();
+            alert("Failed: " + (err.error || "Unknown error"));
         }
-    } catch (error) {
-        console.error('Error submitting task:', error);
+    } catch (e) { console.error(e); alert("Transmission error"); }
+}
+
+// Consolidated Generate Certificate Function
+async function generateCertificate() {
+    // Use Dashboard Elements
+    const btn = document.getElementById("dashboard-download-cert-btn") || document.getElementById("download-cert-btn");
+    const msg = document.getElementById("dashboard-cert-result") || document.getElementById("cert-result");
+
+    if (!btn || !msg) {
+        console.error("Certificate elements not found");
+        return;
+    }
+
+    btn.innerHTML = 'Generating... <i class="fa-solid fa-spinner fa-spin"></i>';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(API_BASE + '/intern/certificate', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            // Student Style: Open directly
+            const fullUrl = API_BASE + data.url;
+            window.open(fullUrl, '_blank');
+
+            btn.innerHTML = 'Download Certificate <i class="fa-solid fa-download"></i>';
+            btn.disabled = false;
+        } else {
+            msg.innerText = data.error || "Failed to generate.";
+            msg.style.color = "red";
+            btn.innerHTML = "Retry Generation";
+            btn.disabled = false;
+        }
+    } catch (e) {
+        console.error(e);
+        msg.innerText = "Error requesting certificate.";
+        btn.innerText = "Download Certificate";
+        btn.disabled = false;
     }
 }
 
-new Chart(dash1, { type: "line", data: { labels: [1, 2, 3, 4], datasets: [{ data: [2, 3, 5, 6], borderColor: "#6366f1", tension: .4 }] }, options: { plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } } });
-new Chart(dash2, { type: "bar", data: { labels: ["M", "T", "W", "T", "F"], datasets: [{ data: [5, 4, 4, 3, 4], backgroundColor: "#8b5cf6" }] }, options: { plugins: { legend: { display: false } }, scales: { x: { display: false }, y: { display: false } } } });
-new Chart(dash3, { type: "doughnut", data: { datasets: [{ data: [72, 28], backgroundColor: ["#22c55e", "#e5e7eb"], cutout: "70%" }] }, options: { plugins: { legend: { display: false } } } });
-new Chart(weeklyChart, { type: "line", data: { labels: ["Week 1", "Week 2", "Week 3", "Week 4"], datasets: [{ data: [60, 72, 85, 90], fill: true, backgroundColor: "rgba(99,102,241,.2)", borderColor: "#6366f1", tension: .4 }] }, options: { plugins: { legend: { display: false } }, scales: { y: { beginAtZero: true, max: 100 } } } });
+function checkCertificateEligibility(stats) {
+    const certSection = document.getElementById('certificate-section');
+    const certBtn = document.getElementById('download-cert-btn');
+    const certMsg = document.getElementById('cert-message');
+
+    if (certSection) {
+        certSection.style.display = 'block';
+        if (stats.tasks_pending === 0 && stats.tasks_completed > 0) {
+            certBtn.disabled = false;
+            certBtn.style.background = '#4f46e5';
+            certBtn.style.cursor = 'pointer';
+            certBtn.innerHTML = 'Download Certificate <i class="fa-solid fa-certificate"></i>';
+            certBtn.onclick = generateCertificate;
+            certMsg.innerText = "Congratulations! You have completed your internship program.";
+            certMsg.style.color = "#166534";
+            certMsg.style.fontWeight = "bold";
+        } else {
+            certBtn.disabled = true;
+            certBtn.style.background = '#94a3b8';
+            certBtn.innerHTML = 'Certificate Locked 🔒';
+            certMsg.innerText = `Complete all tasks to unlock. (${stats.tasks_pending} remaining)`;
+            certMsg.style.color = "#64748b";
+        }
+    }
+}

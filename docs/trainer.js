@@ -1,4 +1,4 @@
-const BASE_URL = "http://127.0.0.1:5000";
+const BASE_URL = "http://127.0.0.1:5005";
 const API = `${BASE_URL}/api`;
 const token = localStorage.getItem("token");
 
@@ -714,23 +714,32 @@ async function loadInternshipSubmissions() {
         <td><input value="${s.grade || ''}" id="grade-${s.submission_id}" style="width:50px"></td>
         <td><input value="${s.feedback || ''}" id="feed-${s.submission_id}"></td>
         <td>
-          <button class="btn-small" onclick="updateInternSubmission(${s.submission_id})">Save</button>
+          <span class="tag" style="background:${s.status === 'Completed' ? 'green' : (s.status === 'Rejected' ? 'red' : 'orange')}">${s.status}</span>
+        </td>
+        <td>
+          <button class="btn-small" style="background:#22c55e" onclick="updateInternSubmission(${s.submission_id}, 'Completed')">Accept</button>
+          <button class="btn-small" style="background:#ef4444" onclick="updateInternSubmission(${s.submission_id}, 'Rejected')">Reject</button>
+          <button class="btn-small" onclick="updateInternSubmission(${s.submission_id}, 'Graded')">Save Grade</button>
         </td>
       </tr>
     `;
   });
 }
 
-async function updateInternSubmission(id) {
+async function updateInternSubmission(id, status = null) {
   const grade = document.getElementById(`grade-${id}`).value;
   const feedback = document.getElementById(`feed-${id}`).value;
+
+  const payload = { submission_id: id, grade, feedback };
+  if (status) payload.status = status;
 
   await fetch(`${API}/trainer/task_submission/update`, {
     method: "POST",
     headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-    body: JSON.stringify({ submission_id: id, grade, feedback, status: "Graded" })
+    body: JSON.stringify(payload)
   });
-  alert("Feedback Saved");
+  alert("Submission Updated: " + (status || "Saved"));
+  loadInternshipSubmissions(); // Refresh list to show new status
 }
 
 /* ================= INTERNSHIP RESOURCES ================= */

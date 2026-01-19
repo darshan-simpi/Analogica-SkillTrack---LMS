@@ -55,7 +55,13 @@ class Enrollment(db.Model):
     course_id = db.Column(
         db.Integer,
         db.ForeignKey("courses.id"),
-        nullable=False
+        nullable=True
+    )
+
+    internship_id = db.Column(
+        db.Integer,
+        db.ForeignKey("internships.id"),
+        nullable=True
     )
 
     enrolled_at = db.Column(db.DateTime, default=datetime.utcnow)
@@ -109,6 +115,7 @@ class Internship(db.Model):
     duration = db.Column(db.String(50))
 
     tasks = db.relationship("Task", backref="internship", lazy=True)
+    enrollments = db.relationship("Enrollment", backref="internship", lazy=True)
 
 # ================= TASKS (INTERNSHIP TASKS) =================
 class Task(db.Model):

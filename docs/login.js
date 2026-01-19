@@ -1,4 +1,4 @@
-const API_BASE = "http://127.0.0.1:5000"; // change to Render URL later
+const API_BASE = "http://127.0.0.1:5005"; // change to Render URL later
 const courseList = document.getElementById("courseList");
 
 async function renderCourses() {
