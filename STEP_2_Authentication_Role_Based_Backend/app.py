@@ -54,6 +54,10 @@ def create_app():
     def serve_uploads(filename):
         return send_from_directory("uploads", filename)
 
+    @app.route("/uploads/<path:filename>")
+    def serve_uploads_root(filename):
+        return send_from_directory("uploads", filename)
+
     @app.route("/api/certificates/<path:filename>")
     def serve_certificates(filename):
         return send_from_directory("static/certificates", filename)

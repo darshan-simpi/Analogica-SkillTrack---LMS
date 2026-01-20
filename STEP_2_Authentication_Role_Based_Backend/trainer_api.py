@@ -164,7 +164,7 @@ def get_submissions(assignment_id):
         result.append({
             "submission_id": s.id,
             "student_name": student.name if student else "Unknown",
-            "file_url": s.file_path,
+            "file_url": s.file_path.replace("\\", "/") if s.file_path else "",
             "feedback": s.feedback,
             "grade": s.grade,
             "status": s.status
@@ -190,7 +190,7 @@ def get_course_submissions(course_id):
             "submission_id": s.id,
             "student_name": student.name if student else "Unknown",
             "assignment_title": assignment.title if assignment else "Unknown",
-            "file_url": s.file_path,
+            "file_url": s.file_path.replace("\\", "/") if s.file_path else "",
             "feedback": s.feedback,
             "grade": s.grade,
             "status": s.status
@@ -252,7 +252,7 @@ def upload_resource(course_id):
         course_id=course_id,
         title=title,
         type=file.content_type,
-        url=path
+        url=path.replace("\\", "/")
     )
 
     db.session.add(resource)
@@ -270,7 +270,7 @@ def get_resources(course_id):
         "id": r.id,
         "title": r.title,
         "type": r.type,
-        "url": r.url
+        "url": r.url.replace("\\", "/") if r.url else ""
     } for r in resources])
 
 
@@ -381,9 +381,11 @@ def get_internship_submissions(internship_id):
 
         result.append({
             "submission_id": s.id,
+            "student_id": s.student_id,
+            "task_id": s.task_id,
             "student_name": student.name if student else "Unknown",
             "task_title": task.title if task else "Unknown",
-            "file_url": s.file_path,
+            "file_url": s.file_path.replace("\\", "/") if s.file_path else "",
             "feedback": s.feedback,
             "grade": s.grade,
             "status": s.status
@@ -425,7 +427,7 @@ def upload_internship_resource(internship_id):
         internship_id=internship_id,
         title=title,
         type=file.content_type,
-        url=path
+        url=path.replace("\\", "/")
     )
 
     db.session.add(resource)
@@ -440,7 +442,7 @@ def get_internship_resources(internship_id):
         "id": r.id,
         "title": r.title,
         "type": r.type,
-        "url": r.url
+        "url": r.url.replace("\\", "/") if r.url else ""
     } for r in resources])
 
 @trainer_bp.route("/trainer/internship/resource/<int:resource_id>", methods=["DELETE"])
