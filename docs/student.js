@@ -71,7 +71,6 @@ function renderProgressPage(data) {
     console.log("🛠️ Rendering Course Progress Item:", c);
     container.innerHTML += `
             <div class="box glow" style="margin-bottom:20px; padding:25px; border-left: 5px solid ${c.progress >= 100 ? '#22c55e' : '#4f46e5'}">
-                <div style="font-size: 0.7em; color: #cbd5e1; margin-bottom: 5px; text-align: right;">System Sync: ${new Date().toLocaleTimeString()}</div>
                 <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
                     <h3 style="margin:0; font-size:1.2em">${c.course_name}</h3>
                     <span class="tag" style="background:${c.progress >= 100 ? '#dcfce7' : '#e0ecff'}; color:${c.progress >= 100 ? '#166534' : '#3730a3'}">${c.status}</span>
@@ -560,7 +559,9 @@ function renderAssignments(tasks) {
         actionBtns = `<button onclick="openSubmitModal(${t.id}, '${safeTitle}')" class="btn-primary" style="padding:6px 14px; font-size:0.85em; border-radius:8px">Submit</button>`;
       } else if (isSubmitted) {
         const feedback = t.feedback ? t.feedback.replace(/'/g, "\\'") : "Wait for trainer feedback...";
-        actionBtns = `<button onclick="openViewModal('${safeTitle}', '${feedback}')" class="btn-primary" style="padding:6px 14px; font-size:0.85em; border-radius:8px; background:#64748b">View Status</button>`;
+        const grade = t.grade ? `Grade: ${t.grade}` : "Grading Pending";
+        const btnText = t.grade ? "View Grade" : "View Status";
+        actionBtns = `<button onclick="openViewModal('${safeTitle}', '${feedback}', '${t.grade || ''}')" class="btn-primary" style="padding:6px 14px; font-size:0.85em; border-radius:8px; background:#64748b">${btnText}</button>`;
       } else if (isDataRevealed && !isSubmitted) {
         actionBtns = `<button disabled class="btn-primary" style="padding:6px 14px; font-size:0.85em; border-radius:8px; background:#94a3b8; cursor:not-allowed">Locked</button>`;
       }
@@ -607,11 +608,18 @@ function closeSubmitModal() {
   }
 }
 
-function openViewModal(title, feedback) {
+function openViewModal(title, feedback, grade) {
   const modal = document.getElementById("viewModal");
   if (modal) {
     document.getElementById("viewAssignmentTitle").innerText = title;
-    document.getElementById("feedbackContent").innerHTML = `<p>${feedback}</p>`;
+
+    let content = "";
+    if (grade) {
+      content += `<div style="background:#dcfce7; color:#166534; padding:10px; border-radius:6px; margin-bottom:10px; font-weight:bold; text-align:center">🎉 Grade: ${grade}</div>`;
+    }
+    content += `<p><strong>Feedback:</strong> ${feedback}</p>`;
+
+    document.getElementById("feedbackContent").innerHTML = content;
     modal.classList.add("show");
   }
 }
@@ -817,6 +825,14 @@ function setupAssignmentForm() {
     const fileInput = document.getElementById("assignmentFile");
 
     if (!fileInput.files[0]) return alert("Please select a file");
+
+    const file = fileInput.files[0];
+    const allowedExtensions = ['pdf', 'zip', 'doc', 'docx', 'txt', 'ppt', 'pptx', 'xls', 'xlsx'];
+    const fileExt = file.name.split('.').pop().toLowerCase();
+
+    if (!allowedExtensions.includes(fileExt) || fileExt === 'png') {
+      return alert("Invalid file type. Only PDF, ZIP, and Documents are allowed. PNGs are not allowed.");
+    }
 
     const formData = new FormData();
     formData.append("assignment_id", assignmentId);

@@ -403,7 +403,14 @@ def update_task_submission():
     if "grade" in data: submission.grade = data["grade"]
     if "feedback" in data: submission.feedback = data["feedback"]
     if "grade" in data: submission.grade = data["grade"]
-    if "status" in data: submission.status = data["status"] # Allow status update
+    if "status" in data: 
+        submission.status = data["status"] # Allow status update
+        
+        # ✅ Sync with Task Status
+        task = Task.query.get(submission.task_id)
+        if task:
+            task.status = data["status"]
+
 
     db.session.commit()
     return jsonify({"message": "Task Submission updated", "status": submission.status})

@@ -3,6 +3,7 @@ from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from datetime import datetime
 from extensions import db
 from models import Course, Workshop, Internship, User, Task, Submission, Enrollment, StudentProgress, TaskSubmission
+from utils import allowed_file
 
 course_bp = Blueprint("course_api", __name__)
 
@@ -256,6 +257,11 @@ def get_tasks():
             is_unlocked = is_previous_completed
             is_submitted = (t.status == 'Completed') # Using status='Completed' as submitted for interns
             
+            # Fetch submission details
+            submission = TaskSubmission.query.filter_by(task_id=t.id, student_id=user_id).first()
+            grade = submission.grade if submission else None
+            feedback = submission.feedback if submission else None
+
             tasks.append({
                 "id": t.id,
                 "title": t.title,
@@ -267,7 +273,9 @@ def get_tasks():
                 "is_unlocked": is_unlocked,
                 "is_submitted": is_submitted,
                 "display_week": f"Week {week_num}",
-                "assigned_by": User.query.get(t.assigned_by).name if t.assigned_by else None
+                "assigned_by": User.query.get(t.assigned_by).name if t.assigned_by else None,
+                "grade": grade,
+                "feedback": feedback
             })
             
             # Next task unlocks only if this one is completed
@@ -479,25 +487,7 @@ def enroll_internship():
     return jsonify({"message": "Enrolled successfully"}), 201
 
 
-@course_bp.route("/student/progress", methods=["GET"])
-@jwt_required()
-def get_student_progress():
-    user_id = get_jwt_identity()
-    progress_records = StudentProgress.query.filter_by(user_id=user_id).all()
-    
-    results = []
-    for p in progress_records:
-        course = Course.query.get(p.course_id)
-        if course:
-            results.append({
-                "course_name": course.name,
-                "progress": p.progress,
-                "status": p.status,
-                "assignments_completed": p.assignments_completed,
-                "total_assignments": p.total_assignments
-            })
-            
-    return jsonify(results), 200
+
 
 
 @course_bp.route("/mentors", methods=["GET"])
@@ -506,20 +496,28 @@ def get_mentors():
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
     
+    trainers = []
+    # Combined Logic: Get courses from BOTH StudentProgress and Enrollment
     if user and user.role == "STUDENT":
-        # Get enrolled courses
-        enrollments = StudentProgress.query.filter_by(user_id=user_id).all()
-        course_ids = [p.course_id for p in enrollments]
-        courses = Course.query.filter(Course.id.in_(course_ids)).all()
-        mentor_names = [c.mentor_name for c in courses if c.mentor_name]
+        # 1. From Enrollments
+        enrollments = Enrollment.query.filter_by(user_id=user_id).all()
+        course_ids = {e.course_id for e in enrollments if e.course_id}
         
-        # Get trainer user objects for these names
-        trainers = User.query.filter(User.name.in_(mentor_names), User.role == "TRAINER").all()
-    else:
-        # Fallback for admin/trainer/intern: show all trainers (or adjust if needed)
+        # 2. From Progress (Legacy support)
+        progress = StudentProgress.query.filter_by(user_id=user_id).all()
+        course_ids.update({p.course_id for p in progress})
+        
+        if course_ids:
+            courses = Course.query.filter(Course.id.in_(course_ids)).all()
+            mentor_names = [c.mentor_name for c in courses if c.mentor_name]
+            if mentor_names:
+                trainers = User.query.filter(User.name.in_(mentor_names), User.role == "TRAINER").all()
+
+    # Fallback: If no mentors found (or not student), Return ALL trainers
+    if not trainers:
         trainers = User.query.filter_by(role="TRAINER").all()
-        
-        return jsonify([
+
+    return jsonify([
         {
             "id": t.id, 
             "name": t.name, 
@@ -684,6 +682,9 @@ def complete_intern_task(task_id):
     file_path = None
     
     if file:
+        if not allowed_file(file.filename):
+            return jsonify({"error": "Invalid file type. Allowed: PDF, ZIP, Documents. PNGs are not allowed."}), 400
+
         import os
         from werkzeug.utils import secure_filename
         

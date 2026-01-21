@@ -373,16 +373,25 @@ async function loadTasks() {
             const isUnlocked = task.is_unlocked;
             const isSubmitted = task.status === 'Completed';
 
-            const statusColor = isSubmitted ? '#22c55e' : (isUnlocked ? '#4f46e5' : '#94a3b8');
+            const isRejected = task.status === 'Rejected';
+
+            const statusColor = isSubmitted ? '#22c55e' : (isRejected ? '#ef4444' : (isUnlocked ? '#4f46e5' : '#94a3b8'));
             const opacity = isUnlocked ? 1 : 0.7;
 
             let actionBtn = '';
-            if (isUnlocked && !isSubmitted) {
+
+            if (isRejected) {
+                actionBtn = `<button onclick="openSubmissionModal(${task.id})" class="btn-primary" style="background: #ef4444; padding: 8px 16px; font-size: 0.9em; border-radius: 8px;">Re-Submit Task</button>`;
+            } else if (isUnlocked && !isSubmitted) {
                 actionBtn = `<button onclick="openSubmissionModal(${task.id})" class="btn-primary" style="padding: 8px 16px; font-size: 0.9em; border-radius: 8px;">Mark Complete</button>`;
-            } else if (isSubmitted) {
-                actionBtn = `<span class="tag" style="background: #dcfce7; color: #166534; font-size: 0.9em;">Completed <i class="fa-solid fa-check"></i></span>`;
             } else {
-                actionBtn = `<span class="tag" style="background: #f1f5f9; color: #64748b; font-size: 0.9em;"><i class="fa-solid fa-lock"></i> Locked</span>`;
+                if (task.grade) {
+                    actionBtn = `<span class="tag" style="background: #dcfce7; color: #166534; font-size: 0.9em;">Graded: ${task.grade} <i class="fa-solid fa-star"></i></span>`;
+                } else if (isSubmitted) {
+                    actionBtn = `<span class="tag" style="background: #dcfce7; color: #166534; font-size: 0.9em;">Completed <i class="fa-solid fa-check"></i></span>`;
+                } else {
+                    actionBtn = `<span class="tag" style="background: #f1f5f9; color: #64748b; font-size: 0.9em;"><i class="fa-solid fa-lock"></i> Locked</span>`;
+                }
             }
 
             const taskCard = `
@@ -395,6 +404,7 @@ async function loadTasks() {
                         <p style="font-size: 0.95em; color: #64748b; margin: 0 0 5px 0;">${task.description || 'Complete the assigned work for this week.'}</p>
                          ${task.due_date ? `<small style="color: #94a3b8; font-weight: 500;"><i class="fa-regular fa-calendar"></i> Due: ${task.due_date}</small>` : ''}
                     </div>
+                    ${task.feedback ? `<div style="margin-top: 10px; padding: 10px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #3b82f6;"><strong style="color: #334155;">Feedback:</strong> <span style="color: #475569;">${task.feedback}</span></div>` : ''}
                     <div style="margin-left: 20px; white-space: nowrap;">
                         ${actionBtn}
                     </div>
@@ -429,6 +439,15 @@ async function submitTaskFile() {
 
     if (!fileInput.files[0]) {
         alert("Please select a file to upload.");
+        return;
+    }
+
+    const file = fileInput.files[0];
+    const allowedExtensions = ['pdf', 'zip', 'doc', 'docx', 'txt', 'ppt', 'pptx', 'xls', 'xlsx'];
+    const fileExt = file.name.split('.').pop().toLowerCase();
+
+    if (!allowedExtensions.includes(fileExt) || fileExt === 'png') {
+        alert("Invalid file type. Only PDF, ZIP, and Documents are allowed. PNGs are not allowed.");
         return;
     }
 

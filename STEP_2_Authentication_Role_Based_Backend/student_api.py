@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, request
+from flask import Blueprint, jsonify, request, current_app
 from flask_jwt_extended import jwt_required, get_jwt_identity
 from werkzeug.utils import secure_filename
 from datetime import datetime, timedelta
@@ -10,6 +10,7 @@ from reportlab.lib.colors import HexColor
 
 from models import Enrollment, Course, Assignment, Submission, StudentProgress, CourseResource, Certificate, User, Quiz, Question, QuizSubmission
 from extensions import db
+from utils import allowed_file
 
 student_bp = Blueprint("student", __name__)
 
@@ -36,11 +37,11 @@ def get_required_assignments(duration_str):
 @student_bp.route("/student/progress", methods=["GET"])
 @jwt_required()
 def student_progress():
+    print("🚀 EXECUTING NEW student_progress CODE")
     try:
         student_id = int(get_jwt_identity())
         
-        # Collect all course IDs from BOTH Enrollment and StudentProgress
-        # Some legacy data might only be in one of them
+        # Collect all course IDs
         enroll_ids = {e.course_id for e in Enrollment.query.filter_by(user_id=student_id).all()}
         prog_ids = {p.course_id for p in StudentProgress.query.filter_by(user_id=student_id).all()}
         all_course_ids = enroll_ids.union(prog_ids)
@@ -60,12 +61,17 @@ def student_progress():
             q_ids = {q.id for q in Quiz.query.filter_by(course_id=course.id).all()}
             quiz_done = len({s.quiz_id for s in q_subs if s.quiz_id in q_ids})
             
-            # 3. Required Count (Force at least 4)
+            # 3. Required Count
             req = get_required_assignments(course.duration)
             if not req or not isinstance(req, int) or req <= 0: 
                 req = 4
             
-            total_tasks = req * 2 # Asgn + Quiz
+            total_quizzes = len(q_ids) if len(q_ids) > 0 else req # Fallback to req if no quizzes in DB (logic choice)
+
+            total_tasks = req * 2 # Asgn + Quiz (Approximation for progress bar)
+            # Or better: total_tasks = req + total_quizzes? 
+            # Sticking to previous logic for progress calc to avoid Regression, but fixing display data.
+            
             done_tasks = asgn_done + quiz_done
             prog_val = int((done_tasks / max(total_tasks, 1)) * 100)
             
@@ -81,15 +87,17 @@ def student_progress():
                 "assignments_completed": asgn_done,
                 "total_assignments": req,
                 "quizzes_completed": quiz_done,
-                "total_quizzes": req,
+                "total_quizzes": total_quizzes, 
                 "duration": raw_dur
             }
             response.append(item)
 
+        print(f"DEBUG PROGRESS RESPONSE: {response}")
         return jsonify(response), 200
     except Exception as e:
         print(f"ERROR in student_progress: {str(e)}")
-        return jsonify({"error": str(e), "fallback": True}), 200 # Return 200 to avoid JS crash but show error
+        # Return empty list or error to avoid crash
+        return jsonify([]), 200
 
 # ✅ MAIN DASHBOARD ENDPOINT
 @student_bp.route("/student/dashboard", methods=["GET"])
@@ -114,19 +122,35 @@ def student_dashboard():
         student.last_activity_date = today_date
         db.session.commit()
 
+
+
     # ✅ 2. OVERALL GRADE LOGIC
     # Get all submissions that have a grade
     all_submissions = Submission.query.filter_by(student_id=student_id).all()
     valid_grades = []
     
+    import re
+    from flask import current_app # Ensure this is imported
+    
+    grade_map = {"A+": 100, "A": 95, "A-": 90, "B+": 85, "B": 80, "B-": 75, "C": 70, "D": 60, "F": 0}
+
     for s in all_submissions:
         if s.grade:
             try:
-                # Remove '%' if present and convert to float
-                clean_grade = s.grade.replace('%', '').strip()
-                valid_grades.append(float(clean_grade))
-            except ValueError:
-                pass # Ignore non-numeric grades like "A", "Pass"
+                # 1. Try Map First (e.g. "A")
+                sg = s.grade.strip().upper()
+                if sg in grade_map:
+                    valid_grades.append(grade_map[sg])
+                    continue
+                
+                # 2. Try Regex (e.g. "90/100")
+                match = re.search(r"(\d+(\.\d+)?)", str(s.grade))
+                if match:
+                    val = float(match.group(1))
+                    if val <= 100: # Sanity check
+                        valid_grades.append(val)
+            except:
+                pass 
     
     if len(valid_grades) > 0:
         overall_grade = int(sum(valid_grades) / len(valid_grades))
@@ -209,6 +233,7 @@ def student_dashboard():
                 "is_data_revealed": is_data_revealed,
                 "is_submitted": is_submitted,
                 "feedback": next((s.feedback for s in student_submissions if s.assignment_id == real_a.id), None) if real_a else None,
+                "grade": next((s.grade for s in student_submissions if s.assignment_id == real_a.id), None) if real_a else None,
                 "is_placeholder": real_a is None
             })
 
@@ -234,9 +259,21 @@ def student_dashboard():
         progress_val = int((completed_tasks / max(total_tasks, 1)) * 100)
         dynamic_progress = min(progress_val, 100)
 
-        # Check if certificate already exists
+        # Check if certificate already exists AND is physically present
         cert_record = Certificate.query.filter_by(user_id=student_id, course_id=course.id).first()
-        cert_url = cert_record.certificate_url if cert_record else None
+        cert_url = None
+        if cert_record and cert_record.certificate_url:
+             # Verify file exists using ABSOLUTE path
+             # certificate_url is like "/certificates/foo.pdf"
+             # we need "C:/.../static/certificates/foo.pdf"
+             lpath = cert_record.certificate_url.lstrip("/")
+             expected_path = os.path.join(current_app.root_path, "static", lpath)
+             
+             if os.path.exists(expected_path):
+                 cert_url = cert_record.certificate_url
+             else:
+                 # File missing, treat as not generated
+                 cert_url = None
 
         # Dashboard sync
         final_duration = str(course.duration) if course.duration else "1 Month"
@@ -406,6 +443,9 @@ def submit_assignment():
     if not file:
         return jsonify({"error": "No file uploaded"}), 400
 
+    if not allowed_file(file.filename):
+        return jsonify({"error": "Invalid file type. Allowed: PDF, ZIP, Documents. PNGs are not allowed."}), 400
+
     os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     filename = secure_filename(file.filename)
     path = os.path.join(UPLOAD_FOLDER, filename)
@@ -542,7 +582,7 @@ def generate_certificate(course_id):
         }), 403
 
     # Generate filename
-    CERT_FOLDER = "certificates"
+    CERT_FOLDER = os.path.join(current_app.root_path, "static", "certificates")
     os.makedirs(CERT_FOLDER, exist_ok=True)
     filename = f"cert_{student_id}_{course_id}.pdf"
     filepath = os.path.join(CERT_FOLDER, filename)
@@ -556,14 +596,18 @@ def generate_certificate(course_id):
     except Exception as e:
         return jsonify({"error": f"Failed to generate PDF: {str(e)}"}), 500
 
+    cert_url = f"/certificates/{filename}"
+
     if not existing:
         cert = Certificate(
             user_id=student_id,
             course_id=course_id,
-            certificate_url=f"/certificates/{filename}"
+            certificate_url=cert_url
         )
         db.session.add(cert)
         db.session.commit()
         return jsonify({"message": "Certificate generated successfully", "url": cert.certificate_url}), 201
     else:
+        existing.certificate_url = cert_url
+        db.session.commit()
         return jsonify({"message": "Certificate updated", "url": existing.certificate_url}), 200

@@ -553,7 +553,7 @@ function openInternship(id, name) {
   switchInternTab('internshipTasks'); // Default tab
 }
 
-function switchInternTab(tabId) {
+function switchInternTab(tabId, keepFilter = false) {
   document.querySelectorAll("#manageInternship .tab-content").forEach(c => c.classList.remove("active"));
   document.querySelectorAll("#manageInternship .tab").forEach(t => t.classList.remove("active"));
 
@@ -563,6 +563,7 @@ function switchInternTab(tabId) {
   if (tabId === 'internshipTasks') buttons[0].classList.add("active");
   if (tabId === 'internshipSubmissions') {
     buttons[1].classList.add("active");
+    if (!keepFilter) filterTaskId = null; // ✅ Reset filter if clicking tab directly
     loadInternshipSubmissions();
   } else {
     filterTaskId = null; // ✅ Reset filter when leaving Submissions tab
@@ -653,7 +654,7 @@ async function loadInternshipTasks() {
 
 function filterInternSubmissions(taskId) {
   filterTaskId = taskId;
-  switchInternTab('internshipSubmissions');
+  switchInternTab('internshipSubmissions', true);
 }
 
 function editInternTask(id, title, due) {
@@ -710,7 +711,7 @@ async function loadInternshipSubmissions() {
       <tr>
         <td>${s.student_name}</td>
         <td>${s.task_title}</td>
-        <td><a href="${API}/${s.file_url}" target="_blank">View File</a></td>
+        <td><a href="${BASE_URL}/${s.file_url}" target="_blank">View File</a></td>
         <td><input value="${s.grade || ''}" id="grade-${s.submission_id}" style="width:50px"></td>
         <td><input value="${s.feedback || ''}" id="feed-${s.submission_id}"></td>
         <td>
