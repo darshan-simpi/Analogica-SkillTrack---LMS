@@ -1,103 +1,107 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="UTF-8">
   <title>Analogica SkillTrack — LMS</title>
+  <meta http-equiv="Content-Security-Policy" content="default-src * 'unsafe-inline' 'unsafe-eval' data: blob:;">
   <link rel="stylesheet" href="login.css">
 </head>
+
 <body>
 
-<div class="container">
+  <div class="container">
 
-  <!-- LEFT : LOGIN -->
-  <div class="login-panel glass">
+    <!-- LEFT : LOGIN -->
+    <div class="login-panel glass">
 
-    <img src="logo.png" class="logo" alt="Analogica Logo">
+      <img src="logo.png" class="logo" alt="Analogica Logo">
 
-    <h2>Analogica SkillTrack</h2>
-    <p class="subtitle">Empowering Skills • Tracking Growth</p>
+      <h2>Analogica SkillTrack</h2>
+      <p class="subtitle">Empowering Skills • Tracking Growth</p>
 
-    <select id="role">
-      <option value="">Select Role</option>
-      <option value="ADMIN">Admin</option>
-      <option value="STUDENT">Student</option>
-      <option value="TRAINER">Trainer</option>
-      <option value="INTERN">Intern</option>
-    </select>
-
-    <input type="email" id="email" placeholder="Email address">
-    <input type="password" id="password" placeholder="Password">
-
-    <button onclick="login()">Login</button>
-
-    <p id="error"></p>
-
-    <div class="links">
-      <span onclick="openForgot()">Forgot password?</span>
-      <span onclick="openRegister()">New user? Register</span>
-    </div>
-
-    <p class="reset-note">
-      🔐 Password reset link will be sent to your email
-    </p>
-
-  </div>
-
-  <!-- RIGHT : COURSES -->
-  <div class="info-panel">
-    <h3>📢 Upcoming Courses</h3>
-    <p class="info-sub">Do you want to upgrade your career ? Enroll Now</p>
-
-    <div id="courseList" class="course-scroll"></div>
-  </div>
-
-</div>
-
-<!-- REGISTER MODAL -->
-<div id="registerModal" class="modal">
-  <div class="modal-content glass">
-    <h3>Create Account</h3>
-
-    <input id="regName" placeholder="Full Name">
-    <input id="regEmail" placeholder="Email">
-    <input id="regPassword" type="password" placeholder="Password">
-
-    <select id="regRole" onchange="toggleRoleFields()">
-      <option value="">Select Role</option>
-      <option value="STUDENT">Student</option>
-      <option value="TRAINER">Trainer</option>
-      <option value="INTERN">Intern</option>
-    </select>
-
-    <div id="studentFields" style="display:none;">
-      <select id="regCourse">
-        <option value="">Select Course</option>
+      <select id="role">
+        <option value="">Select Role</option>
+        <option value="ADMIN">Admin</option>
+        <option value="STUDENT">Student</option>
+        <option value="TRAINER">Trainer</option>
+        <option value="INTERN">Intern</option>
       </select>
+
+      <input type="email" id="email" placeholder="Email address">
+      <input type="password" id="password" placeholder="Password">
+
+      <button onclick="login()">Login</button>
+
+      <p id="error"></p>
+
+      <div class="links">
+        <span onclick="openForgot()">Forgot password?</span>
+        <span onclick="openRegister()">New user? Register</span>
+      </div>
+
+      <p class="reset-note">
+        🔐 Password reset link will be sent to your email
+      </p>
+
     </div>
 
-    <div id="internFields" style="display:none;">
-      <select id="regInternship">
-        <option value="">Select Internship</option>
+    <!-- RIGHT : COURSES -->
+    <div class="info-panel">
+      <h3>📢 Upcoming Courses</h3>
+      <p class="info-sub">Do you want to upgrade your career ? Enroll Now</p>
+
+      <div id="courseList" class="course-scroll"></div>
+    </div>
+
+  </div>
+
+  <!-- REGISTER MODAL -->
+  <div id="registerModal" class="modal">
+    <div class="modal-content glass">
+      <h3>Create Account</h3>
+
+      <input id="regName" placeholder="Full Name">
+      <input id="regEmail" placeholder="Email">
+      <input id="regPassword" type="password" placeholder="Password">
+
+      <select id="regRole" onchange="toggleRoleFields()">
+        <option value="">Select Role</option>
+        <option value="STUDENT">Student</option>
+        <option value="TRAINER">Trainer</option>
+        <option value="INTERN">Intern</option>
       </select>
+
+      <div id="studentFields" style="display:none;">
+        <select id="regCourse">
+          <option value="">Select Course</option>
+        </select>
+      </div>
+
+      <div id="internFields" style="display:none;">
+        <select id="regInternship">
+          <option value="">Select Internship</option>
+        </select>
+      </div>
+
+      <button onclick="register()">Register</button>
+      <button class="cancel-btn" onclick="closeRegister()">Cancel</button>
     </div>
-
-    <button onclick="register()">Register</button>
-    <button class="cancel-btn" onclick="closeRegister()">Cancel</button>
   </div>
-</div>
 
-<!-- FORGOT PASSWORD MODAL -->
-<div id="forgotModal" class="modal">
-  <div class="modal-content glass">
-    <h3>Reset Password</h3>
+  <!-- FORGOT PASSWORD MODAL -->
+  <div id="forgotModal" class="modal">
+    <div class="modal-content glass">
+      <h3>Reset Password</h3>
 
-    <input type="email" id="fpEmail" placeholder="Registered Email">
+      <input type="email" id="fpEmail" placeholder="Registered Email">
 
-    <button onclick="sendResetLink()">Send Reset Link</button>
-    <button class="cancel-btn" onclick="closeForgot()">Cancel</button>
+      <button onclick="sendResetLink()">Send Reset Link</button>
+      <button class="cancel-btn" onclick="closeForgot()">Cancel</button>
+    </div>
   </div>
-</div>
 
-<script src="login.js"></script>
+  <script src="login.js"></script>
 </body>
+
 </html>

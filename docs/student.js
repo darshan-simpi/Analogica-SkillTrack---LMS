@@ -460,12 +460,20 @@ async function showResources(courseId, courseName) {
 
     resources.forEach(r => {
       const icon = r.type === 'youtube' ? 'fa-video' : (r.type === 'book' ? 'fa-book' : 'fa-link');
+
+      let finalUrl = r.url;
+      if (finalUrl && !finalUrl.startsWith("http")) {
+        // If relative path (e.g. uploads/resources/...), prepend API base
+        const cleanPath = finalUrl.startsWith('/') ? finalUrl.substring(1) : finalUrl;
+        finalUrl = `${API}/${cleanPath}`;
+      }
+
       resourceList.innerHTML += `
                 <div class="card glow small-card">
                     <i class="fa-solid ${icon}" style="font-size:1.5em; margin-bottom:10px; color:#4f46e5"></i>
                     <h4>${r.title}</h4>
                     <p style="font-size:0.8em; margin:10px 0">${r.type.toUpperCase()}</p>
-                    <a href="${r.url}" target="_blank" class="btn-primary" style="padding:5px 10px; font-size:0.8em">Visit Resource</a>
+                    <a href="${finalUrl}" target="_blank" class="btn-primary" style="padding:5px 10px; font-size:0.8em">Visit Resource</a>
                 </div>
             `;
     });
@@ -501,12 +509,19 @@ async function loadAllResources() {
         let resourceGrid = `<div class="grid" style="margin-top:10px; margin-bottom:30px">`;
         resources.forEach(r => {
           const icon = r.type === 'youtube' ? 'fa-video' : (r.type === 'book' ? 'fa-book' : 'fa-link');
+
+          let finalUrl = r.url;
+          if (finalUrl && !finalUrl.startsWith("http")) {
+            const cleanPath = finalUrl.startsWith('/') ? finalUrl.substring(1) : finalUrl;
+            finalUrl = `${API}/${cleanPath}`;
+          }
+
           resourceGrid += `
             <div class="card glow small-card">
               <i class="fa-solid ${icon}" style="font-size:1.5em; margin-bottom:10px; color:#4f46e5"></i>
               <h4>${r.title}</h4>
               <p style="font-size:0.8em; margin:10px 0">${r.type.toUpperCase()}</p>
-              <a href="${r.url}" target="_blank" class="btn-primary" style="padding:5px 10px; font-size:0.8em">Visit Resource</a>
+              <a href="${finalUrl}" target="_blank" class="btn-primary" style="padding:5px 10px; font-size:0.8em">Visit Resource</a>
             </div>`;
         });
         resourceGrid += `</div>`;
