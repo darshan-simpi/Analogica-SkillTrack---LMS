@@ -97,50 +97,17 @@
 
       <!-- PROGRESS -->
       <section id="progress" class="page">
-        <h2 class="group-title">Course Completion</h2>
-
-        <div class="card" style="margin-bottom: 20px;">
-          <div style="display: flex; justify-content: space-between; margin-bottom: 10px;">
-            <span id="progress-text" style="font-weight: bold; color: #4b5563;">Progress</span>
-            <span id="progress-percent" style="font-weight: bold; color: #4f46e5;">0%</span>
-          </div>
-          <div class="progress-bar" style="height: 12px; background: #e2e8f0; border-radius: 6px; overflow: hidden;">
-            <div id="progress-fill-main"
-              style="width: 0%; height: 100%; background: #4f46e5; transition: width 0.5s ease;"></div>
-          </div>
+        <h2 class="group-title">Detailed Progress</h2>
+        <div id="progress-container">
+          <p>Loading progress details...</p>
         </div>
-
-        <div class="cards">
-          <div class="card pastel-green">
-            <p>Tasks Done</p>
-            <h2>18</h2>
-          </div>
-          <div class="card pastel-lavender">
-            <p>Hours Worked</p>
-            <h2>24h</h2>
-          </div>
-          <div class="card pastel-peach">
-            <p>Efficiency</p>
-            <h2>90%</h2>
-          </div>
-        </div>
-
-
       </section>
 
       <!-- MENTOR -->
       <section id="mentor" class="page">
-        <h2 class="group-title">Mentor</h2>
-        <div class="card"
-          style="background: linear-gradient(135deg, #FFF7D1 0%, #FFD6A5 100%); width: 100%; display: flex; align-items: center; gap: 15px; border: 1px solid #ffeeba;">
-          <div style="background: rgba(255, 255, 255, 0.6); padding: 15px; border-radius: 50%;">
-            <i class="fa-solid fa-user-tie" style="font-size: 1.5em; color: #d97706;"></i>
-          </div>
-          <div>
-            <p style="color: #92400e; font-weight: 600; margin-bottom: 5px;">My Mentor</p>
-            <h2 id="mentor-name" style="color: #78350f; font-size: 1.5em; margin: 0;">N/A</h2>
-            <p id="mentor-email" style="font-size: 0.9em; color: #92400e; margin-top: 5px;"></p>
-          </div>
+        <h2 class="group-title">Mentors</h2>
+        <div id="mentor-list">
+          <!-- Mentors loaded via JS -->
         </div>
       </section>
 

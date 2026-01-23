@@ -133,13 +133,23 @@ function renderWeeklyBreakdown(dashboardData) {
         statusIcon = '<i class="fa-solid fa-unlock"></i>';
       }
 
+
+      // Check Deadline
+      let isDeadlinePassed = false;
+      if (a.due_date) {
+        const todayStr = new Date().toISOString().split('T')[0];
+        if (todayStr > a.due_date) isDeadlinePassed = true;
+      }
+
       // Action Button
       let actionBtn = "";
-      if (isUnlocked && !isSubmitted) {
+      if (isUnlocked && !isSubmitted && !isDeadlinePassed) {
         actionBtn = `<button onclick="openSubmitModal(${a.id}, '${safeTitle}')" class="btn-primary" style="padding:8px 20px; font-size:0.85em">Submit Task</button>`;
       } else if (isSubmitted) {
         const feedback = a.feedback ? a.feedback.replace(/'/g, "\\'") : "Wait for trainer feedback...";
         actionBtn = `<button onclick="openViewModal('${safeTitle}', '${feedback}')" style="padding:8px 20px; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer">View Status</button>`;
+      } else if (isDeadlinePassed && !isSubmitted) {
+        actionBtn = `<button disabled style="padding:8px 20px; background:#fee2e2; color:#b91c1c; border:none; cursor:not-allowed">Deadline Missed</button>`;
       } else {
         actionBtn = `<button disabled style="padding:8px 20px; background:#f1f5f9; color:#94a3b8; border:none; cursor:not-allowed">Locked</button>`;
       }

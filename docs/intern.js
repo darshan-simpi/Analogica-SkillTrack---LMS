@@ -41,35 +41,117 @@ navLinks.forEach(link => {
 });
 
 async function loadProgressPage() {
+    const container = document.getElementById('progress-container');
+    if (!container) return;
+
+    container.innerHTML = '<p>Loading progress...</p>';
+
     try {
-        const response = await fetch(API_BASE + '/intern/stats', {
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        // 1. Fetch Global Stats (for overall progress calculation)
+        const statsRes = await fetch(API_BASE + '/intern/stats', {
+            headers: { 'Authorization': `Bearer ${token}` }
         });
-        const stats = await response.json();
+        const stats = statsRes.ok ? await statsRes.json() : { overall_progress: 0, tasks_completed: 0, tasks_pending: 0 };
 
-        // Update Progress Page Cards
-        const progressSection = document.getElementById('progress');
-        if (progressSection) {
-            // "Tasks Done" is the 1st card in cards container
-            progressSection.querySelector('.card:nth-child(1) h2').textContent = stats.tasks_completed;
-            // "Hours Worked" (placeholder/streak for now) 2nd card
-            progressSection.querySelector('.card:nth-child(2) h2').textContent = `${stats.current_streak * 2}h (Est)`;
-            // "Efficiency" (overall progress) 3rd card
-            progressSection.querySelector('.card:nth-child(3) h2').textContent = `${stats.overall_progress}%`;
+        // 2. Fetch Enrollments (for details)
+        const enrollRes = await fetch(API_BASE + '/enrollments', {
+            headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const enrollments = enrollRes.ok ? await enrollRes.json() : [];
 
-            // Update Progress Bar
-            const pFill = document.getElementById('progress-fill-main');
-            const pText = document.getElementById('progress-percent');
+        container.innerHTML = '';
 
-            if (pFill && pText) {
-                pFill.style.width = `${stats.overall_progress}%`;
-                pText.textContent = `${stats.overall_progress}%`;
+        if (enrollments.length === 0) {
+            container.innerHTML = '<p>No internships enrolled.</p>';
+            return;
+        }
+
+        // Render a card for each internship (Student Style)
+        enrollments.forEach(e => {
+            // For now, using global stats for the specific internship progress since we only have 1 active usually.
+            const progress = stats.overall_progress;
+            const completed = stats.tasks_completed;
+            const pending = stats.tasks_pending;
+            const total = completed + pending;
+
+            // Status Logic
+            let status = "In Progress";
+            let statusColor = "#4f46e5"; // Indigo
+            let bgColor = "#e0ecff";
+
+            if (progress >= 100) {
+                status = "Completed";
+                statusColor = "#166534"; // Green
+                bgColor = "#dcfce7";
             }
 
-            // Check Certificate Eligibility
-            checkCertificateEligibility(stats);
+            const card = `
+            <div class="card" style="margin-bottom:20px; padding:25px; border-left: 5px solid ${statusColor}; box-shadow: 0 4px 6px rgba(0,0,0,0.05); background: white; border-radius: 12px;">
+                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
+                    <h3 style="margin:0; font-size:1.2em; color: #1e293b;">${e.intern_name}</h3>
+                    <span class="tag" style="background:${bgColor}; color:${statusColor}; padding: 5px 10px; border-radius: 20px; font-size: 0.85em; font-weight: 600;">${status}</span>
+                </div>
+                
+                <div class="progress-bar" style="height:10px; background:#e2e8f0; border-radius:5px; overflow:hidden; margin-bottom:10px">
+                    <div class="fill" style="width:${progress}%; background: ${statusColor}; height:100%; transition: width 0.5s ease;"></div>
+                </div>
+                
+                <div style="display:flex; flex-direction:column; gap:5px; font-size:0.9em; color:#64748b">
+                    <div style="display:flex; justify-content:space-between">
+                        <span><b>${progress}%</b> Overall Progress</span>
+                    </div>
+                    <div style="display:flex; justify-content:space-between">
+                        <span>Tasks: ${completed} / ${total}</span>
+                        <span>Duration: ${e.duration}</span>
+                    </div>
+                </div>
+                
+                   <div style="display:flex; gap: 15px; font-size:0.85em; color: #475569;">
+                        <span><i class="fa-regular fa-calendar"></i> Enrolled: ${new Date(e.enrolled_at).toLocaleDateString()}</span>
+                   </div>
+                </div>
+            </div>
+            `;
+            container.innerHTML += card;
+        });
+
+    } catch (e) {
+        console.error("Error loading progress page", e);
+        container.innerHTML = '<p style="color:red">Failed to load progress details.</p>';
+    }
+}
+
+async function downloadCertificate(btn) {
+    const originalText = btn.innerHTML;
+    btn.innerHTML = 'Generating... <i class="fa-solid fa-spinner fa-spin"></i>';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(API_BASE + '/intern/certificate', {
+            method: 'POST',
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            const fullUrl = API_BASE + data.url;
+            window.open(fullUrl, '_blank');
+            btn.innerHTML = 'Downloaded <i class="fa-solid fa-check"></i>';
+            setTimeout(() => {
+                btn.innerHTML = originalText;
+                btn.disabled = false;
+            }, 3000);
+        } else {
+            alert(data.error || "Failed to generate.");
+            btn.innerHTML = originalText;
+            btn.disabled = false;
         }
-    } catch (e) { console.error("Error loading progress page", e); }
+    } catch (e) {
+        console.error(e);
+        alert("Error requesting certificate.");
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+    }
 }
 
 async function loadMentors() {
@@ -218,6 +300,12 @@ async function loadDashboardData() {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
         });
+
+        if (response.status === 401) {
+            alert("Session expired. Please login again.");
+            logoutUser();
+            return;
+        }
 
         if (!response.ok) {
             console.error("Failed to fetch dashboard stats");
@@ -390,7 +478,26 @@ async function loadTasks() {
                 } else if (isSubmitted) {
                     actionBtn = `<span class="tag" style="background: #dcfce7; color: #166534; font-size: 0.9em;">Completed <i class="fa-solid fa-check"></i></span>`;
                 } else {
-                    actionBtn = `<span class="tag" style="background: #f1f5f9; color: #64748b; font-size: 0.9em;"><i class="fa-solid fa-lock"></i> Locked</span>`;
+                    // Check Deadline
+                    let isDeadlinePassed = false;
+                    if (task.due_date) {
+                        const today = new Date();
+                        today.setHours(0, 0, 0, 0);
+                        const due = new Date(task.due_date);
+                        // If due date is strictly before today (yesterday or earlier), it's passed.
+                        // Assuming due date is "end of day", then if today > due, it's passed.
+                        // Actually JS Date parsed from YYYY-MM-DD is UTC 00:00.
+                        // Better safe logic: if today > due date (string comparison might be easier if format matches, otherwise Date obj)
+                        // Let's use simple string comparison if format is YYYY-MM-DD
+                        const todayStr = new Date().toISOString().split('T')[0];
+                        if (todayStr > task.due_date) isDeadlinePassed = true;
+                    }
+
+                    if (isDeadlinePassed) {
+                        actionBtn = `<span class="tag" style="background: #fee2e2; color: #b91c1c; font-size: 0.9em;"><i class="fa-solid fa-ban"></i> Deadline Missed</span>`;
+                    } else {
+                        actionBtn = `<span class="tag" style="background: #f1f5f9; color: #64748b; font-size: 0.9em;"><i class="fa-solid fa-lock"></i> Locked</span>`;
+                    }
                 }
             }
 

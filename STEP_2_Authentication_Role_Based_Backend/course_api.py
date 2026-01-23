@@ -254,7 +254,23 @@ def get_tasks():
         
         for index, t in enumerate(raw_tasks):
             week_num = index + 1
-            is_unlocked = is_previous_completed
+            
+            # Logic: Unlocked if previous is completed AND previous deadline passed
+            is_unlocked = True
+            if index > 0:
+                prev_task = raw_tasks[index-1]
+                prev_submitted = (prev_task.status == 'Completed')
+                
+                prev_deadline_passed = True
+                if prev_task.due_date:
+                    try:
+                        p_date = datetime.strptime(prev_task.due_date, '%Y-%m-%d')
+                        if datetime.utcnow().date() <= p_date.date():
+                            prev_deadline_passed = False
+                    except: pass
+                
+                is_unlocked = prev_submitted and prev_deadline_passed
+
             is_submitted = (t.status == 'Completed') # Using status='Completed' as submitted for interns
             
             # Fetch submission details
@@ -277,10 +293,6 @@ def get_tasks():
                 "grade": grade,
                 "feedback": feedback
             })
-            
-            # Next task unlocks only if this one is completed
-            if not is_submitted:
-                is_previous_completed = False
 
         return jsonify(tasks), 200
 
@@ -359,7 +371,8 @@ def assign_task():
                 assigned_to=e.user_id,
                 assigned_by=trainer_id,
                 priority=data.get("priority", "Medium"),
-                due_date=data.get("due_date")
+                due_date=data.get("due_date"),
+                internship_id=data["internship_id"] # ✅ NEW: Save internship_id for backfilling logic
             ))
             
     # 3. Assign to Individual
@@ -370,7 +383,8 @@ def assign_task():
             assigned_to=data.get("assigned_to"),
             assigned_by=trainer_id,
             priority=data.get("priority", "Medium"),
-            due_date=data.get("due_date")
+            due_date=data.get("due_date"),
+            internship_id=data.get("internship_id")
         ))
     
     if not tasks_to_create:
@@ -483,6 +497,42 @@ def enroll_internship():
 
     enrollment = Enrollment(user_id=user_id, internship_id=internship_id)
     db.session.add(enrollment)
+    
+    # ✅ BACKFILL: Find existing tasks for this internship and assign them to the new intern
+    # Strategy 1: Check tasks explicitly linked to internship (New System)
+    existing_tasks = Task.query.filter_by(internship_id=internship_id).all()
+    
+    # Strategy 2: If no tasks found, check tasks assigned to PEERS in the same internship (Legacy Support)
+    # This handles tasks created before internship_id was being saved.
+    if not existing_tasks:
+        peer_enrollments = Enrollment.query.filter_by(internship_id=internship_id).all()
+        peer_ids = [e.user_id for e in peer_enrollments if e.user_id != user_id]
+        
+        if peer_ids:
+            # Get tasks assigned to peers
+            peer_tasks = Task.query.filter(Task.assigned_to.in_(peer_ids)).all()
+            existing_tasks.extend(peer_tasks)
+
+    # Deduplicate by title to avoid assigning the same task multiple times
+    unique_tasks = {t.title: t for t in existing_tasks} 
+    
+    for _, t in unique_tasks.items():
+        # Check if user already has this task (sanity check)
+        user_has_task = Task.query.filter_by(assigned_to=user_id, title=t.title).first()
+        if not user_has_task:
+            new_task = Task(
+                title=t.title,
+                description=t.description,
+                assigned_to=user_id,
+                assigned_by=t.assigned_by,
+                internship_id=internship_id,
+                priority=t.priority,
+                due_date=t.due_date,
+                status="Pending", # Start fresh
+                week_number=t.week_number
+            )
+            db.session.add(new_task)
+
     db.session.commit()
     return jsonify({"message": "Enrolled successfully"}), 201
 
@@ -532,17 +582,20 @@ def get_mentors():
 @course_bp.route("/intern/stats", methods=["GET"])
 @jwt_required()
 def get_intern_stats():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
+    print(f"DEBUG: Fetching stats for User ID: {user_id}")
     user = User.query.get(user_id)
     
     # 1. Tasks Stats
     tasks = Task.query.filter_by(assigned_to=user_id).all()
+    print(f"DEBUG: Found {len(tasks)} tasks")
     total_tasks = len(tasks)
     completed_tasks = len([t for t in tasks if t.status == 'Completed'])
     pending_tasks = total_tasks - completed_tasks
     
     # 2. Enrollment Stats
     enrollments = Enrollment.query.filter_by(user_id=user_id).all()
+    print(f"DEBUG: Found {len(enrollments)} enrollments")
     enrolled_count = len(enrollments)
     
     # 3. Overall Progress (Average of all enrolled internships/courses)
@@ -676,6 +729,19 @@ def complete_intern_task(task_id):
         
     if task.assigned_to != int(user_id):
         return jsonify({"error": "Unauthorized"}), 403
+
+    # ✅ DEADLINE ENFORCEMENT
+    if task.due_date:
+        try:
+             due = datetime.strptime(task.due_date, '%Y-%m-%d')
+             # Grace period: allow submission on the day of deadline (until midnight)
+             # Current time: UTC. If deadline is just date, it means 00:00 of that date? NO, usually deadline means end of that day.
+             # Let's assume deadline is inclusive. So if today <= due_date_day, allowed.
+             # If today > due_date, blocked.
+             if datetime.utcnow().date() > due.date():
+                 return jsonify({"error": f"Deadline passed ({task.due_date}). Submission rejected."}), 403
+        except ValueError:
+             pass # Ignore invalid date formats
 
     # Handle File Upload
     file = request.files.get("file")  # Restored missing line

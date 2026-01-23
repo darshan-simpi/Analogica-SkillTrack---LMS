@@ -201,27 +201,42 @@ def student_dashboard():
             expected_due_date = (start_date_obj + timedelta(weeks=i)).strftime('%Y-%m-%d')
             
             real_a = actual_assignments.get(i)
-            # Determine previous assignment's due date
-            prev_due_date_obj = start_date_obj + timedelta(weeks=i-1)
-            is_past_prev_due_date = datetime.utcnow() >= prev_due_date_obj
+            # Determine previous assignment details for unlocking logic
+            prev_a = actual_assignments.get(i-1) if i > 1 else None
+            
+            # PREVIOUS Logic: can_reveal_next = is_data_revealed and is_submitted
+            # NEW Logic: Also check if PREVIOUS one's deadline has passed.
+            
+            is_prev_deadline_passed = True # Default for Week 1
+            if i > 1:
+                # Need to check Week i-1
+                # If Week i-1 doesn't exist (placeholder), rely on generic date math?
+                # User says "if it's due data didn't end yet".
+                # If there IS a real assignment for i-1, check its due date.
+                if prev_a and prev_a.due_date:
+                    try:
+                        p_date = datetime.strptime(prev_a.due_date, '%Y-%m-%d')
+                        if datetime.utcnow().date() <= p_date.date():
+                            is_prev_deadline_passed = False
+                    except: pass
+                else:
+                    # Fallback if no specific assignment or date: Use calculated course timeline
+                    prev_due_date_obj = start_date_obj + timedelta(weeks=i-1)
+                    if datetime.utcnow() <= prev_due_date_obj:
+                         is_prev_deadline_passed = False
 
             if i == 1:
                 is_data_revealed = True
             else:
-                # Rule: Reveal content as soon as previous is submitted (User Request: "unmask wht the assignment is")
-                is_data_revealed = can_reveal_next
+                # Rule: Reveal content only if previous submitted AND previous deadline passed
+                is_data_revealed = can_reveal_next and is_prev_deadline_passed
 
             # Define variables that were missing
             is_submitted = real_a.id in submitted_assignment_ids if real_a else False
             target_due_date = real_a.due_date if (real_a and real_a.due_date) else expected_due_date
 
-            
             # Submittability logic: 
-            # - Must be revealed
-            # - Must be a real assignment (not a placeholder)
-            # - Must not already be submitted
-            # - Rule: Submission button unlocks only after previous due date ("submission button should work only when last assignment due is done")
-            is_unlocked_by_date = (i == 1) or is_past_prev_due_date
+            is_unlocked_by_date = (i == 1) or is_prev_deadline_passed
             is_submittable = is_data_revealed and (real_a is not None) and not is_submitted and is_unlocked_by_date
             
             assignments_list.append({
@@ -238,6 +253,7 @@ def student_dashboard():
             })
 
             # The next assignment can only be revealed if this one is submitted
+            # AND (implicitly handled by next iteration) this one's deadline passed
             can_reveal_next = is_data_revealed and is_submitted
             if is_submitted:
                 completed_count += 1
@@ -437,7 +453,19 @@ def submit_quiz(quiz_id):
 @jwt_required()
 def submit_assignment():
     student_id = int(get_jwt_identity())
-    assignment_id = int(request.form.get("assignment_id"))
+    assignment = Assignment.query.get(assignment_id)
+    if not assignment:
+         return jsonify({"error": "Assignment not found"}), 404
+
+    # ✅ DEADLINE ENFORCEMENT
+    if assignment.due_date:
+        try:
+             due = datetime.strptime(assignment.due_date, '%Y-%m-%d')
+             if datetime.utcnow().date() > due.date():
+                 return jsonify({"error": f"Deadline passed ({assignment.due_date}). Submission rejected."}), 403
+        except ValueError:
+             pass
+
     file = request.files.get("file")
 
     if not file:
