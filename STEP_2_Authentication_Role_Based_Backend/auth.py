@@ -87,6 +87,42 @@ def login():
     }), 200
 
 
+
+# ================= FORGOT PASSWORD =================
+@auth_bp.route("/forgot-password", methods=["POST"])
+def forgot_password():
+    data = request.get_json()
+    email = data.get("email")
+
+    if not email:
+        return jsonify({"error": "Email is required"}), 400
+
+    user = User.query.filter_by(email=email).first()
+    if not user:
+        # For security, we might not want to reveal if user exists, but for debugging/usability providing 404 or specific error is okay.
+        # Sticking to 404 as user expects it or 400.
+        return jsonify({"error": "User not found"}), 404
+
+    token = get_serializer().dumps(email, salt="reset-password")
+
+    # Construct reset link
+    reset_link = f"{current_app.config['FRONTEND_URL']}/reset-password.html?token={token}"
+
+    msg = Message(
+        subject="Password Reset Request",
+        recipients=[email],
+        body=f"Click the link to reset your password: {reset_link}\n\nThis link expires in 15 minutes."
+    )
+
+    try:
+        mail.send(msg)
+    except Exception as e:
+        print(f"Error sending email: {e}")
+        return jsonify({"error": "Failed to send email"}), 500
+
+    return jsonify({"message": "Password reset link sent"}), 200
+
+
 # ================= RESET PASSWORD =================
 @auth_bp.route("/reset-password", methods=["POST"])
 def reset_password():
