@@ -174,7 +174,7 @@ async function loadMentors() {
                         <h3>${e.mentor_name}</h3>
                         <p><strong>Internship:</strong> ${e.intern_name}</p>
                         <p><strong>Duration:</strong> ${e.duration}</p>
-                        <p><em>Contact Admin for details</em></p>
+
                     </div>
                     <br>
                 `;
@@ -327,7 +327,8 @@ async function loadDashboardData() {
         document.querySelector('.card:nth-child(4) h2').textContent = stats.internships_enrolled; // Now specific card
 
         // Update secondary cards
-        document.querySelector('.cards:nth-of-type(2) .card:nth-child(1) h2').textContent = `${stats.tasks_done_today} Tasks Done`;
+        document.querySelector('.cards:nth-of-type(2) .card:nth-child(1) h2').textContent =
+            stats.overall_progress >= 100 ? "Completed" : `${stats.tasks_done_today} Tasks Done`;
         document.querySelector('.cards:nth-of-type(2) .card:nth-child(3) h2').textContent = `${stats.current_streak} Days`;
 
         // Update Weekly Goal (Progress Bar) - 2nd card in 2nd row

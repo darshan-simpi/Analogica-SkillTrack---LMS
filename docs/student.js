@@ -873,6 +873,12 @@ function setupAssignmentForm() {
         body: formData
       });
 
+      if (res.status === 401) {
+        alert("Session expired. Please login again.");
+        logout();
+        return;
+      }
+
       if (res.ok) {
         msg.innerText = "Assignment submitted successfully! ✅";
         msg.style.display = "block";

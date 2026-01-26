@@ -53,9 +53,37 @@ def delete_course(id):
         return jsonify({"error": "Admin access required"}), 403
 
     course = Course.query.get_or_404(id)
+
+    # ✅ MANUAL CASCADE DELETE
+    # 1. Enrollments
+    Enrollment.query.filter_by(course_id=id).delete()
+    
+    # 2. Student Progress
+    StudentProgress.query.filter_by(course_id=id).delete()
+    
+    # 3. Certificates
+    Certificate.query.filter_by(course_id=id).delete()
+    
+    # 4. Assignments & Submissions
+    assignments = Assignment.query.filter_by(course_id=id).all()
+    for a in assignments:
+        Submission.query.filter_by(assignment_id=a.id).delete()
+        db.session.delete(a)
+        
+    # 5. Quizzes & Submissions
+    quizzes = Quiz.query.filter_by(course_id=id).all()
+    for q in quizzes:
+        QuizSubmission.query.filter_by(quiz_id=q.id).delete()
+        # Questions cascade automatically via relationship usually, but let's be safe if not
+        # Question.query.filter_by(quiz_id=q.id).delete() 
+        db.session.delete(q)
+
+    # 6. Resources
+    CourseResource.query.filter_by(course_id=id).delete()
+
     db.session.delete(course)
     db.session.commit()
-    return jsonify({"message": "Course deleted"}), 200
+    return jsonify({"message": "Course and all related data deleted"}), 200
 
 
 @course_bp.route("/courses/<int:id>", methods=["PUT"])
@@ -119,6 +147,8 @@ def delete_workshop(id):
         return jsonify({"error": "Admin access required"}), 403
 
     workshop = Workshop.query.get_or_404(id)
+    
+    # No complex relations for workshops yet, but good to be ready
     db.session.delete(workshop)
     db.session.commit()
     return jsonify({"message": "Workshop deleted"}), 200
@@ -184,9 +214,23 @@ def delete_internship(id):
         return jsonify({"error": "Admin access required"}), 403
 
     internship = Internship.query.get_or_404(id)
+    
+    # ✅ MANUAL CASCADE DELETE
+    # 1. Enrollments
+    Enrollment.query.filter_by(internship_id=id).delete()
+    
+    # 2. Tasks & Task Submissions
+    tasks = Task.query.filter_by(internship_id=id).all()
+    for t in tasks:
+        TaskSubmission.query.filter_by(task_id=t.id).delete()
+        db.session.delete(t)
+        
+    # 3. Resources (if added later)
+    # InternshipResource.query.filter_by(internship_id=id).delete()
+
     db.session.delete(internship)
     db.session.commit()
-    return jsonify({"message": "Internship deleted"}), 200
+    return jsonify({"message": "Internship and all related data deleted"}), 200
 
 
 @course_bp.route("/internships/<int:id>", methods=["PUT"])
@@ -652,8 +696,11 @@ def generate_intern_certificate():
         
     # Generate PDF
     try:
-        from reportlab.lib.pagesizes import letter
+        from reportlab.lib.pagesizes import landscape, A4
         from reportlab.pdfgen import canvas
+        from reportlab.lib.units import inch
+        from reportlab.lib.colors import HexColor
+        from reportlab.lib.utils import ImageReader
         import os
         
         # Ensure static folder for certs
@@ -663,8 +710,9 @@ def generate_intern_certificate():
         filename = f"Intern_Certificate_{user_id}.pdf"
         filepath = os.path.join(cert_dir, filename)
         
-        c = canvas.Canvas(filepath, pagesize=letter)
-        width, height = letter
+        # Setup Canvas
+        width, height = landscape(A4)
+        c = canvas.Canvas(filepath, pagesize=landscape(A4))
         
         # Fetch Internship Details
         internship_name = "Internship Program" # Default
@@ -672,50 +720,121 @@ def generate_intern_certificate():
         if enrollment and enrollment.internship_id:
             intern = Internship.query.get(enrollment.internship_id)
             if intern:
-                # model has 'intern_name', likely storing the role/title like "Web Development"
                 name = intern.intern_name.strip()
                 if not name.lower().endswith("internship"):
                     internship_name = f"{name} Internship"
                 else:
                     internship_name = name 
 
-        # Design
-        c.setStrokeColorRGB(0.2, 0.2, 0.2)
-        c.rect(50, 50, width - 100, height - 100) # Border
+        # ================= DESIGN =================
         
-        c.setFont("Helvetica-Bold", 30)
-        c.drawCentredString(width / 2, height - 180, "CERTIFICATE OF COMPLETION")
+        # 1. Background (Subtle Cream/White)
+        c.setFillColor(HexColor("#FFFAF0"))
+        c.rect(0, 0, width, height, fill=1)
         
-        c.setFont("Helvetica", 14)
-        c.drawCentredString(width / 2, height - 230, "This is to certify that")
+        # 2. Ornate Border
+        c.setStrokeColor(HexColor("#DAA520")) # GoldenRod
+        c.setLineWidth(5)
+        c.rect(20, 20, width - 40, height - 40)
         
-        c.setFont("Helvetica-Bold", 26)
-        c.drawCentredString(width / 2, height - 280, user.name)
+        c.setStrokeColor(HexColor("#2C3E50")) # Dark Blue
+        c.setLineWidth(2)
+        c.rect(28, 28, width - 56, height - 56)
+
+        # 3. Logos (Header)
+        # Strategy: 3 Columns. Left=AICTE, Center=Analogica, Right=MSME
         
-        c.setFont("Helvetica", 14)
-        c.drawCentredString(width / 2, height - 330, "has successfully completed the")
+        logo_dir = os.path.join(os.getcwd(), 'static', 'logos')
+        aicte_path = os.path.join(logo_dir, 'aicte_logo.jpg')
+        msme_path = os.path.join(logo_dir, 'msme_logo.png')
+        analogica_path = os.path.join(os.getcwd(), 'static', 'analogica_logo.jpg')
         
-        c.setFont("Helvetica-Bold", 20)
-        c.drawCentredString(width / 2, height - 370, internship_name)
+        logo_y = height - 90
+        logo_size = 60 # Smaller logos
+
+        # Left Logo
+        if os.path.exists(aicte_path):
+             c.drawImage(aicte_path, 60, logo_y - 10, width=logo_size, height=logo_size, mask='auto', preserveAspectRatio=True)
+            
+        # Right Logo
+        if os.path.exists(msme_path):
+             c.drawImage(msme_path, width - 60 - logo_size, logo_y - 10, width=logo_size, height=logo_size, mask='auto', preserveAspectRatio=True)
+            
+        # Center Logo
+        if os.path.exists(analogica_path):
+             c.drawImage(analogica_path, width/2 - 30, logo_y - 5, width=60, height=60, mask='auto', preserveAspectRatio=True)
         
-        c.setFont("Helvetica", 12)
+        # 4. Company Name (Below Center Logo)
+        c.setFont("Helvetica-Bold", 28)
+        c.setFillColor(HexColor("#2C3E50"))
+        c.drawCentredString(width / 2, height - 120, "ANALOGICA SKILL TRACK")
+        
+        c.setFont("Helvetica-Bold", 14)
+        c.setFillColor(HexColor("#7F8C8D"))
+        c.drawCentredString(width / 2, height - 145, "Center for Technical Excellence")
+
+        # 5. Certificate Title
+        c.setFont("Helvetica-Bold", 42)
+        c.setFillColor(HexColor("#C0392B")) # Deep Red for Title
+        c.drawCentredString(width / 2, height - 220, "CERTIFICATE OF COMPLETION")
+        
+        # 6. Body Text
+        c.setFont("Helvetica", 16)
+        c.setFillColor(HexColor("#34495E"))
+        c.drawCentredString(width / 2, height - 270, "This is to certify that")
+        
+        # Student Name
+        c.setFont("Helvetica-Bold", 32)
+        c.setFillColor(HexColor("#2980B9")) # Nice Blue
+        c.drawCentredString(width / 2, height - 320, user.name.upper())
+        
+        # Decorative Line
+        c.setLineWidth(1)
+        c.setStrokeColor(HexColor("#BDC3C7"))
+        c.line(width/2 - 200, height - 330, width/2 + 200, height - 330)
+
+        c.setFont("Helvetica", 16)
+        c.setFillColor(HexColor("#34495E"))
+        c.drawCentredString(width / 2, height - 370, "has successfully completed the internship program in")
+
+        # Internship Name
+        c.setFont("Helvetica-Bold", 24)
+        c.setFillColor(HexColor("#2C3E50"))
+        c.drawCentredString(width / 2, height - 410, internship_name)
+
+        # Date
         date_str = datetime.utcnow().strftime('%B %d, %Y')
-        c.drawCentredString(width / 2, height - 420, f"Date of Issue: {date_str}")
-        
-        # Signature
-        c.line(width - 250, 150, width - 100, 150)
+        c.setFont("Helvetica", 14)
+        c.setFillColor(HexColor("#7F8C8D"))
+        c.drawCentredString(width / 2, height - 450, f"Issued on: {date_str}")
+
+        # 7. Signatures
+        # Bottom Left
         c.setFont("Helvetica-Bold", 12)
-        c.drawRightString(width - 120, 130, "Authorized Signatory")
-        c.setFont("Helvetica", 10)
-        c.drawRightString(width - 125, 115, "Analogica SkillTrack")
+        c.setFillColor(HexColor("#2C3E50"))
+        c.line(100, 100, 250, 100)
+        c.drawString(110, 80, "Program Director")
         
+        # Bottom Right
+        c.line(width - 250, 100, width - 100, 100)
+        c.drawRightString(width - 110, 80, "Authorized Signatory")
+        c.setFont("Helvetica", 10)
+        c.drawRightString(width - 120, 65, "Analogica SkillTrack")
+        
+        # 8. Verification Link/ID
+        cert_id = f"REF: {user_id}-{enrollment.internship_id if enrollment else 0}-{int(datetime.utcnow().timestamp())}"
+        c.setFont("Courier", 8)
+        c.setFillColor(HexColor("#BDC3C7"))
+        c.drawCentredString(width/2, 40, cert_id)
+
         c.save()
         
         return jsonify({"message": "Certificate generated", "url": f"/certificates/{filename}"}), 200
         
     except Exception as e:
         print(f"Cert Error: {e}")
-        # Return actual error for debugging
+        import traceback
+        traceback.print_exc()
         return jsonify({"error": f"Gen Error: {str(e)}"}), 500
 
 @course_bp.route("/intern/task/<int:task_id>/complete", methods=["POST"])

@@ -453,6 +453,12 @@ def submit_quiz(quiz_id):
 @jwt_required()
 def submit_assignment():
     student_id = int(get_jwt_identity())
+    
+    # ✅ Fix: Get assignment_id from form data
+    assignment_id = request.form.get("assignment_id")
+    if not assignment_id:
+        return jsonify({"error": "Assignment ID is missing"}), 400
+        
     assignment = Assignment.query.get(assignment_id)
     if not assignment:
          return jsonify({"error": "Assignment not found"}), 404
@@ -530,51 +536,130 @@ def get_course_resources(course_id):
     } for r in resources]), 200
 
 
-def generate_certificate_pdf(student_name, course_name, output_path):
-    c = canvas.Canvas(output_path, pagesize=landscape(letter))
-    width, height = landscape(letter)
+def generate_certificate_pdf(student_name, course_name, output_path, cert_id, issue_date):
+    from reportlab.lib.pagesizes import A4
+    from reportlab.pdfgen import canvas
+    from reportlab.lib.units import inch
+    from reportlab.lib.colors import HexColor
+    import os
 
-    # Background Color (Subtle Cream)
-    c.setFillColor(HexColor("#fdfbf7"))
-    c.rect(0, 0, width, height, fill=1)
+    # Setup Canvas (Portrait A4)
+    width, height = A4
+    c = canvas.Canvas(output_path, pagesize=A4)
 
-    # Border
-    c.setStrokeColor(HexColor("#4f46e5"))
-    c.setLineWidth(5)
-    c.rect(20, 20, width-40, height-40)
+    # ================= DESIGN =================
     
+    # 1. Background (Clean White)
+    c.setFillColor(HexColor("#FFFFFF"))
+    c.rect(0, 0, width, height, fill=1)
+    
+    # 2. Border (Colorful & Margins)
+    # Outer Border
+    c.setStrokeColor(HexColor("#4f46e5")) # Main Blue/Indigo
+    c.setLineWidth(10)
+    c.rect(20, 20, width - 40, height - 40)
+    
+    # Inner Border (Thin)
+    c.setStrokeColor(HexColor("#f59e0b")) # Amber/Gold Accent
+    c.setLineWidth(2)
+    c.rect(35, 35, width - 70, height - 70)
+
+    # 3. Header Logo
+    logo_path = os.path.join(os.getcwd(), 'static', 'analogica_logo.jpg')
+    if os.path.exists(logo_path):
+        try:
+             # Draw centered logo (Resized Smaller)
+             c.drawImage(logo_path, width/2 - 30, height - 120, width=60, height=60, mask='auto', preserveAspectRatio=True)
+        except: pass
+    else:
+        # Fallback
+        c.setFillColor(HexColor("#0f172a"))
+        c.circle(width/2, height - 90, 30, fill=1)
+
+    # 4. Company Name
+    c.setFont("Helvetica-Bold", 30)
+    c.setFillColor(HexColor("#1e3a8a")) # Dark Blue
+    c.drawCentredString(width / 2, height - 160, "ANALOGICA SKILL TRACK")
+    
+    # 5. Title
+    c.setFont("Helvetica", 18)
+    c.setFillColor(HexColor("#64748b")) # Slate-500
+    c.drawCentredString(width / 2, height - 215, "CERTIFICATE OF ACHIEVEMENT")
+    
+    # Divider Line (Styled)
+    c.setStrokeColor(HexColor("#f59e0b")) # Gold
+    c.setLineWidth(2)
+    c.line(width/2 - 100, height - 230, width/2 + 100, height - 230)
+
+    # 6. "This certificate is awarded to"
+    c.setFont("Helvetica", 14)
+    c.setFillColor(HexColor("#64748b")) # Slate-500
+    c.drawCentredString(width / 2, height - 270, "This certificate is awarded to")
+
+    # 7. Student Name
+    c.setFont("Helvetica-Bold", 36)
+    c.setFillColor(HexColor("#1e293b")) # Slate-800
+    c.drawCentredString(width / 2, height - 320, student_name)
+    
+    # Underline Name (Subtle)
     c.setStrokeColor(HexColor("#cbd5e1"))
     c.setLineWidth(1)
-    c.rect(30, 30, width-60, height-60)
+    c.line(width/2 - 180, height - 335, width/2 + 180, height - 335)
 
-    # Title
-    c.setFont("Helvetica-Bold", 40)
-    c.setFillColor(HexColor("#1e293b"))
-    c.drawCentredString(width/2, height - 150, "CERTIFICATE OF COMPLETION")
-
-    # Body
-    c.setFont("Helvetica", 18)
-    c.drawCentredString(width/2, height - 220, "This is to certify that")
-
-    c.setFont("Helvetica-Bold", 32)
-    c.setFillColor(HexColor("#4f46e5"))
-    c.drawCentredString(width/2, height - 280, student_name.upper())
-
-    c.setFont("Helvetica", 18)
-    c.setFillColor(HexColor("#1e293b"))
-    c.drawCentredString(width/2, height - 340, "has successfully completed the course")
-
-    c.setFont("Helvetica-Bold", 24)
-    c.drawCentredString(width/2, height - 400, course_name)
-
-    # Footer
+    # 8. "for successfully completing..."
     c.setFont("Helvetica", 12)
-    date_str = datetime.utcnow().strftime("%B %d, %Y")
-    c.drawString(100, 100, f"Date: {date_str}")
+    c.setFillColor(HexColor("#64748b"))
+    c.drawCentredString(width / 2, height - 370, "for successfully completing the requirements towards the certification program")
+
+    # 9. Course Name (Colorful)
+    c.setFont("Helvetica-Bold", 24)
+    c.setFillColor(HexColor("#4f46e5")) # Indigo-600
+    c.drawCentredString(width / 2, height - 420, course_name)
+
+    # 10. Dates
+    c.setFont("Helvetica", 12)
+    c.setFillColor(HexColor("#94a3b8"))
+    c.drawCentredString(width / 2, height - 460, f"Completed on {issue_date}")
     
-    # Signature Placeholder
-    c.line(width - 250, 100, width - 100, 100)
-    c.drawCentredString(width - 175, 80, "Authorized Signatory")
+    # 11. Unique Certification Number (Boxed)
+    c.setFont("Helvetica-Bold", 10)
+    c.setFillColor(HexColor("#475569"))
+    c.drawCentredString(width / 2, height - 520, "CERTIFICATION ID")
+    
+    c.setFont("Courier-Bold", 14)
+    c.setFillColor(HexColor("#059669")) # Green-600
+    c.drawCentredString(width / 2, height - 540, cert_id)
+
+    # 12. Bottom Badge
+    c.setStrokeColor(HexColor("#d97706")) # Dark Gold
+    c.setLineWidth(2)
+    c.circle(width/2, height - 620, 35, stroke=1, fill=0)
+    c.setFont("Helvetica-Bold", 10)
+    c.setFillColor(HexColor("#d97706"))
+    c.drawCentredString(width/2, height - 620 - 4, "VERIFIED")
+
+    # 13. Signatures
+    # Left
+    c.setLineWidth(1)
+    c.setStrokeColor(HexColor("#000000"))
+    
+    # Director
+    c.line(80, 150, 230, 150)
+    c.setFont("Helvetica-Bold", 12)
+    c.setFillColor(HexColor("#000000"))
+    c.drawString(80, 130, "Director")
+    c.setFont("Helvetica", 10)
+    c.setFillColor(HexColor("#64748b"))
+    c.drawString(80, 115, "Analogica SkillTrack")
+    
+    # Right
+    c.line(width - 230, 150, width - 80, 150)
+    c.setFont("Helvetica-Bold", 12)
+    c.setFillColor(HexColor("#000000"))
+    c.drawRightString(width - 80, 130, "Head of Training")
+    c.setFont("Helvetica", 10)
+    c.setFillColor(HexColor("#64748b"))
+    c.drawRightString(width - 80, 115, "Certisured / Analogica")
 
     c.save()
 
@@ -618,9 +703,15 @@ def generate_certificate(course_id):
     # Check if already exists
     existing = Certificate.query.filter_by(user_id=student_id, course_id=course_id).first()
     
+    # Generate Cert ID
+    import uuid
+    short_uuid = str(uuid.uuid4())[:8].upper()
+    cert_id = f"ANLG-{course.id:02d}-{short_uuid}"
+    issue_date = datetime.utcnow().strftime("%B %d, %Y")
+    
     # Generate Actual PDF
     try:
-        generate_certificate_pdf(student.name, course.name, filepath)
+        generate_certificate_pdf(student.name, course.name, filepath, cert_id, issue_date)
     except Exception as e:
         return jsonify({"error": f"Failed to generate PDF: {str(e)}"}), 500
 

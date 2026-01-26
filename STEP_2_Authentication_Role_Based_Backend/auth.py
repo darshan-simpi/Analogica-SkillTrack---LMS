@@ -138,14 +138,47 @@ def delete_user(user_id):
 
     user = User.query.get_or_404(user_id)
     
-    # Delete related records to avoid Foreign Key constraints
+    # ✅ ROBUST MANUAL CASCADE DELETE
+    
+    # 1. DEPENDENCIES WHERE USER IS THE *SOURCE* (Student/Intern)
+    # -----------------------------------------------------------
+    # Enrollments & Progress
     Enrollment.query.filter_by(user_id=user_id).delete()
     StudentProgress.query.filter_by(user_id=user_id).delete()
-    Task.query.filter_by(assigned_to=user_id).delete()
-    Task.query.filter_by(assigned_by=user_id).delete()
-    Submission.query.filter_by(student_id=user_id).delete()
-    TaskSubmission.query.filter_by(student_id=user_id).delete()
+    
+    # Certificates
     Certificate.query.filter_by(user_id=user_id).delete()
+    
+    # Submissions (Assignments)
+    Submission.query.filter_by(student_id=user_id).delete()
+    
+    # Quiz Submissions
+    from models import QuizSubmission # Ensure import
+    QuizSubmission.query.filter_by(student_id=user_id).delete()
+    
+    # Task Submissions (Intern) - Deleting their submissions to tasks
+    TaskSubmission.query.filter_by(student_id=user_id).delete()
+    
+    # Tasks Assigned TO the user (Intern)
+    # Note: If we delete tasks assigned TO them, we must first ensure THOSE tasks don't have submissions (which we just deleted above).
+    Task.query.filter_by(assigned_to=user_id).delete()
+
+
+    # 2. DEPENDENCIES WHERE USER IS THE *CREATOR* (Trainer)
+    # -----------------------------------------------------------
+    # Tasks Assigned BY the user (Trainer)
+    # These tasks might have submissions from OTHER students/interns.
+    # We must delete those submissions first.
+    
+    tasks_created_by_user = Task.query.filter_by(assigned_by=user_id).all()
+    for t in tasks_created_by_user:
+        # Delete submissions for this task (by anyone)
+        TaskSubmission.query.filter_by(task_id=t.id).delete()
+        # Delete the task itself
+        db.session.delete(t)
+        
+    # Note: We do NOT delete Courses or Workshops created by them because they use 'mentor_name' (string) 
+    # instead of foreign keys in this schema, so no crash will occur.
 
     db.session.delete(user)
     db.session.commit()
