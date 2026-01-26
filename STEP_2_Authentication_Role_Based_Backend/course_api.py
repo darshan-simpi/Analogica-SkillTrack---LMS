@@ -2,7 +2,7 @@ from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from datetime import datetime
 from extensions import db
-from models import Course, Workshop, Internship, User, Task, Submission, Enrollment, StudentProgress, TaskSubmission
+from models import Course, Workshop, Internship, User, Task, Submission, Enrollment, StudentProgress, TaskSubmission, CourseResource
 from utils import allowed_file
 
 course_bp = Blueprint("course_api", __name__)
