@@ -1,38 +1,58 @@
+/* ================= ROOT VARIABLES ================= */
+:root {
+    --primary: #8b5cf6;
+    /* Violet */
+    --primary-light: #f3f0ff;
+    --bg-body: #f8fafc;
+    --bg-card: #ffffff;
+    --text-main: #1e293b;
+    --text-muted: #64748b;
+    --border: #e2e8f0;
+    --radius: 16px;
+    --shadow-sm: 0 4px 6px -1px rgba(0, 0, 0, 0.05);
+    --shadow-hover: 0 10px 15px -3px rgba(0, 0, 0, 0.1);
+}
+
 * {
     margin: 0;
     padding: 0;
-    font-family: 'Segoe UI', sans-serif
+    box-sizing: border-box;
+    font-family: 'Inter', system-ui, sans-serif;
 }
 
 body {
-    background: linear-gradient(135deg, #f8fafc, #fdf4ff, #f0f9ff)
+    background: var(--bg-body);
+    color: var(--text-main);
 }
 
 .app {
     display: flex;
-    height: 100vh
+    height: 100vh;
+    overflow: hidden;
 }
 
 .sidebar {
-    width: 240px;
-    background: #fff;
-    padding: 30px;
-    border-right: 1px solid #e5e7eb
+    width: 260px;
+    background: var(--bg-card);
+    padding: 2rem;
+    border-right: 1px solid var(--border);
 }
 
 .sidebar a {
     display: block;
-    margin: 10px 0;
-    padding: 12px;
-    border-radius: 14px;
-    color: #334155;
-    cursor: pointer
+    margin: 8px 0;
+    padding: 12px 16px;
+    border-radius: 12px;
+    color: var(--text-muted);
+    font-weight: 500;
+    text-decoration: none;
+    transition: all 0.2s;
 }
 
 .sidebar a.active,
 .sidebar a:hover {
-    background: #ede9fe;
-    color: #6d28d9
+    background: var(--primary-light);
+    color: var(--primary);
 }
 
 main {
@@ -70,9 +90,17 @@ header {
 }
 
 .card {
-    padding: 22px;
-    border-radius: 22px;
-    box-shadow: 0 14px 25px rgba(0, 0, 0, .12)
+    background: var(--bg-card);
+    padding: 1.5rem;
+    border-radius: var(--radius);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s;
+}
+
+.card:hover {
+    transform: translateY(-5px);
+    box-shadow: var(--shadow-hover);
 }
 
 .mini {
@@ -107,10 +135,17 @@ header {
 }
 
 .task {
-    background: #fff;
-    padding: 20px;
-    border-radius: 20px;
-    box-shadow: 0 10px 20px rgba(0, 0, 0, .12)
+    background: var(--bg-card);
+    padding: 1.5rem;
+    border-radius: var(--radius);
+    box-shadow: var(--shadow-sm);
+    border: 1px solid var(--border);
+    transition: transform 0.2s;
+}
+
+.task:hover {
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-hover);
 }
 
 .soft {
