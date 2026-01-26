@@ -537,129 +537,106 @@ def get_course_resources(course_id):
 
 
 def generate_certificate_pdf(student_name, course_name, output_path, cert_id, issue_date):
-    from reportlab.lib.pagesizes import A4
+    from reportlab.lib.pagesizes import landscape, A4
     from reportlab.pdfgen import canvas
     from reportlab.lib.units import inch
     from reportlab.lib.colors import HexColor
     import os
 
-    # Setup Canvas (Portrait A4)
-    width, height = A4
-    c = canvas.Canvas(output_path, pagesize=A4)
+    # Setup Canvas (Landscape A4 - Internship Format)
+    width, height = landscape(A4)
+    c = canvas.Canvas(output_path, pagesize=landscape(A4))
 
-    # ================= DESIGN =================
+    # ================= DESIGN (Internship Format: Landscape, Gold/Cream) =================
     
-    # 1. Background (Clean White)
-    c.setFillColor(HexColor("#FFFFFF"))
+    # 1. Background (Subtle Cream/White)
+    c.setFillColor(HexColor("#FFFAF0"))
     c.rect(0, 0, width, height, fill=1)
     
-    # 2. Border (Colorful & Margins)
-    # Outer Border
-    c.setStrokeColor(HexColor("#4f46e5")) # Main Blue/Indigo
-    c.setLineWidth(10)
+    # 2. Ornate Border
+    c.setStrokeColor(HexColor("#DAA520")) # GoldenRod
+    c.setLineWidth(5)
     c.rect(20, 20, width - 40, height - 40)
     
-    # Inner Border (Thin)
-    c.setStrokeColor(HexColor("#f59e0b")) # Amber/Gold Accent
+    c.setStrokeColor(HexColor("#2C3E50")) # Dark Blue
     c.setLineWidth(2)
-    c.rect(35, 35, width - 70, height - 70)
+    c.rect(28, 28, width - 56, height - 56)
 
-    # 3. Header Logo
+    # 3. Logos (Header)
     logo_path = os.path.join(os.getcwd(), 'static', 'analogica_logo.jpg')
+    logo_y = height - 90
+    
+    # Center Logo
     if os.path.exists(logo_path):
-        try:
-             # Draw centered logo (Resized Smaller)
-             c.drawImage(logo_path, width/2 - 30, height - 120, width=60, height=60, mask='auto', preserveAspectRatio=True)
-        except: pass
+         c.drawImage(logo_path, width/2 - 30, logo_y - 5, width=60, height=60, mask='auto', preserveAspectRatio=True)
     else:
-        # Fallback
-        c.setFillColor(HexColor("#0f172a"))
-        c.circle(width/2, height - 90, 30, fill=1)
-
-    # 4. Company Name
-    c.setFont("Helvetica-Bold", 30)
-    c.setFillColor(HexColor("#1e3a8a")) # Dark Blue
-    c.drawCentredString(width / 2, height - 160, "ANALOGICA SKILL TRACK")
+         # Fallback
+         c.setFillColor(HexColor("#2C3E50"))
+         c.circle(width/2, logo_y + 25, 30, fill=1)
     
-    # 5. Title
-    c.setFont("Helvetica", 18)
-    c.setFillColor(HexColor("#64748b")) # Slate-500
-    c.drawCentredString(width / 2, height - 215, "CERTIFICATE OF ACHIEVEMENT")
+    # 4. Company Name (Below Center Logo)
+    c.setFont("Helvetica-Bold", 28)
+    c.setFillColor(HexColor("#2C3E50"))
+    c.drawCentredString(width / 2, height - 120, "ANALOGICA SKILL TRACK")
     
-    # Divider Line (Styled)
-    c.setStrokeColor(HexColor("#f59e0b")) # Gold
-    c.setLineWidth(2)
-    c.line(width/2 - 100, height - 230, width/2 + 100, height - 230)
+    c.setFont("Helvetica-Bold", 14)
+    c.setFillColor(HexColor("#7F8C8D"))
+    c.drawCentredString(width / 2, height - 145, "Center for Technical Excellence")
 
-    # 6. "This certificate is awarded to"
-    c.setFont("Helvetica", 14)
-    c.setFillColor(HexColor("#64748b")) # Slate-500
-    c.drawCentredString(width / 2, height - 270, "This certificate is awarded to")
-
-    # 7. Student Name
-    c.setFont("Helvetica-Bold", 36)
-    c.setFillColor(HexColor("#1e293b")) # Slate-800
-    c.drawCentredString(width / 2, height - 320, student_name)
+    # 5. Certificate Title
+    c.setFont("Helvetica-Bold", 42)
+    c.setFillColor(HexColor("#C0392B")) # Deep Red for Title
+    c.drawCentredString(width / 2, height - 220, "CERTIFICATE OF ACHIEVEMENT")
     
-    # Underline Name (Subtle)
-    c.setStrokeColor(HexColor("#cbd5e1"))
+    # 6. Body Text
+    c.setFont("Helvetica", 16)
+    c.setFillColor(HexColor("#34495E"))
+    c.drawCentredString(width / 2, height - 270, "This is to certify that")
+    
+    # Student Name
+    c.setFont("Helvetica-Bold", 32)
+    c.setFillColor(HexColor("#2980B9")) # Nice Blue
+    c.drawCentredString(width / 2, height - 320, student_name.upper())
+    
+    # Decorative Line
     c.setLineWidth(1)
-    c.line(width/2 - 180, height - 335, width/2 + 180, height - 335)
+    c.setStrokeColor(HexColor("#BDC3C7"))
+    c.line(width/2 - 200, height - 330, width/2 + 200, height - 330)
 
-    # 8. "for successfully completing..."
-    c.setFont("Helvetica", 12)
-    c.setFillColor(HexColor("#64748b"))
-    c.drawCentredString(width / 2, height - 370, "for successfully completing the requirements towards the certification program")
+    c.setFont("Helvetica", 16)
+    c.setFillColor(HexColor("#34495E"))
+    c.drawCentredString(width / 2, height - 370, "has successfully completed the course")
 
-    # 9. Course Name (Colorful)
-    c.setFont("Helvetica-Bold", 24)
-    c.setFillColor(HexColor("#4f46e5")) # Indigo-600
+    # Course Name
+    c.setFont("Helvetica-Bold", 26)
+    c.setFillColor(HexColor("#E67E22")) # Pumpkin Orange
     c.drawCentredString(width / 2, height - 420, course_name)
-
-    # 10. Dates
-    c.setFont("Helvetica", 12)
-    c.setFillColor(HexColor("#94a3b8"))
-    c.drawCentredString(width / 2, height - 460, f"Completed on {issue_date}")
     
-    # 11. Unique Certification Number (Boxed)
-    c.setFont("Helvetica-Bold", 10)
-    c.setFillColor(HexColor("#475569"))
-    c.drawCentredString(width / 2, height - 520, "CERTIFICATION ID")
-    
-    c.setFont("Courier-Bold", 14)
-    c.setFillColor(HexColor("#059669")) # Green-600
-    c.drawCentredString(width / 2, height - 540, cert_id)
+    # Dates
+    c.setFont("Helvetica", 14)
+    c.setFillColor(HexColor("#7F8C8D"))
+    c.drawCentredString(width / 2, height - 460, f"Issued on: {issue_date}")
 
-    # 12. Bottom Badge
-    c.setStrokeColor(HexColor("#d97706")) # Dark Gold
-    c.setLineWidth(2)
-    c.circle(width/2, height - 620, 35, stroke=1, fill=0)
-    c.setFont("Helvetica-Bold", 10)
-    c.setFillColor(HexColor("#d97706"))
-    c.drawCentredString(width/2, height - 620 - 4, "VERIFIED")
-
-    # 13. Signatures
-    # Left
+    # 7. Signatures
+    # Bottom Left
     c.setLineWidth(1)
-    c.setStrokeColor(HexColor("#000000"))
+    c.setStrokeColor(HexColor("#2C3E50"))
     
-    # Director
-    c.line(80, 150, 230, 150)
+    c.line(100, 100, 300, 100)
     c.setFont("Helvetica-Bold", 12)
-    c.setFillColor(HexColor("#000000"))
-    c.drawString(80, 130, "Director")
-    c.setFont("Helvetica", 10)
-    c.setFillColor(HexColor("#64748b"))
-    c.drawString(80, 115, "Analogica SkillTrack")
+    c.setFillColor(HexColor("#2C3E50"))
+    c.drawString(100, 80, "Director")
     
-    # Right
-    c.line(width - 230, 150, width - 80, 150)
-    c.setFont("Helvetica-Bold", 12)
-    c.setFillColor(HexColor("#000000"))
-    c.drawRightString(width - 80, 130, "Head of Training")
+    # Bottom Right
+    c.line(width - 300, 100, width - 100, 100)
+    c.drawRightString(width - 100, 80, "Program Manager")
     c.setFont("Helvetica", 10)
-    c.setFillColor(HexColor("#64748b"))
-    c.drawRightString(width - 80, 115, "Certisured / Analogica")
+    c.drawRightString(width - 110, 65, "Analogica SkillTrack")
+    
+    # 8. Verification Link/ID
+    c.setFont("Courier", 8)
+    c.setFillColor(HexColor("#BDC3C7"))
+    c.drawCentredString(width/2, 40, f"ID: {cert_id}")
 
     c.save()
 

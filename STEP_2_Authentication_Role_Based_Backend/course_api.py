@@ -62,22 +62,8 @@ def delete_course(id):
     StudentProgress.query.filter_by(course_id=id).delete()
     
     # 3. Certificates
-    Certificate.query.filter_by(course_id=id).delete()
+    # Certificate.query.filter_by(course_id=id).delete() 
     
-    # 4. Assignments & Submissions
-    assignments = Assignment.query.filter_by(course_id=id).all()
-    for a in assignments:
-        Submission.query.filter_by(assignment_id=a.id).delete()
-        db.session.delete(a)
-        
-    # 5. Quizzes & Submissions
-    quizzes = Quiz.query.filter_by(course_id=id).all()
-    for q in quizzes:
-        QuizSubmission.query.filter_by(quiz_id=q.id).delete()
-        # Questions cascade automatically via relationship usually, but let's be safe if not
-        # Question.query.filter_by(quiz_id=q.id).delete() 
-        db.session.delete(q)
-
     # 6. Resources
     CourseResource.query.filter_by(course_id=id).delete()
 
@@ -147,8 +133,6 @@ def delete_workshop(id):
         return jsonify({"error": "Admin access required"}), 403
 
     workshop = Workshop.query.get_or_404(id)
-    
-    # No complex relations for workshops yet, but good to be ready
     db.session.delete(workshop)
     db.session.commit()
     return jsonify({"message": "Workshop deleted"}), 200
@@ -216,18 +200,13 @@ def delete_internship(id):
     internship = Internship.query.get_or_404(id)
     
     # ✅ MANUAL CASCADE DELETE
-    # 1. Enrollments
     Enrollment.query.filter_by(internship_id=id).delete()
     
-    # 2. Tasks & Task Submissions
     tasks = Task.query.filter_by(internship_id=id).all()
     for t in tasks:
         TaskSubmission.query.filter_by(task_id=t.id).delete()
         db.session.delete(t)
         
-    # 3. Resources (if added later)
-    # InternshipResource.query.filter_by(internship_id=id).delete()
-
     db.session.delete(internship)
     db.session.commit()
     return jsonify({"message": "Internship and all related data deleted"}), 200
@@ -288,23 +267,15 @@ def get_tasks():
     role = claims.get("role")
 
     if role == "INTERN" or role == "STUDENT":
-        # Intern tasks with "Weekly" structure logic
         raw_tasks = Task.query.filter_by(assigned_to=user_id).order_by(Task.id).all()
-        
-        # Simulate Weekly structure (4 tasks = 4 weeks)
-        # Or just map index to week.
         tasks = []
-        is_previous_completed = True # First task is always unlocked
         
         for index, t in enumerate(raw_tasks):
             week_num = index + 1
-            
-            # Logic: Unlocked if previous is completed AND previous deadline passed
             is_unlocked = True
             if index > 0:
                 prev_task = raw_tasks[index-1]
                 prev_submitted = (prev_task.status == 'Completed')
-                
                 prev_deadline_passed = True
                 if prev_task.due_date:
                     try:
@@ -312,12 +283,9 @@ def get_tasks():
                         if datetime.utcnow().date() <= p_date.date():
                             prev_deadline_passed = False
                     except: pass
-                
                 is_unlocked = prev_submitted and prev_deadline_passed
 
-            is_submitted = (t.status == 'Completed') # Using status='Completed' as submitted for interns
-            
-            # Fetch submission details
+            is_submitted = (t.status == 'Completed')
             submission = TaskSubmission.query.filter_by(task_id=t.id, student_id=user_id).first()
             grade = submission.grade if submission else None
             feedback = submission.feedback if submission else None
@@ -378,8 +346,6 @@ def get_student_courses():
     return jsonify(enrolled_courses), 200
 
 
-
-
 @course_bp.route("/tasks", methods=["POST"])
 @jwt_required()
 def assign_task():
@@ -392,7 +358,6 @@ def assign_task():
     
     tasks_to_create = []
     
-    # 1. Assign to Course (All Students in Course)
     if data.get("course_id"):
         students = StudentProgress.query.filter_by(course_id=data["course_id"]).all()
         for s in students:
@@ -405,7 +370,6 @@ def assign_task():
                 due_date=data.get("due_date")
             ))
             
-    # 2. Assign to Internship (All Interns in Internship)
     elif data.get("internship_id"):
         enrollments = Enrollment.query.filter_by(internship_id=data["internship_id"]).all()
         for e in enrollments:
@@ -416,10 +380,9 @@ def assign_task():
                 assigned_by=trainer_id,
                 priority=data.get("priority", "Medium"),
                 due_date=data.get("due_date"),
-                internship_id=data["internship_id"] # ✅ NEW: Save internship_id for backfilling logic
+                internship_id=data["internship_id"]
             ))
             
-    # 3. Assign to Individual
     elif data.get("assigned_to"):
         tasks_to_create.append(Task(
             title=data.get("title"),
@@ -534,7 +497,6 @@ def enroll_internship():
     if not internship_id:
         return jsonify({"error": "Internship ID required"}), 400
 
-    # Check if already enrolled
     existing = Enrollment.query.filter_by(user_id=user_id, internship_id=internship_id).first()
     if existing:
         return jsonify({"error": "Already enrolled"}), 400
@@ -542,26 +504,17 @@ def enroll_internship():
     enrollment = Enrollment(user_id=user_id, internship_id=internship_id)
     db.session.add(enrollment)
     
-    # ✅ BACKFILL: Find existing tasks for this internship and assign them to the new intern
-    # Strategy 1: Check tasks explicitly linked to internship (New System)
+    # Backfill logic simplified
     existing_tasks = Task.query.filter_by(internship_id=internship_id).all()
-    
-    # Strategy 2: If no tasks found, check tasks assigned to PEERS in the same internship (Legacy Support)
-    # This handles tasks created before internship_id was being saved.
     if not existing_tasks:
         peer_enrollments = Enrollment.query.filter_by(internship_id=internship_id).all()
         peer_ids = [e.user_id for e in peer_enrollments if e.user_id != user_id]
-        
         if peer_ids:
-            # Get tasks assigned to peers
             peer_tasks = Task.query.filter(Task.assigned_to.in_(peer_ids)).all()
             existing_tasks.extend(peer_tasks)
 
-    # Deduplicate by title to avoid assigning the same task multiple times
     unique_tasks = {t.title: t for t in existing_tasks} 
-    
     for _, t in unique_tasks.items():
-        # Check if user already has this task (sanity check)
         user_has_task = Task.query.filter_by(assigned_to=user_id, title=t.title).first()
         if not user_has_task:
             new_task = Task(
@@ -572,7 +525,7 @@ def enroll_internship():
                 internship_id=internship_id,
                 priority=t.priority,
                 due_date=t.due_date,
-                status="Pending", # Start fresh
+                status="Pending",
                 week_number=t.week_number
             )
             db.session.add(new_task)
@@ -581,33 +534,23 @@ def enroll_internship():
     return jsonify({"message": "Enrolled successfully"}), 201
 
 
-
-
-
 @course_bp.route("/mentors", methods=["GET"])
 @jwt_required()
 def get_mentors():
     user_id = get_jwt_identity()
     user = User.query.get(user_id)
-    
     trainers = []
-    # Combined Logic: Get courses from BOTH StudentProgress and Enrollment
     if user and user.role == "STUDENT":
-        # 1. From Enrollments
         enrollments = Enrollment.query.filter_by(user_id=user_id).all()
         course_ids = {e.course_id for e in enrollments if e.course_id}
-        
-        # 2. From Progress (Legacy support)
         progress = StudentProgress.query.filter_by(user_id=user_id).all()
         course_ids.update({p.course_id for p in progress})
-        
         if course_ids:
             courses = Course.query.filter(Course.id.in_(course_ids)).all()
             mentor_names = [c.mentor_name for c in courses if c.mentor_name]
             if mentor_names:
                 trainers = User.query.filter(User.name.in_(mentor_names), User.role == "TRAINER").all()
 
-    # Fallback: If no mentors found (or not student), Return ALL trainers
     if not trainers:
         trainers = User.query.filter_by(role="TRAINER").all()
 
@@ -627,42 +570,24 @@ def get_mentors():
 @jwt_required()
 def get_intern_stats():
     user_id = int(get_jwt_identity())
-    print(f"DEBUG: Fetching stats for User ID: {user_id}")
     user = User.query.get(user_id)
     
-    # 1. Tasks Stats
     tasks = Task.query.filter_by(assigned_to=user_id).all()
-    print(f"DEBUG: Found {len(tasks)} tasks")
     total_tasks = len(tasks)
     completed_tasks = len([t for t in tasks if t.status == 'Completed'])
     pending_tasks = total_tasks - completed_tasks
     
-    # 2. Enrollment Stats
     enrollments = Enrollment.query.filter_by(user_id=user_id).all()
-    print(f"DEBUG: Found {len(enrollments)} enrollments")
     enrolled_count = len(enrollments)
     
-    # 3. Overall Progress (Average of all enrolled internships/courses)
-    # For now, simple calculation: (completed_tasks / total_tasks) * 100
-    if total_tasks > 0:
-        overall_progress = int((completed_tasks / total_tasks) * 100)
-    else:
-        overall_progress = 0
+    overall_progress = int((completed_tasks / total_tasks) * 100) if total_tasks > 0 else 0
         
-    # 4. Today's Focus (Tasks due today or high priority pending)
     today = datetime.utcnow().date()
-    tasks_done_today = 0
-    
     submissions = TaskSubmission.query.filter_by(student_id=user_id).all()
-    tasks_done_today = len([
-        s for s in submissions 
-        if s.submitted_at.date() == today
-    ])
+    tasks_done_today = len([s for s in submissions if s.submitted_at.date() == today])
     
-    # 5. Mentor Details
     mentor_name = "Not Assigned"
     if enrollments:
-        # Assuming last enrollment is current
         last_enrollment = enrollments[-1] 
         if last_enrollment.internship_id:
              internship = Internship.query.get(last_enrollment.internship_id)
@@ -682,10 +607,9 @@ def get_intern_stats():
 @course_bp.route("/intern/certificate", methods=["POST"])
 @jwt_required()
 def generate_intern_certificate():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     user = User.query.get(user_id)
     
-    # Verify eligibility (simple check: 100% progress or all assigned tasks completed)
     tasks = Task.query.filter_by(assigned_to=user_id).all()
     if not tasks:
         return jsonify({"error": "No tasks assigned"}), 400
@@ -694,176 +618,201 @@ def generate_intern_certificate():
     if len(completed) < len(tasks):
         return jsonify({"error": "Complete all tasks first"}), 400
         
-    # Generate PDF
     try:
-        from reportlab.lib.pagesizes import landscape, A4
+        from reportlab.lib.pagesizes import A4
         from reportlab.pdfgen import canvas
         from reportlab.lib.units import inch
         from reportlab.lib.colors import HexColor
-        from reportlab.lib.utils import ImageReader
+        from reportlab.lib.utils import simpleSplit # Added for wrapping
         import os
+        import uuid
         
-        # Ensure static folder for certs
         cert_dir = os.path.join(os.getcwd(), 'static', 'certificates')
         os.makedirs(cert_dir, exist_ok=True)
         
         filename = f"Intern_Certificate_{user_id}.pdf"
         filepath = os.path.join(cert_dir, filename)
         
-        # Setup Canvas
-        width, height = landscape(A4)
-        c = canvas.Canvas(filepath, pagesize=landscape(A4))
+        # Setup Canvas (Portrait A4)
+        width, height = A4
+        c = canvas.Canvas(filepath, pagesize=A4)
         
-        # Fetch Internship Details
-        internship_name = "Internship Program" # Default
+        # Fetch Details
+        internship_name = "Internship Program"
+        start_date = "December 2024"
+        end_date = "January 2025"
+        
         enrollment = Enrollment.query.filter_by(user_id=user_id).first()
-        if enrollment and enrollment.internship_id:
-            intern = Internship.query.get(enrollment.internship_id)
-            if intern:
-                name = intern.intern_name.strip()
-                if not name.lower().endswith("internship"):
-                    internship_name = f"{name} Internship"
-                else:
-                    internship_name = name 
-
-        # ================= DESIGN =================
+        mentor_name = "Mentor"
         
-        # 1. Background (Subtle Cream/White)
-        c.setFillColor(HexColor("#FFFAF0"))
+        if enrollment:
+            if enrollment.internship_id:
+                i = Internship.query.get(enrollment.internship_id)
+                if i: 
+                   name = i.intern_name.strip()
+                   internship_name = f"{name} Internship" if not name.lower().endswith("internship") else name
+                   mentor_name = i.mentor_name
+                   
+                   # Force 2 months duration for certificate validity
+                   # Backdate start_date to 2 months before today
+                   from datetime import timedelta
+                   end_dt = datetime.utcnow()
+                   start_dt = end_dt - timedelta(days=61) # Approx 2 months
+                   
+                   start_date = start_dt.strftime("%B %Y")
+                   end_date = end_dt.strftime("%B %Y")
+
+        issue_date = datetime.utcnow().strftime("%B %d, %Y")
+        short_uuid = str(uuid.uuid4())[:8].upper()
+        # Clean ID
+        cert_id = f"ANLG/INT/{user_id}/{short_uuid}"
+
+        # ================= DESIGN (Portrait Professional) =================
+        
+        # 1. Background
+        c.setFillColor(HexColor("#FFFFFF"))
         c.rect(0, 0, width, height, fill=1)
         
-        # 2. Ornate Border
-        c.setStrokeColor(HexColor("#DAA520")) # GoldenRod
-        c.setLineWidth(5)
+        # 2. Borders
+        c.setStrokeColor(HexColor("#4f46e5")) # Main Blue
+        c.setLineWidth(10)
         c.rect(20, 20, width - 40, height - 40)
         
-        c.setStrokeColor(HexColor("#2C3E50")) # Dark Blue
+        c.setStrokeColor(HexColor("#f59e0b")) # Amber
         c.setLineWidth(2)
-        c.rect(28, 28, width - 56, height - 56)
+        c.rect(35, 35, width - 70, height - 70)
 
-        # 3. Logos (Header)
-        # Strategy: 3 Columns. Left=AICTE, Center=Analogica, Right=MSME
-        
+        # 3. Logo (Header)
         logo_dir = os.path.join(os.getcwd(), 'static', 'logos')
-        aicte_path = os.path.join(logo_dir, 'aicte_logo.jpg')
-        msme_path = os.path.join(logo_dir, 'msme_logo.png')
         analogica_path = os.path.join(os.getcwd(), 'static', 'analogica_logo.jpg')
         
-        logo_y = height - 90
-        logo_size = 60 # Smaller logos
-
-        # Left Logo
-        if os.path.exists(aicte_path):
-             c.drawImage(aicte_path, 60, logo_y - 10, width=logo_size, height=logo_size, mask='auto', preserveAspectRatio=True)
-            
-        # Right Logo
-        if os.path.exists(msme_path):
-             c.drawImage(msme_path, width - 60 - logo_size, logo_y - 10, width=logo_size, height=logo_size, mask='auto', preserveAspectRatio=True)
-            
-        # Center Logo
+        # Center Logo (Analogica) - TOP
+        logo_y_top = height - 120
         if os.path.exists(analogica_path):
-             c.drawImage(analogica_path, width/2 - 30, logo_y - 5, width=60, height=60, mask='auto', preserveAspectRatio=True)
-        
-        # 4. Company Name (Below Center Logo)
-        c.setFont("Helvetica-Bold", 28)
-        c.setFillColor(HexColor("#2C3E50"))
-        c.drawCentredString(width / 2, height - 120, "ANALOGICA SKILL TRACK")
-        
-        c.setFont("Helvetica-Bold", 14)
-        c.setFillColor(HexColor("#7F8C8D"))
-        c.drawCentredString(width / 2, height - 145, "Center for Technical Excellence")
+             c.drawImage(analogica_path, width/2 - 30, logo_y_top, width=60, height=60, mask='auto', preserveAspectRatio=True)
+        else:
+            c.setFillColor(HexColor("#0f172a"))
+            c.circle(width/2, logo_y_top + 30, 30, fill=1)
 
-        # 5. Certificate Title
-        c.setFont("Helvetica-Bold", 42)
-        c.setFillColor(HexColor("#C0392B")) # Deep Red for Title
-        c.drawCentredString(width / 2, height - 220, "CERTIFICATE OF COMPLETION")
+        # 4. Company Name
+        c.setFont("Helvetica-Bold", 30)
+        c.setFillColor(HexColor("#1e3a8a"))
+        c.drawCentredString(width / 2, height - 160, "ANALOGICA SKILL TRACK")
         
-        # 6. Body Text
-        c.setFont("Helvetica", 16)
-        c.setFillColor(HexColor("#34495E"))
-        c.drawCentredString(width / 2, height - 270, "This is to certify that")
+        # 5. Title
+        c.setFont("Helvetica", 18)
+        c.setFillColor(HexColor("#64748b"))
+        c.drawCentredString(width / 2, height - 215, "CERTIFICATE OF ACHIEVEMENT")
         
-        # Student Name
-        c.setFont("Helvetica-Bold", 32)
-        c.setFillColor(HexColor("#2980B9")) # Nice Blue
-        c.drawCentredString(width / 2, height - 320, user.name.upper())
+        # Divider
+        c.setStrokeColor(HexColor("#f59e0b"))
+        c.setLineWidth(2)
+        c.line(width/2 - 100, height - 230, width/2 + 100, height - 230)
+
+        # 6. Body Text (Professional Wrap)
+        text_y = height - 280
+        margin_x = 60
+        max_width = width - 120
         
-        # Decorative Line
-        c.setLineWidth(1)
-        c.setStrokeColor(HexColor("#BDC3C7"))
-        c.line(width/2 - 200, height - 330, width/2 + 200, height - 330)
+        def draw_wrapped_text(c, text, x, y, max_w, font, size, leading):
+            lines = simpleSplit(text, font, size, max_w)
+            curr_y = y
+            for line in lines:
+                c.setFont(font, size)
+                c.drawString(x, curr_y, line)
+                curr_y -= leading
+            return curr_y - 12
 
-        c.setFont("Helvetica", 16)
-        c.setFillColor(HexColor("#34495E"))
-        c.drawCentredString(width / 2, height - 370, "has successfully completed the internship program in")
+        current_y = text_y
+        
+        # Para 1
+        name = user.name.upper()
+        # Adjusted text: Removed "currently pursuing their degree" assumption and improved flow.
+        intro = f"This is to certify that {name}, (Intern ID: {cert_id}), has successfully completed the {internship_name} with Analogica SkillTrack from {start_date} to {end_date}."
+        current_y = draw_wrapped_text(c, intro, margin_x, current_y, max_width, "Times-Roman", 12, 18)
+        
+        # Para 2
+        feedback = "During this period, they have served as a dedicated intern and have displayed remarkable sincerity, and a strong desire to learn. They have exhibited exceptional coordination skills and effective communication abilities. Moreover, attention to detail has been truly impressive."
+        current_y = draw_wrapped_text(c, feedback, margin_x, current_y, max_width, "Times-Roman", 12, 18)
 
-        # Internship Name
-        c.setFont("Helvetica-Bold", 24)
-        c.setFillColor(HexColor("#2C3E50"))
-        c.drawCentredString(width / 2, height - 410, internship_name)
+        # Para 3
+        passion = f"They have consistently approached new assignments and challenges with enthusiasm, showcasing passion for {internship_name}. Their commitment and willingness to acquire new knowledge and skills have been evident throughout this internship."
+        current_y = draw_wrapped_text(c, passion, margin_x, current_y, max_width, "Times-Roman", 12, 18)
+        
+        # Para 4
+        wishes = f"We extend our best wishes to {name} for a successful future, and we have no doubt that they will continue to excel in the field."
+        current_y = draw_wrapped_text(c, wishes, margin_x, current_y, max_width, "Times-Roman", 12, 18)
 
-        # Date
-        date_str = datetime.utcnow().strftime('%B %d, %Y')
-        c.setFont("Helvetica", 14)
-        c.setFillColor(HexColor("#7F8C8D"))
-        c.drawCentredString(width / 2, height - 450, f"Issued on: {date_str}")
-
-        # 7. Signatures
-        # Bottom Left
+        # Extra: Issue Date (Aligned right below text)
         c.setFont("Helvetica-Bold", 12)
-        c.setFillColor(HexColor("#2C3E50"))
-        c.line(100, 100, 250, 100)
-        c.drawString(110, 80, "Program Director")
+        c.drawRightString(width - 60, current_y - 10, f"Date: {issue_date}")
+
+
+        # 12. Bottom Badge (Removed)
+        # c.setStrokeColor(HexColor("#d97706")) 
+        # c.setLineWidth(2)
+        # c.circle(width/2, height - 600, 35, stroke=1, fill=0)
+        # c.setFont("Helvetica-Bold", 10)
+        # c.setFillColor(HexColor("#d97706"))
+        # c.drawCentredString(width/2, height - 600 - 4, "VERIFIED")
+
+        # 13. Signatures & Footer Logos
+        footer_y = 100
         
-        # Bottom Right
-        c.line(width - 250, 100, width - 100, 100)
-        c.drawRightString(width - 110, 80, "Authorized Signatory")
+        # Left: Signature
+        c.setLineWidth(1)
+        c.setStrokeColor(HexColor("#000000"))
+        c.line(80, footer_y + 30, 230, footer_y + 30)
+        
+        c.setFont("Helvetica-Bold", 12)
+        c.setFillColor(HexColor("#000000"))
+        c.drawString(80, footer_y + 10, "Director")
         c.setFont("Helvetica", 10)
-        c.drawRightString(width - 120, 65, "Analogica SkillTrack")
+        c.setFillColor(HexColor("#64748b"))
+        c.drawString(80, footer_y - 5, "Analogica SkillTrack")
         
-        # 8. Verification Link/ID
-        cert_id = f"REF: {user_id}-{enrollment.internship_id if enrollment else 0}-{int(datetime.utcnow().timestamp())}"
-        c.setFont("Courier", 8)
-        c.setFillColor(HexColor("#BDC3C7"))
-        c.drawCentredString(width/2, 40, cert_id)
+        # Right: Logos (AICTE & MSME)
+        aicte_path = os.path.join(logo_dir, 'aicte_logo.jpg')
+        msme_path = os.path.join(logo_dir, 'msme_logo.png')
+        logo_y_bottom = 70 
+        logo_w = 50
+        gap = 20
+        start_x_logos = width - 200
+        
+        if os.path.exists(aicte_path):
+             c.drawImage(aicte_path, start_x_logos, logo_y_bottom, width=50, height=50, mask='auto', preserveAspectRatio=True)
+        if os.path.exists(msme_path):
+             c.drawImage(msme_path, start_x_logos + 60, logo_y_bottom, width=80, height=50, mask='auto', preserveAspectRatio=True)
 
         c.save()
-        
-        return jsonify({"message": "Certificate generated", "url": f"/certificates/{filename}"}), 200
+        return jsonify({"message": "Certificate generated", "url": f"/certificates/{filename}"}), 201
         
     except Exception as e:
-        print(f"Cert Error: {e}")
         import traceback
-        traceback.print_exc()
-        return jsonify({"error": f"Gen Error: {str(e)}"}), 500
+        error_msg = traceback.format_exc()
+        try:
+             with open("certificate_error.log", "w") as f:
+                 f.write(error_msg)
+        except: pass
+        return jsonify({"error": "PDF Generation Failed. Check server logs."}), 500
 
 @course_bp.route("/intern/task/<int:task_id>/complete", methods=["POST"])
 @jwt_required()
 def complete_intern_task(task_id):
     user_id = get_jwt_identity()
     task = Task.query.get(task_id)
-    
-    if not task:
-        return jsonify({"error": "Task not found"}), 404
-        
-    if task.assigned_to != int(user_id):
-        return jsonify({"error": "Unauthorized"}), 403
+    if not task: return jsonify({"error": "Task not found"}), 404
+      
+    if task.assigned_to != int(user_id): return jsonify({"error": "Unauthorized"}), 403
 
-    # ✅ DEADLINE ENFORCEMENT
     if task.due_date:
         try:
              due = datetime.strptime(task.due_date, '%Y-%m-%d')
-             # Grace period: allow submission on the day of deadline (until midnight)
-             # Current time: UTC. If deadline is just date, it means 00:00 of that date? NO, usually deadline means end of that day.
-             # Let's assume deadline is inclusive. So if today <= due_date_day, allowed.
-             # If today > due_date, blocked.
              if datetime.utcnow().date() > due.date():
                  return jsonify({"error": f"Deadline passed ({task.due_date}). Submission rejected."}), 403
-        except ValueError:
-             pass # Ignore invalid date formats
+        except ValueError: pass
 
-    # Handle File Upload
-    file = request.files.get("file")  # Restored missing line
+    file = request.files.get("file")
     file_path = None
     
     if file:
@@ -872,43 +821,25 @@ def complete_intern_task(task_id):
 
         import os
         from werkzeug.utils import secure_filename
-        
-        # Use absolute path for safety
-        BASE_DIR = os.getcwd() # Or use app.root_path if available
+        BASE_DIR = os.getcwd()
         upload_folder = os.path.join(BASE_DIR, 'static', 'uploads', 'intern_tasks')
         os.makedirs(upload_folder, exist_ok=True)
         
         filename = secure_filename(file.filename)
-        # Unique filename to prevent overwrite
         import uuid
         unique_name = f"{uuid.uuid4().hex}_{filename}"
-        
-        # Save file
         full_path = os.path.join(upload_folder, unique_name)
         file.save(full_path)
-        
-        # Store relative path for serving
         file_path = f"static/uploads/intern_tasks/{unique_name}"
         
-    # Mark as completed
     task.status = "Completed"
-    
-    # Create or Update Submission
     existing_sub = TaskSubmission.query.filter_by(task_id=task.id, student_id=user_id).first()
     if not existing_sub:
-        new_sub = TaskSubmission(
-            task_id=task.id,
-            student_id=user_id,
-            # content="Marked as completed by Intern", # Field does not exist in TaskSubmission
-            file_path=file_path, 
-            submitted_at=datetime.utcnow()
-        )
+        new_sub = TaskSubmission(task_id=task.id, student_id=user_id, file_path=file_path, submitted_at=datetime.utcnow())
         db.session.add(new_sub)
     else:
         existing_sub.submitted_at = datetime.utcnow()
-        if file_path:
-            existing_sub.file_path = file_path # Update file path if re-submitted
+        if file_path: existing_sub.file_path = file_path
         
     db.session.commit()
-    
     return jsonify({"message": "Task completed"}), 200
