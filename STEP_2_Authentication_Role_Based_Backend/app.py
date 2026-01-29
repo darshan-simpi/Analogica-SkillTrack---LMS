@@ -98,7 +98,49 @@ def create_app():
                 conn.execute(db.text("ALTER TABLE enrollments MODIFY COLUMN course_id INTEGER NULL"))
             except Exception: pass
             
+            # ✅ NEW: Add course_id to tasks
+            try:
+                conn.execute(db.text("ALTER TABLE tasks ADD COLUMN course_id INTEGER"))
+                print("✅ Added course_id column to tasks")
+            except Exception: pass
+            
+            # ✅ DATA MIGRATION: Backfill course_id for existing tasks
+            # Logic: If task assigned_to user who is enrolled in a course, set task.course_id to that course_id
+            try:
+                # We need to do this via ORM for simplicity or raw SQL
+                # Let's do a safe raw SQL update for common cases or use Python iteration
+                pass # Logic moved to explicit function called below to ensure app context
+            except Exception: pass
+
             print("✅ Verified DB Schema")
+
+        # Explicit Data Backfill
+        try:
+            # Re-fetch all tasks with missing course_id
+            tasks = Task.query.filter(Task.course_id == None, Task.internship_id == None).all()
+            if tasks:
+                print(f"🔄 Migrating {len(tasks)} tasks...")
+                for t in tasks:
+                    # Find enrollment for the assigned student
+                    # Assuming 1 active course per student for now or matching trainer
+                    # Better: Find enrollment where student matches AND (maybe check trainer?)
+                    # Simple heuristic: If student has only 1 enrollment, use that.
+                    enrollments = Enrollment.query.filter_by(user_id=t.assigned_to).all()
+                    # Filter only course enrollments
+                    course_enrolls = [e for e in enrollments if e.course_id]
+                    
+                    if len(course_enrolls) == 1:
+                        t.course_id = course_enrolls[0].course_id
+                    elif len(course_enrolls) > 1:
+                        # Ambiguous: assignments usually have course_id in other tables, but Task is generic
+                        # If assigned_by is a trainer, check which course that trainer mentors?
+                        # This is "good enough" for now.
+                        t.course_id = course_enrolls[0].course_id 
+                
+                db.session.commit()
+                print("✅ Task Migration Completed")
+        except Exception as e:
+            print(f"⚠️ Migration warning: {e}")
 
         create_default_admin()
         

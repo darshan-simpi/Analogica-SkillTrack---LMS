@@ -10,29 +10,11 @@ from reportlab.lib.colors import HexColor
 
 from models import Enrollment, Course, Assignment, Submission, StudentProgress, CourseResource, Certificate, User, Quiz, Question, QuizSubmission
 from extensions import db
-from utils import allowed_file
+from utils import allowed_file, get_required_assignments
 
 student_bp = Blueprint("student", __name__)
 
 UPLOAD_FOLDER = "uploads"
-def get_required_assignments(duration_str):
-    if not duration_str:
-        return 4
-    try:
-        # Match digits for flexible strings like "1month", "3 months", etc.
-        import re
-        match = re.search(r'(\d+)', str(duration_str))
-        num = int(match.group(1)) if match else 1
-        if num <= 0: num = 1
-        
-        low_dur = str(duration_str).lower()
-        if "month" in low_dur:
-            return num * 4
-        elif "week" in low_dur:
-            return num
-        return 4
-    except:
-        return 4
 
 @student_bp.route("/student/progress", methods=["GET"])
 @jwt_required()
@@ -463,14 +445,14 @@ def submit_assignment():
     if not assignment:
          return jsonify({"error": "Assignment not found"}), 404
 
-    # ✅ DEADLINE ENFORCEMENT
-    if assignment.due_date:
-        try:
-             due = datetime.strptime(assignment.due_date, '%Y-%m-%d')
-             if datetime.utcnow().date() > due.date():
-                 return jsonify({"error": f"Deadline passed ({assignment.due_date}). Submission rejected."}), 403
-        except ValueError:
-             pass
+    # ✅ DEADLINE ENFORCEMENT REMOVED to allow late submissions
+    # if assignment.due_date:
+    #     try:
+    #          due = datetime.strptime(assignment.due_date, '%Y-%m-%d')
+    #          if datetime.utcnow().date() > due.date():
+    #              return jsonify({"error": f"Deadline passed ({assignment.due_date}). Submission rejected."}), 403
+    #     except ValueError:
+    #          pass
 
     file = request.files.get("file")
 

@@ -36,16 +36,41 @@ async function loadTrainerCourses() {
   document.getElementById("totalCourses").innerText = courses.length;
   document.getElementById("totalStudents").innerText = courses.reduce((a, b) => a + b.students, 0);
 
-  courses.forEach(c => {
+  // Helper for colors
+  const colors = [
+    { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-200', icon: 'fa-book' },
+    { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-blue-200', icon: 'fa-graduation-cap' },
+    { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-200', icon: 'fa-pencil' },
+    { bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-200', icon: 'fa-bookmark' },
+    { bg: 'bg-sky-50', text: 'text-sky-600', border: 'border-sky-200', icon: 'fa-laptop-code' }
+  ];
+
+  courses.forEach((c, idx) => {
+    const style = colors[idx % colors.length];
     courseContainer.innerHTML += `
-      <div class="course-card">
-        <h3>${c.course_name}</h3>
-        <p>${c.students} Students</p>
-        <p>${c.duration}</p>
-        <button onclick="openCourse(${c.course_id}, '${c.course_name}')">Manage Course</button>
+      <div class="bg-white p-6 rounded-2xl shadow-sm border ${style.border} hover:shadow-md transition-all group relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-1 ${style.bg.replace('50', '500')}"></div>
+        <div class="flex justify-between items-start mb-4">
+             <h3 class="font-bold text-slate-800 text-lg mb-1 line-clamp-1" title="${c.course_name}">${c.course_name}</h3>
+            <span class="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-wider">${c.duration}</span>
+        </div>
+        <p class="text-slate-500 text-sm mb-4 font-medium"><i class="fa-solid fa-users mr-1 text-slate-400"></i> ${c.students} Students</p>
+        <button onclick="openCourse(${c.course_id}, '${c.course_name.replace(/'/g, "\\'")}')" class="w-full py-2.5 rounded-xl font-bold text-white text-sm bg-slate-800 hover:bg-slate-700 transition-colors shadow-lg shadow-slate-200">Manage Course</button>
       </div>
     `;
   });
+
+  // Populate Course Selector in Manage Section
+  const courseSelect = document.getElementById("manageCourseSelect");
+  if (courseSelect) {
+    courseSelect.innerHTML = '<option value="">Select Course</option>';
+    courses.forEach(c => {
+      courseSelect.innerHTML += `<option value="${c.course_id}">${c.course_name}</option>`;
+    });
+    courseSelect.onchange = (e) => {
+      if (e.target.value) openCourse(e.target.value, e.target.options[e.target.selectedIndex].text);
+    };
+  }
 
   // Update Internships
   const internContainer = document.getElementById("trainerInternships");
@@ -54,16 +79,46 @@ async function loadTrainerCourses() {
   // (Total Interns calculation depends on logic, but for now we set it)
   document.getElementById("totalInterns").innerText = internships.length;
 
-  internships.forEach(i => {
+  const internColors = [
+    { bg: 'bg-purple-50', text: 'text-purple-600', border: 'border-purple-200', icon: 'fa-briefcase' },
+    { bg: 'bg-teal-50', text: 'text-teal-600', border: 'border-teal-200', icon: 'fa-id-card' },
+    { bg: 'bg-orange-50', text: 'text-orange-600', border: 'border-orange-200', icon: 'fa-user-tie' }
+  ];
+
+  internships.forEach((i, idx) => {
+    const style = internColors[idx % internColors.length];
     internContainer.innerHTML += `
-      <div class="course-card">
-        <h3>${i.intern_name}</h3>
-        <p>Internship</p>
-        <p>${i.duration}</p>
-        <button onclick="openInternship(${i.internship_id}, '${i.intern_name}')">Manage Internship</button>
+      <div class="bg-white p-6 rounded-2xl shadow-sm border ${style.border} hover:shadow-md transition-all group relative overflow-hidden">
+        <div class="absolute top-0 left-0 w-full h-1 ${style.bg.replace('50', '500')}"></div>
+        <div class="flex justify-between items-start mb-4">
+            <h3 class="font-bold text-slate-800 text-lg mb-1 line-clamp-1" title="${i.intern_name}">${i.intern_name}</h3>
+            <span class="px-3 py-1 bg-slate-100 rounded-full text-[10px] font-bold text-slate-500 uppercase tracking-wider">${i.duration}</span>
+        </div>
+        <p class="text-slate-500 text-sm mb-4 font-medium"><i class="fa-solid fa-check-circle mr-1 text-slate-400"></i> Active Internship</p>
+        <button onclick="openInternship(${i.internship_id}, '${i.intern_name.replace(/'/g, "\\'")}')" class="w-full py-2.5 rounded-xl font-bold text-white text-sm bg-slate-800 hover:bg-slate-700 transition-colors shadow-lg shadow-slate-200">Manage Internship</button>
       </div>
     `;
   });
+
+  // Populate Internship Selector in Manage Section
+  const internSelect = document.getElementById("manageInternshipSelect");
+  if (internSelect) {
+    internSelect.innerHTML = '<option value="">Select Internship</option>';
+    internships.forEach(i => {
+      internSelect.innerHTML += `<option value="${i.internship_id}">${i.intern_name}</option>`;
+    });
+    internSelect.onchange = (e) => {
+      if (e.target.value) openInternship(e.target.value, e.target.options[e.target.selectedIndex].text);
+    };
+  }
+}
+
+function quickAction(type) {
+  if (type === 'course') {
+    showSection('manageCourse');
+  } else if (type === 'internship') {
+    showSection('manageInternship');
+  }
 }
 
 
@@ -74,6 +129,9 @@ function openCourse(courseId, courseName) {
 
   showSection("manageCourse");
   document.getElementById("courseTitle").innerText = courseName;
+
+  const selector = document.getElementById("manageCourseSelect");
+  if (selector) selector.value = courseId;
 
   loadAssignments(selectedCourseId);
   loadQuizzes();
@@ -550,6 +608,8 @@ function openInternship(id, name) {
   selectedInternshipId = id;
   showSection("manageInternship");
   document.getElementById("internshipTitle").innerText = "Internship: " + name;
+  const selector = document.getElementById("manageInternshipSelect");
+  if (selector) selector.value = id;
   switchInternTab('internshipTasks'); // Default tab
 }
 
@@ -570,8 +630,9 @@ function switchInternTab(tabId, keepFilter = false) {
   }
 
   if (tabId === 'internshipResources') {
-    buttons[2].classList.add("active");
-    loadInternshipResources();
+    // buttons[2].classList.add("active");
+    // loadInternshipResources();
+    alert("Resource management disabled for internships.");
   }
 
   if (tabId === 'internshipTasks') loadInternshipTasks();
@@ -744,55 +805,10 @@ async function updateInternSubmission(id, status = null) {
 }
 
 /* ================= INTERNSHIP RESOURCES ================= */
-async function loadInternshipResources() {
-  const res = await fetch(`${API}/trainer/internship/${selectedInternshipId}/resources`, {
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  const data = await res.json();
-  const container = document.getElementById("internResourceTable");
-  container.innerHTML = "";
-
-  data.forEach(r => {
-    container.innerHTML += `
-          <tr>
-              <td><a href="${API}/${r.url}" target="_blank">${r.title}</a></td>
-              <td>${r.type}</td>
-              <td><button onclick="deleteInternResource(${r.id})" class="btn-small" style="background:red">Delete</button></td>
-          </tr>
-      `;
-  });
-}
-
-async function addInternResource() {
-  const fileInput = document.getElementById("internResourceFile");
-  const title = document.getElementById("internResourceTitle").value;
-
-  if (!fileInput.files[0] || !title) return alert("File and Title required");
-
-  const formData = new FormData();
-  formData.append("file", fileInput.files[0]);
-  formData.append("title", title);
-
-  await fetch(`${API}/trainer/internship/${selectedInternshipId}/resource/upload`, {
-    method: "POST",
-    headers: { Authorization: `Bearer ${token}` },
-    body: formData
-  });
-
-  alert("Resource Uploaded");
-  document.getElementById("internResourceTitle").value = "";
-  fileInput.value = "";
-  loadInternshipResources();
-}
-
-async function deleteInternResource(id) {
-  if (!confirm("Delete this resource?")) return;
-  await fetch(`${API}/trainer/internship/resource/${id}`, {
-    method: "DELETE",
-    headers: { Authorization: `Bearer ${token}` }
-  });
-  loadInternshipResources();
-}
+/* ================= INTERNSHIP RESOURCES (DISABLED) ================= */
+// async function loadInternshipResources() { ... }
+// async function addInternResource() { ... }
+// async function deleteInternResource(id) { ... }
 
 
 function logout() {

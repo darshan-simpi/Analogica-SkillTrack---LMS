@@ -3,7 +3,8 @@ from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
 from datetime import datetime
 from extensions import db
 from models import Course, Workshop, Internship, User, Task, Submission, Enrollment, StudentProgress, TaskSubmission, CourseResource
-from utils import allowed_file
+
+from utils import allowed_file, get_required_assignments, parse_duration_to_days
 
 course_bp = Blueprint("course_api", __name__)
 
@@ -367,7 +368,8 @@ def assign_task():
                 assigned_to=s.user_id,
                 assigned_by=trainer_id,
                 priority=data.get("priority", "Medium"),
-                due_date=data.get("due_date")
+                due_date=data.get("due_date"),
+                course_id=data.get("course_id") # ✅ Saved
             ))
             
     elif data.get("internship_id"):
@@ -587,16 +589,24 @@ def get_intern_stats():
     tasks_done_today = len([s for s in submissions if s.submitted_at.date() == today])
     
     mentor_name = "Not Assigned"
+    required_tasks = 4 # Default
+    
     if enrollments:
         last_enrollment = enrollments[-1] 
         if last_enrollment.internship_id:
              internship = Internship.query.get(last_enrollment.internship_id)
              if internship:
                  mentor_name = internship.mentor_name
+                 required_tasks = get_required_assignments(internship.duration)
+
+    # Use required_tasks as the baseline for progress
+    overall_progress = int((completed_tasks / max(required_tasks, 1)) * 100)
+    overall_progress = min(overall_progress, 100)
 
     return jsonify({
         "tasks_completed": completed_tasks,
-        "tasks_pending": pending_tasks,
+        "tasks_pending": pending_tasks, # Reverted to actual assigned pending
+        "tasks_required": required_tasks, # Added for frontend if needed
         "overall_progress": overall_progress,
         "internships_enrolled": enrolled_count,
         "tasks_done_today": tasks_done_today,
@@ -611,12 +621,18 @@ def generate_intern_certificate():
     user = User.query.get(user_id)
     
     tasks = Task.query.filter_by(assigned_to=user_id).all()
-    if not tasks:
-        return jsonify({"error": "No tasks assigned"}), 400
-        
+    # Check against REQUIRED count, not just assigned
+    enrollment = Enrollment.query.filter_by(user_id=user_id).first()
+    required_count = 4
+    if enrollment and enrollment.internship_id:
+        internship = Internship.query.get(enrollment.internship_id)
+        if internship:
+             required_count = get_required_assignments(internship.duration)
+    
     completed = [t for t in tasks if t.status == 'Completed']
-    if len(completed) < len(tasks):
-        return jsonify({"error": "Complete all tasks first"}), 400
+    
+    if len(completed) < required_count:
+        return jsonify({"error": f"Complete all {required_count} tasks first"}), 400
         
     try:
         from reportlab.lib.pagesizes import A4
@@ -653,14 +669,17 @@ def generate_intern_certificate():
                    internship_name = f"{name} Internship" if not name.lower().endswith("internship") else name
                    mentor_name = i.mentor_name
                    
-                   # Force 2 months duration for certificate validity
-                   # Backdate start_date to 2 months before today
+                   # Dynamically calculate duration based on internship setting
                    from datetime import timedelta
                    end_dt = datetime.utcnow()
-                   start_dt = end_dt - timedelta(days=61) # Approx 2 months
                    
-                   start_date = start_dt.strftime("%B %Y")
-                   end_date = end_dt.strftime("%B %Y")
+                   # Use utility to get days from duration string (e.g., "2 weeks" -> 14)
+                   duration_days = parse_duration_to_days(i.duration)
+                   start_dt = end_dt - timedelta(days=duration_days) 
+                   
+                   # Precise dates for certificate
+                   start_date = start_dt.strftime("%B %d, %Y")
+                   end_date = end_dt.strftime("%B %d, %Y")
 
         issue_date = datetime.utcnow().strftime("%B %d, %Y")
         short_uuid = str(uuid.uuid4())[:8].upper()
@@ -805,12 +824,13 @@ def complete_intern_task(task_id):
       
     if task.assigned_to != int(user_id): return jsonify({"error": "Unauthorized"}), 403
 
-    if task.due_date:
-        try:
-             due = datetime.strptime(task.due_date, '%Y-%m-%d')
-             if datetime.utcnow().date() > due.date():
-                 return jsonify({"error": f"Deadline passed ({task.due_date}). Submission rejected."}), 403
-        except ValueError: pass
+    # ✅ DEADLINE ENFORCEMENT REMOVED
+    # if task.due_date:
+    #     try:
+    #          due = datetime.strptime(task.due_date, '%Y-%m-%d')
+    #          if datetime.utcnow().date() > due.date():
+    #              return jsonify({"error": f"Deadline passed ({task.due_date}). Submission rejected."}), 403
+    #     except ValueError: pass
 
     file = request.files.get("file")
     file_path = None

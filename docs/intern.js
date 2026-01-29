@@ -81,36 +81,37 @@ async function loadProgressPage() {
 
             if (progress >= 100) {
                 status = "Completed";
-                statusColor = "#166534"; // Green
-                bgColor = "#dcfce7";
+                statusColor = "#2563EB"; // Blue
+                bgColor = "#dbeafe";
             }
 
             const card = `
-            <div class="card" style="margin-bottom:20px; padding:25px; border-left: 5px solid ${statusColor}; box-shadow: 0 4px 6px rgba(0,0,0,0.05); background: white; border-radius: 12px;">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
-                    <h3 style="margin:0; font-size:1.2em; color: #1e293b;">${e.intern_name}</h3>
-                    <span class="tag" style="background:${bgColor}; color:${statusColor}; padding: 5px 10px; border-radius: 20px; font-size: 0.85em; font-weight: 600;">${status}</span>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all mb-6 relative overflow-hidden group">
+                <div class="absolute top-0 right-0 w-32 h-32 bg-blue-50 rounded-full -mr-16 -mt-16 transition-transform group-hover:scale-150"></div>
+                
+                <div class="relative z-10 flex justify-between items-center mb-4">
+                    <h3 class="text-lg font-bold text-gray-800 m-0">${e.intern_name}</h3>
+                    <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide bg-blue-100 text-blue-800">${status}</span>
                 </div>
                 
-                <div class="progress-bar" style="height:10px; background:#e2e8f0; border-radius:5px; overflow:hidden; margin-bottom:10px">
-                    <div class="fill" style="width:${progress}%; background: ${statusColor}; height:100%; transition: width 0.5s ease;"></div>
+                <div class="relative z-10 w-full h-2 bg-gray-100 rounded-full overflow-hidden mb-4">
+                    <div class="h-full rounded-full transition-all duration-500 bg-blue-500" style="width:${progress}%"></div>
                 </div>
                 
-                <div style="display:flex; flex-direction:column; gap:5px; font-size:0.9em; color:#64748b">
-                    <div style="display:flex; justify-content:space-between">
-                        <span><b>${progress}%</b> Overall Progress</span>
+                <div class="relative z-10 flex flex-col gap-2 text-sm text-gray-500">
+                    <div class="flex justify-between font-medium">
+                        <span class="text-gray-900 font-bold">${progress}% Overall Progress</span>
                     </div>
-                    <div style="display:flex; justify-content:space-between">
+                    <div class="flex justify-between text-xs uppercase tracking-wide">
                         <span>Tasks: ${completed} / ${total}</span>
                         <span>Duration: ${e.duration}</span>
                     </div>
                 </div>
                 
-                   <div style="display:flex; gap: 15px; font-size:0.85em; color: #475569;">
-                        <span><i class="fa-regular fa-calendar"></i> Enrolled: ${new Date(e.enrolled_at).toLocaleDateString()}</span>
+                   <div class="relative z-10 mt-4 pt-4 border-t border-gray-50 flex gap-4 text-xs text-gray-400 font-medium">
+                        <span><i class="fa-regular fa-calendar mr-1"></i> Enrolled: ${new Date(e.enrolled_at).toLocaleDateString()}</span>
                    </div>
                 </div>
-            </div>
             `;
             container.innerHTML += card;
         });
@@ -168,15 +169,29 @@ async function loadMentors() {
         if (enrollments.length === 0) {
             list.innerHTML = '<p>No mentors assigned yet.</p>';
         } else {
-            enrollments.forEach(e => {
-                const card = `
-                    <div class="mentor-card pastel-peach">
-                        <h3>${e.mentor_name}</h3>
-                        <p><strong>Internship:</strong> ${e.intern_name}</p>
-                        <p><strong>Duration:</strong> ${e.duration}</p>
+            const colors = [
+                { bg: 'bg-indigo-50', text: 'text-indigo-600', border: 'border-indigo-100', icon: 'bg-indigo-100' },
+                { bg: 'bg-rose-50', text: 'text-rose-600', border: 'border-rose-100', icon: 'bg-rose-100' },
+                { bg: 'bg-blue-50', text: 'text-blue-600', border: 'border-emerald-100', icon: 'bg-blue-100' },
+                { bg: 'bg-amber-50', text: 'text-amber-600', border: 'border-amber-100', icon: 'bg-amber-100' },
+                { bg: 'bg-sky-50', text: 'text-sky-600', border: 'border-sky-100', icon: 'bg-sky-100' }
+            ];
 
+            enrollments.forEach((e, idx) => {
+                const style = colors[idx % colors.length];
+                const card = `
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border ${style.border} text-center hover:shadow-md transition-all group relative overflow-hidden">
+                        <div class="absolute top-0 left-0 w-full h-1 ${style.bg.replace('50', '500')}"></div>
+                        <div class="w-20 h-20 ${style.icon} rounded-full mx-auto mb-4 flex items-center justify-center text-3xl font-bold ${style.text} group-hover:scale-110 transition-transform shadow-inner">
+                             ${e.mentor_name.charAt(0)}
+                        </div>
+                        <h3 class="font-bold text-gray-800 text-lg mb-1">${e.mentor_name}</h3>
+                        <p class="text-sm text-gray-500 mb-4 flex items-center justify-center gap-2"><i class="fa-solid fa-graduation-cap ${style.text}"></i> ${e.intern_name} Mentor</p>
+                        
+                        <div class="${style.bg} rounded-xl p-3 text-xs ${style.text} font-medium border ${style.border}">
+                             <p><i class="fa-regular fa-clock mr-1"></i> <strong>Duration:</strong> ${e.duration}</p>
+                        </div>
                     </div>
-                    <br>
                 `;
                 list.innerHTML += card;
             });
@@ -221,11 +236,14 @@ async function loadInternships() {
         } else {
             enrolledInternships.forEach(internship => {
                 const internshipCard = `
-                    <div class="card pastel-blue">
-                        <h3>${internship.intern_name}</h3>
-                        <p>Mentor: ${internship.mentor_name}</p>
-                        <p>Duration: ${internship.duration}</p>
-                        <p>Enrolled: ${new Date(internship.enrolled_at).toLocaleDateString()}</p>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all border-l-4 border-indigo-500">
+                        <h3 class="font-bold text-gray-800 text-lg mb-2">${internship.intern_name}</h3>
+                        <div class="text-sm text-gray-500 space-y-1 mb-4">
+                            <p><i class="fa-solid fa-user-tie w-5 text-indigo-400"></i> Mentor: <span class="font-medium text-gray-700">${internship.mentor_name}</span></p>
+                            <p><i class="fa-regular fa-clock w-5 text-indigo-400"></i> Duration: ${internship.duration}</p>
+                            <p><i class="fa-regular fa-calendar-check w-5 text-indigo-400"></i> Enrolled: ${new Date(internship.enrolled_at).toLocaleDateString()}</p>
+                        </div>
+                        <button disabled class="w-full py-2 bg-indigo-50 text-indigo-600 font-bold rounded-lg text-xs uppercase tracking-wide">Currently Enrolled</button>
                     </div>
                 `;
                 enrolledList.innerHTML += internshipCard;
@@ -249,12 +267,16 @@ async function loadInternships() {
         } else {
             available.forEach(internship => {
                 const internshipCard = `
-                    <div class="card pastel-green">
-                        <h3>${internship.intern_name}</h3>
-                        <p>Mentor: ${internship.mentor_name}</p>
-                        <p>Duration: ${internship.duration}</p>
-                        <!-- <button onclick="enrollInInternship(${internship.id})">Enroll</button> -->
-                        <span class="tag">Available</span>
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all">
+                        <div class="flex justify-between items-start mb-4">
+                             <h3 class="font-bold text-gray-800 text-lg">${internship.intern_name}</h3>
+                             <span class="px-2 py-1 bg-blue-100 text-blue-700 text-xs font-bold rounded uppercase">Available</span>
+                        </div>
+                        <div class="text-sm text-gray-500 space-y-1 mb-6">
+                            <p><i class="fa-solid fa-user-tie w-5 text-gray-400"></i> Mentor: ${internship.mentor_name}</p>
+                            <p><i class="fa-regular fa-clock w-5 text-gray-400"></i> Duration: ${internship.duration}</p>
+                        </div>
+                        <!-- No Enroll Button -->
                     </div>
                 `;
                 availableList.innerHTML += internshipCard;
@@ -321,22 +343,22 @@ async function loadDashboardData() {
         const tasks = tasksResponse.ok ? await tasksResponse.json() : [];
 
         // Update cards
-        document.querySelector('.card:nth-child(1) h2').textContent = stats.tasks_completed;
-        document.querySelector('.card:nth-child(2) h2').textContent = stats.tasks_pending;
-        document.querySelector('.card:nth-child(3) h2').textContent = `${stats.overall_progress}%`;
-        document.querySelector('.card:nth-child(4) h2').textContent = stats.internships_enrolled; // Now specific card
+        // Update cards with IDs
+        if (document.getElementById('stats-completed')) document.getElementById('stats-completed').textContent = stats.tasks_completed;
+        if (document.getElementById('stats-pending')) document.getElementById('stats-pending').textContent = stats.tasks_pending;
+        if (document.getElementById('stats-progress')) document.getElementById('stats-progress').textContent = `${stats.overall_progress}%`;
+        if (document.getElementById('internships-enrolled')) document.getElementById('internships-enrolled').textContent = stats.internships_enrolled;
 
         // Update secondary cards
-        document.querySelector('.cards:nth-of-type(2) .card:nth-child(1) h2').textContent =
-            stats.overall_progress >= 100 ? "Completed" : `${stats.tasks_done_today} Tasks Done`;
-        document.querySelector('.cards:nth-of-type(2) .card:nth-child(3) h2').textContent = `${stats.current_streak} Days`;
+        const todaySummary = document.getElementById('today-summary');
+        if (todaySummary) todaySummary.textContent = stats.overall_progress >= 100 ? "Completed" : `${stats.tasks_done_today} Tasks Done`;
 
-        // Update Weekly Goal (Progress Bar) - 2nd card in 2nd row
-        const weeklyGoalCard = document.querySelector('.cards:nth-of-type(2) .card:nth-child(2)');
-        if (weeklyGoalCard) {
-            weeklyGoalCard.querySelector('h2').textContent = `${stats.overall_progress}%`;
-            weeklyGoalCard.querySelector('.progress-fill').style.width = `${stats.overall_progress}%`;
-        }
+        if (document.getElementById('stats-streak')) document.getElementById('stats-streak').textContent = `${stats.current_streak} Days`;
+
+        // Update Weekly Goal (Progress Bar)
+        if (document.getElementById('weekly-goal-text')) document.getElementById('weekly-goal-text').textContent = `${stats.overall_progress}%`;
+        const progFill = document.querySelector('.progress-fill');
+        if (progFill) progFill.style.width = `${stats.overall_progress}%`;
 
         // Update Mentor Card
         const mentorNameEl = document.getElementById("mentor-name");
@@ -350,7 +372,7 @@ async function loadDashboardData() {
         }
 
         // Update charts
-        updateCharts(stats);
+        // updateCharts(stats); // Charts removed
 
         // Update Dashboard Certificate Section
         checkCertificateEligibilityForDashboard(stats);
@@ -366,22 +388,29 @@ function checkCertificateEligibilityForDashboard(stats) {
     const certMsg = document.getElementById('dashboard-cert-message');
 
     if (certSection && certBtn) {
-        certSection.style.display = 'block';
         if (stats.tasks_pending === 0 && stats.tasks_completed > 0) {
+            certSection.classList.remove('hidden');
             certBtn.disabled = false;
-            certBtn.style.background = '#4f46e5';
-            certBtn.style.cursor = 'pointer';
-            certBtn.innerHTML = 'Download Certificate <i class="fa-solid fa-certificate"></i>';
+            certBtn.className = "bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-indigo-500/20 transition-all transform active:scale-95";
+            certBtn.innerHTML = 'Download Certificate <i class="fa-solid fa-certificate ml-2"></i>';
             certBtn.onclick = generateCertificate;
+
             certMsg.innerText = "Congratulations! You have completed your internship program.";
-            certMsg.style.color = "#166534";
-            certMsg.style.fontWeight = "bold";
+            certMsg.className = "text-blue-600 font-bold mb-6 max-w-md mx-auto";
         } else {
+            // In new design, we keep it hidden if locked, or show locked state. 
+            // We'll follow the previous logic of showing it locked if user is close or just general availability
+            // But usually we hide it until unlocked or show a locked card.
+            // The HTML defaults to hidden. 
+            // Let's show it only if user has made some progress? Or always show locked?
+            // Let's show locked state.
+            certSection.classList.remove('hidden');
             certBtn.disabled = true;
-            certBtn.style.background = '#94a3b8';
-            certBtn.innerHTML = 'Certificate Locked 🔒';
+            certBtn.className = "bg-slate-200 text-slate-400 font-bold py-3 px-6 rounded-xl cursor-not-allowed transition-all";
+            certBtn.innerHTML = '<i class="fa-solid fa-lock mr-2"></i> Certificate Locked';
+
             certMsg.innerText = `Complete all tasks to unlock. (${stats.tasks_pending} remaining)`;
-            certMsg.style.color = "#64748b";
+            certMsg.className = "text-slate-500 mb-6 max-w-md mx-auto";
         }
     }
 }
@@ -414,28 +443,8 @@ async function generateCertificateForDashboard(btn, msgDiv) {
     }
 }
 
-function updateCharts(stats) {
-    // Update Doughnut Chart (Progress)
-    const dash3Canvas = document.getElementById('dash3');
-    if (dash3Canvas) {
-        // Destroy existing chart if stored (add logic to store chart instance if needed, or just redraw)
-        // For simplicity, we are redrawing. Ideally, track chart instances to destroy them.
-        const chartStatus = Chart.getChart("dash3"); // Chart.js 3+
-        if (chartStatus) chartStatus.destroy();
-
-        new Chart(dash3Canvas, {
-            type: "doughnut",
-            data: {
-                datasets: [{
-                    data: [stats.overall_progress, 100 - stats.overall_progress],
-                    backgroundColor: ["#22c55e", "#e5e7eb"],
-                    cutout: "70%"
-                }]
-            },
-            options: { plugins: { legend: { display: false } } }
-        });
-    }
-}
+// Charts removed for cleaner UI
+// function updateCharts(stats) { ... }
 
 // Load tasks with Weekly Logic
 async function loadTasks() {
@@ -470,50 +479,46 @@ async function loadTasks() {
             let actionBtn = '';
 
             if (isRejected) {
-                actionBtn = `<button onclick="openSubmissionModal(${task.id})" class="btn-primary" style="background: #ef4444; padding: 8px 16px; font-size: 0.9em; border-radius: 8px;">Re-Submit Task</button>`;
+                actionBtn = `<button onclick="openSubmissionModal(${task.id})" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg text-sm transition-colors shadow-sm">Re-Submit Task</button>`;
             } else if (isUnlocked && !isSubmitted) {
-                actionBtn = `<button onclick="openSubmissionModal(${task.id})" class="btn-primary" style="padding: 8px 16px; font-size: 0.9em; border-radius: 8px;">Mark Complete</button>`;
+                actionBtn = `<button onclick="openSubmissionModal(${task.id})" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-sm transition-colors shadow-lg shadow-indigo-500/20">Mark Complete</button>`;
             } else {
                 if (task.grade) {
-                    actionBtn = `<span class="tag" style="background: #dcfce7; color: #166534; font-size: 0.9em;">Graded: ${task.grade} <i class="fa-solid fa-star"></i></span>`;
+                    actionBtn = `<span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wide">Graded: ${task.grade} <i class="fa-solid fa-star text-yellow-500"></i></span>`;
                 } else if (isSubmitted) {
-                    actionBtn = `<span class="tag" style="background: #dcfce7; color: #166534; font-size: 0.9em;">Completed <i class="fa-solid fa-check"></i></span>`;
+                    actionBtn = `<span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wide">Completed <i class="fa-solid fa-check"></i></span>`;
                 } else {
+
                     // Check Deadline
                     let isDeadlinePassed = false;
                     if (task.due_date) {
-                        const today = new Date();
-                        today.setHours(0, 0, 0, 0);
-                        const due = new Date(task.due_date);
-                        // If due date is strictly before today (yesterday or earlier), it's passed.
-                        // Assuming due date is "end of day", then if today > due, it's passed.
-                        // Actually JS Date parsed from YYYY-MM-DD is UTC 00:00.
-                        // Better safe logic: if today > due date (string comparison might be easier if format matches, otherwise Date obj)
-                        // Let's use simple string comparison if format is YYYY-MM-DD
                         const todayStr = new Date().toISOString().split('T')[0];
                         if (todayStr > task.due_date) isDeadlinePassed = true;
                     }
 
                     if (isDeadlinePassed) {
-                        actionBtn = `<span class="tag" style="background: #fee2e2; color: #b91c1c; font-size: 0.9em;"><i class="fa-solid fa-ban"></i> Deadline Missed</span>`;
+                        // ALLOW LATE SUBMISSION
+                        actionBtn = `<button onclick="openSubmissionModal(${task.id})" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-sm transition-colors">Submit Late <i class="fa-solid fa-clock"></i></button>`;
                     } else {
-                        actionBtn = `<span class="tag" style="background: #f1f5f9; color: #64748b; font-size: 0.9em;"><i class="fa-solid fa-lock"></i> Locked</span>`;
+                        actionBtn = `<span class="px-3 py-1 bg-slate-100 text-slate-500 rounded-full text-xs font-bold uppercase tracking-wide"><i class="fa-solid fa-lock"></i> Locked</span>`;
                     }
                 }
             }
 
             const taskCard = `
-                <div class="card" style="border-left: 5px solid ${statusColor}; opacity: ${opacity}; display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding: 25px; box-shadow: 0 4px 6px rgba(0,0,0,0.05);">
-                    <div style="flex: 1;">
-                        <div style="display: flex; align-items: center; gap: 12px; margin-bottom: 8px;">
-                            <span class="tag" style="background: ${statusColor}; color: white; font-weight: bold;">Week ${weekNum}</span>
-                             <h3 style="margin: 0; font-size: 1.1em; color: #1e293b;">${task.title}</h3>
+                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center mb-6 hover:shadow-md transition-all gap-4 ${opacity < 1 ? 'opacity-70 grayscale' : ''}" style="border-left: 5px solid ${statusColor};">
+                    <div class="flex-1 w-full">
+                        <div class="flex items-center gap-3 mb-2">
+                            <span class="px-2 py-1 rounded text-xs font-bold uppercase tracking-wide text-white" style="background: ${statusColor};">Week ${weekNum}</span>
+                             <h3 class="m-0 text-lg font-bold text-gray-900">${task.title}</h3>
                         </div>
-                        <p style="font-size: 0.95em; color: #64748b; margin: 0 0 5px 0;">${task.description || 'Complete the assigned work for this week.'}</p>
-                         ${task.due_date ? `<small style="color: #94a3b8; font-weight: 500;"><i class="fa-regular fa-calendar"></i> Due: ${task.due_date}</small>` : ''}
+                        <p class="text-sm text-gray-500 mb-2">${task.description || 'Complete the assigned work for this week.'}</p>
+                         ${task.due_date ? `<small class="text-gray-400 font-medium text-xs"><i class="fa-regular fa-calendar mr-1"></i> Due: ${task.due_date}</small>` : ''}
+                        
+                         ${task.feedback ? `<div class="mt-3 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500 text-sm"><strong class="text-blue-800">Feedback:</strong> <span class="text-blue-600">${task.feedback}</span></div>` : ''}
                     </div>
-                    ${task.feedback ? `<div style="margin-top: 10px; padding: 10px; background: #f8fafc; border-radius: 6px; border-left: 3px solid #3b82f6;"><strong style="color: #334155;">Feedback:</strong> <span style="color: #475569;">${task.feedback}</span></div>` : ''}
-                    <div style="margin-left: 20px; white-space: nowrap;">
+                    
+                    <div class="whitespace-nowrap w-full md:w-auto flex justify-end">
                         ${actionBtn}
                     </div>
                 </div>
@@ -633,12 +638,12 @@ function checkCertificateEligibility(stats) {
         certSection.style.display = 'block';
         if (stats.tasks_pending === 0 && stats.tasks_completed > 0) {
             certBtn.disabled = false;
-            certBtn.style.background = '#4f46e5';
+            certBtn.style.background = '#2563EB';
             certBtn.style.cursor = 'pointer';
             certBtn.innerHTML = 'Download Certificate <i class="fa-solid fa-certificate"></i>';
             certBtn.onclick = generateCertificate;
             certMsg.innerText = "Congratulations! You have completed your internship program.";
-            certMsg.style.color = "#166534";
+            certMsg.style.color = "#2563EB";
             certMsg.style.fontWeight = "bold";
         } else {
             certBtn.disabled = true;

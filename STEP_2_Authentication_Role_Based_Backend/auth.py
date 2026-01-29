@@ -52,6 +52,32 @@ def register():
         )
         db.session.add(student_progress)
 
+        # ✅ BACKFILL TASKS FOR NEW STUDENT
+        existing_tasks = Task.query.filter_by(course_id=data["course_id"]).all()
+        # Filter to ensure we only copy templates or those assigned to others (deduplication needed effectively)
+        # Actually, tasks are currently 1-per-student. So we need to find "Templates".
+        # Since we don't have a separate Template table, we'll find UNIQUE tasks by Title for this course.
+        
+        unique_templates = {}
+        for t in existing_tasks:
+            if t.title not in unique_templates:
+                unique_templates[t.title] = t
+        
+        for _, t in unique_templates.items():
+            new_task = Task(
+                title=t.title,
+                description=t.description,
+                assigned_to=user.id, # Assign to NEW user
+                assigned_by=t.assigned_by,
+                course_id=data["course_id"],
+                priority=t.priority,
+                due_date=t.due_date,
+                status="Pending",
+                week_number=t.week_number
+            )
+            db.session.add(new_task)
+
+
     if data["role"] == "INTERN" and "internship_id" in data:
         enrollment = Enrollment(
             user_id=user.id,
@@ -59,7 +85,26 @@ def register():
         )
         db.session.add(enrollment)
 
-    
+        # ✅ BACKFILL TASKS FOR NEW INTERN
+        existing_tasks = Task.query.filter_by(internship_id=data["internship_id"]).all()
+        unique_templates = {}
+        for t in existing_tasks:
+            if t.title not in unique_templates:
+                unique_templates[t.title] = t
+                
+        for _, t in unique_templates.items():
+            new_task = Task(
+                title=t.title,
+                description=t.description,
+                assigned_to=user.id,
+                assigned_by=t.assigned_by,
+                internship_id=data["internship_id"],
+                priority=t.priority,
+                due_date=t.due_date,
+                status="Pending",
+                week_number=t.week_number
+            )
+            db.session.add(new_task)
 
     db.session.commit()
     return jsonify({"message": "User registered successfully"}), 201
@@ -222,7 +267,7 @@ def delete_user(user_id):
     return jsonify({"message": f"User {user.name} and all related records deleted"}), 200
 @auth_bp.route("/users/<int:user_id>", methods=["PUT"])
 @jwt_required()
-def update_user_role(user_id):
+def update_user(user_id):
     claims = get_jwt()
     if claims.get("role") != "ADMIN":
         return jsonify({"error": "Admin access required"}), 403
@@ -230,7 +275,13 @@ def update_user_role(user_id):
     data = request.get_json()
     user = User.query.get_or_404(user_id)
 
-    user.role = data.get("role")
+    if "name" in data:
+        user.name = data["name"]
+    if "email" in data:
+        user.email = data["email"]
+    if "role" in data:
+        user.role = data["role"]
+    
     db.session.commit()
 
-    return jsonify({"message": "User role updated"}), 200
+    return jsonify({"message": "User updated successfully"}), 200

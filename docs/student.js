@@ -12,7 +12,11 @@ document.addEventListener("DOMContentLoaded", () => {
   console.log("🔑 Token Present:", !!token);
 
   const nameEl = document.getElementById("studentName");
-  if (nameEl) nameEl.innerText = localStorage.getItem("name") || "Student";
+  const initEl = document.getElementById("studentInitial");
+  const studentName = localStorage.getItem("name") || "Student";
+
+  if (nameEl) nameEl.innerText = studentName;
+  if (initEl) initEl.innerText = studentName.charAt(0).toUpperCase();
 
   loadCourses();
   loadProgress();
@@ -22,6 +26,10 @@ document.addEventListener("DOMContentLoaded", () => {
   setupTabs();
   setupLogout();
   setupAssignmentForm();
+
+  // Safety: Ensure no modals are open by default
+  const quizModal = document.getElementById("quizModal");
+  if (quizModal) quizModal.classList.remove("show");
 });
 
 async function loadProgress() {
@@ -69,30 +77,34 @@ function renderProgressPage(data) {
 
   data.forEach(c => {
     console.log("🛠️ Rendering Course Progress Item:", c);
+    const progressColor = c.progress >= 100 ? 'bg-blue-500' : 'bg-indigo-600';
+    const tagClass = c.progress >= 100 ? 'bg-blue-100 text-emerald-800' : 'bg-indigo-100 text-indigo-800';
+    const borderClass = c.progress >= 100 ? 'border-emerald-500' : 'border-indigo-600';
+
     container.innerHTML += `
-            <div class="box glow" style="margin-bottom:20px; padding:25px; border-left: 5px solid ${c.progress >= 100 ? '#22c55e' : '#4f46e5'}">
-                <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px">
-                    <h3 style="margin:0; font-size:1.2em">${c.course_name}</h3>
-                    <span class="tag" style="background:${c.progress >= 100 ? '#dcfce7' : '#e0ecff'}; color:${c.progress >= 100 ? '#166534' : '#3730a3'}">${c.status}</span>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border-l-4 ${borderClass} mb-6 hover:shadow-md transition-shadow relative overflow-hidden">
+                <div class="flex justify-between items-center mb-4 relative z-10">
+                    <h3 class="text-lg font-bold text-gray-800 m-0">${c.course_name}</h3>
+                    <span class="px-3 py-1 rounded-full text-xs font-bold uppercase tracking-wide ${tagClass}">${c.status}</span>
                 </div>
                 
-                <div class="bar" style="height:10px; background:#e2e8f0; border-radius:5px; overflow:hidden; margin-bottom:10px">
-                    <div class="fill" style="width:${c.progress}%; background: ${c.progress >= 100 ? '#22c55e' : '#4f46e5'}; height:100%"></div>
+                <div class="w-full h-3 bg-gray-100 rounded-full overflow-hidden mb-4 relative z-10">
+                    <div class="h-full rounded-full transition-all duration-500 ${progressColor}" style="width:${c.progress}%"></div>
                 </div>
                 
-                <div style="display:flex; flex-direction:column; gap:5px; font-size:0.9em; color:#64748b">
-                    <div style="display:flex; justify-content:space-between">
-                        <span><b>${c.progress}%</b> Overall Progress</span>
+                <div class="flex flex-col gap-2 text-sm text-gray-600 relative z-10">
+                    <div class="flex justify-between font-medium">
+                        <span class="text-gray-900 font-bold">${c.progress}% Overall Progress</span>
                     </div>
-                    <div style="display:flex; justify-content:space-between">
+                    <div class="flex justify-between text-xs text-gray-500">
                         <span>Assignments: ${c.assignments_completed || 0} / ${c.total_assignments || 0}</span>
                         <span>Quizzes: ${c.quizzes_completed || 0} / ${c.total_quizzes || 0}</span>
                     </div>
                 </div>
                 
-                <div style="margin-top:15px; padding-top:15px; border-top:1px solid #f1f5f9; display:flex; gap:20px; font-size:0.85em">
-                   <span><i class="fa-solid fa-clock"></i> Duration: ${c.duration || 'N/A'}</span>
-                   <span><i class="fa-solid fa-trophy"></i> Certificate: ${c.progress >= 100 ? 'Unlocked 🔓' : 'Locked 🔒'}</span>
+                <div class="mt-4 pt-4 border-t border-gray-100 flex gap-6 text-xs text-gray-500 font-medium relative z-10">
+                   <span class="flex items-center gap-2"><i class="fa-solid fa-clock text-gray-400"></i> ${c.duration || 'N/A'}</span>
+                   <span class="flex items-center gap-2"><i class="fa-solid fa-trophy ${c.progress >= 100 ? 'text-yellow-500' : 'text-gray-300'}"></i> ${c.progress >= 100 ? 'Certificate Unlocked' : 'Certificate Locked'}</span>
                 </div>
             </div>
         `;
@@ -143,28 +155,36 @@ function renderWeeklyBreakdown(dashboardData) {
 
       // Action Button
       let actionBtn = "";
-      if (isUnlocked && !isSubmitted && !isDeadlinePassed) {
-        actionBtn = `<button onclick="openSubmitModal(${a.id}, '${safeTitle}')" class="btn-primary" style="padding:8px 20px; font-size:0.85em">Submit Task</button>`;
+
+      // Allow submission if unlocked AND not submitted (even if deadline passed)
+      if (isUnlocked && !isSubmitted) {
+        let btnText = "Submit Task";
+        let btnStyle = "padding:8px 20px; font-size:0.85em";
+
+        if (isDeadlinePassed) {
+          btnText = "Submit Late";
+          btnStyle += "; background:#f59e0b; border: 1px solid #d97706"; // Amber warning color
+        }
+
+        actionBtn = `<button onclick="openSubmitModal(${a.id}, '${safeTitle}')" class="btn-primary" style="${btnStyle}">${btnText}</button>`;
       } else if (isSubmitted) {
         const feedback = a.feedback ? a.feedback.replace(/'/g, "\\'") : "Wait for trainer feedback...";
         actionBtn = `<button onclick="openViewModal('${safeTitle}', '${feedback}')" style="padding:8px 20px; background:#f1f5f9; color:#475569; border:1px solid #cbd5e1; border-radius:6px; cursor:pointer">View Status</button>`;
-      } else if (isDeadlinePassed && !isSubmitted) {
-        actionBtn = `<button disabled style="padding:8px 20px; background:#fee2e2; color:#b91c1c; border:none; cursor:not-allowed">Deadline Missed</button>`;
       } else {
         actionBtn = `<button disabled style="padding:8px 20px; background:#f1f5f9; color:#94a3b8; border:none; cursor:not-allowed">Locked</button>`;
       }
 
       weeksGrid += `
-        <div class="card glow" style="padding:20px; border-left: 5px solid ${statusColor}; border-top:none; display:flex; justify-content:space-between; align-items:center; flex-direction:row;">
-            <div style="flex:1">
-                <div style="display:flex; align-items:center; margin-bottom:5px; gap:10px">
-                    <span style="font-size:0.8em; font-weight:700; color:${statusColor}; text-transform:uppercase; letter-spacing:0.5px">Week ${a.week_number}</span>
-                    <span style="color:${statusColor}">${statusIcon}</span>
+        <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-all sm:flex-row flex-col gap-4" style="border-left: 5px solid ${statusColor};">
+            <div class="flex-1">
+                <div class="flex items-center gap-2 mb-2">
+                    <span class="text-xs font-bold uppercase tracking-wider text-[${statusColor}]" style="color:${statusColor}">Week ${a.week_number}</span>
+                    <span class="text-[${statusColor}]" style="color:${statusColor}">${statusIcon}</span>
                 </div>
-                <h4 style="font-size:1.1em; margin:0; color:#1e293b;">${a.title}</h4>
-                <p style="font-size:0.85em; color:#64748b; margin:5px 0 0 0">${isUnlocked ? (a.due_date ? 'Due: ' + a.due_date : 'No Deadline') : 'Complete previous week'}</p>
+                <h4 class="font-bold text-gray-800 text-lg m-0">${a.title}</h4>
+                <p class="text-sm text-gray-500 mt-1">${isUnlocked ? (a.due_date ? 'Due: ' + a.due_date : 'No Deadline') : 'Complete previous week'}</p>
             </div>
-            <div style="margin-left:20px;">
+            <div class="ml-0 sm:ml-4">
                 ${actionBtn}
             </div>
         </div>
@@ -174,12 +194,12 @@ function renderWeeklyBreakdown(dashboardData) {
     weeksGrid += `</div>`;
 
     container.innerHTML += `
-      <div class="box glow" style="padding:25px; margin-bottom:30px;">
-        <div style="display:flex; justify-content:space-between; align-items:center; border-bottom:1px solid #f1f5f9; padding-bottom:15px">
-            <h3 style="margin:0; color:#1e293b; font-size:1.3em">${c.course}</h3>
-            <div style="text-align:right">
-                <span style="display:block; font-size:1.5em; font-weight:800; color:#4f46e5">${c.progress}%</span>
-                <span style="font-size:0.8em; color:#64748b">Overall Progress</span>
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 mb-8">
+        <div class="flex justify-between items-center border-b border-gray-100 pb-4 mb-4">
+            <h3 class="font-bold text-gray-800 text-xl m-0">${c.course}</h3>
+            <div class="text-right">
+                <span class="block text-2xl font-extrabold text-indigo-600">${c.progress}%</span>
+                <span class="text-xs text-gray-400 font-medium uppercase tracking-wide">Overall Progress</span>
             </div>
         </div>
         ${weeksGrid}
@@ -221,17 +241,17 @@ function renderMentors(mentors) {
     const name = m.name || "Unknown Mentor";
     const initials = name.split(" ").map(n => n[0]).join("").substring(0, 2).toUpperCase();
     container.innerHTML += `
-            <div class="mentor-card glow">
-                <div class="mentor-badge">Trainer</div>
-                <div class="mentor-img">${initials}</div>
-                <h3>${name}</h3>
-                <p><strong>Expertise:</strong> ${m.expertise || 'Mentor'}</p>
-                <p class="mentor-email"><i class="fa-solid fa-envelope"></i> ${m.email || 'N/A'}</p>
-                <div class="socials">
-                     <i class="fa-brands fa-linkedin"></i>
+            <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-md transition-all text-center group">
+                <div class="absolute top-4 right-4 bg-indigo-100 text-indigo-700 text-[10px] font-bold px-2 py-1 rounded-full uppercase tracking-wide">Trainer</div>
+                <div class="w-20 h-20 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-4 group-hover:scale-110 transition-transform">${initials}</div>
+                <h3 class="text-lg font-bold text-gray-800 m-0">${name}</h3>
+                <p class="text-sm text-gray-500 mt-1"><strong>Expertise:</strong> ${m.expertise || 'Mentor'}</p>
+                <p class="text-indigo-600 text-sm mt-2 font-medium bg-indigo-50 inline-block px-3 py-1 rounded-lg"><i class="fa-solid fa-envelope mr-1"></i> ${m.email || 'N/A'}</p>
+                <div class="flex justify-center gap-4 mt-4 text-gray-400 text-xl">
+                     <i class="fa-brands fa-linkedin hover:text-indigo-600 cursor-pointer transition-colors"></i>
                 </div>
             </div>
-        `;
+      `;
   });
 }
 
@@ -243,7 +263,7 @@ async function loadCourses() {
     });
 
     if (res.status === 401) return logout();
-    if (!res.ok) throw new Error(`API Error: ${res.status}`);
+    if (!res.ok) throw new Error(`API Error: ${res.status} `);
 
     const courses = await res.json();
 
@@ -266,7 +286,7 @@ async function loadAssignments() {
     });
 
     if (res.status === 401) return logout();
-    if (!res.ok) throw new Error(`Server returned ${res.status}`);
+    if (!res.ok) throw new Error(`Server returned ${res.status} `);
 
     const rawData = await res.json();
 
@@ -331,24 +351,24 @@ async function loadAssignments() {
 
         // PERSISTENCE FIX: If it already exists in DB, show the link immediately!
         if (eligibleForCertificate.certificate_url) {
-          const downloadUrl = `${API}${eligibleForCertificate.certificate_url}`;
+          const downloadUrl = `${API}${eligibleForCertificate.certificate_url} `;
           certResult.innerHTML = `
-                <div style="background:#dcfce7; padding:20px; border-radius:12px; border:2px solid #22c55e; margin-bottom:20px;">
-                    <p style="color:#166534; font-weight:bold; margin-bottom:10px; font-size:1.1em">Your Certificate is Ready ✅</p>
-                    <a href="${downloadUrl}" target="_blank" style="display:inline-block; background:#22c55e; color:white; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:800; font-size:1.2em; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
+        <div style="background:#dbeafe; padding:20px; border-radius:12px; border:2px solid #2563EB; margin-bottom:20px;">
+                    <p style="color:#1e40af; font-weight:bold; margin-bottom:10px; font-size:1.1em">Your Certificate is Ready ✅</p>
+                    <a href="${downloadUrl}" target="_blank" style="display:inline-block; background:#2563EB; color:white; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:800; font-size:1.2em; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
                         🔗 CLICK HERE TO VIEW PDF
                     </a>
                 </div>
-            `;
+      `;
           certBtn.innerText = "Certificate Ready ✅";
         }
 
-        if (certHeader) certHeader.style.color = "#22c55e";
+        if (certHeader) certHeader.style.color = "#2563EB";
         if (certHeader) certHeader.innerText = "🎓 Certification Available!";
         if (certMsg) certMsg.innerText = `Congratulations! You've completed "${eligibleForCertificate.name}".`;
 
         certBtn.disabled = false;
-        certBtn.style.background = "#22c55e";
+        certBtn.style.background = "#2563EB";
         certBtn.style.cursor = "pointer";
         certBtn.innerHTML = '<i class="fa-solid fa-file-pdf"></i> ' + (eligibleForCertificate.certificate_url ? 'Regenerate Certificate' : 'Download Official Certificate');
         certBtn.onclick = () => generateCertificate(eligibleForCertificate.id);
@@ -395,9 +415,9 @@ async function generateCertificate(courseId) {
 
       // Using dedicated certResult div to prevent overwriting
       msg.innerHTML = `
-        <div style="background:#dcfce7; padding:20px; border-radius:12px; border:2px solid #22c55e; margin-bottom:20px; animation: fadeIn 0.6s ease-out;">
-          <p style="color:#166534; font-weight:bold; margin-bottom:10px; font-size:1.1em">Success! Certificate is ready ✅</p>
-          <a href="${downloadUrl}" target="_blank" style="display:inline-block; background:#22c55e; color:white; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:800; font-size:1.2em; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s;">
+        <div style="background:#dbeafe; padding:20px; border-radius:12px; border:2px solid #2563EB; margin-bottom:20px; animation: fadeIn 0.6s ease-out;">
+          <p style="color:#1e40af; font-weight:bold; margin-bottom:10px; font-size:1.1em">Success! Certificate is ready ✅</p>
+          <a href="${downloadUrl}" target="_blank" style="display:inline-block; background:#2563EB; color:white; padding:10px 20px; border-radius:8px; text-decoration:none; font-weight:800; font-size:1.2em; box-shadow: 0 4px 6px rgba(0,0,0,0.1); transition: transform 0.2s;">
             🔗 CLICK HERE TO VIEW PDF
           </a>
         </div>
@@ -430,14 +450,14 @@ function renderCourses(courses) {
     const courseName = c.name ? c.name.replace(/'/g, "\\'") : "Unknown Course";
     const courseDate = c.date || "N/A";
     list.innerHTML += `
-      <div class="box glow course-card" onclick="showResources(${c.id}, '${courseName}')" style="cursor:pointer">
-        <h3>${c.name || 'Untitled Course'}</h3>
-        <p class="description">Enrolled Student Course</p>
-        <div class="course-meta">
-            <span><i class="fa-solid fa-calendar"></i> ${courseDate}</span>
-            <div style="display:flex; gap:10px; align-items:center">
-                <span class="tag medium" style="margin:0">ENROLLED</span>
-                <span class="tag" style="background:#e0ecff; color:#4f46e5; margin:0; cursor:pointer">View Resources</span>
+      <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 hover:shadow-lg hover:-translate-y-1 transition-all cursor-pointer group h-full flex flex-col" onclick="showResources(${c.id}, '${courseName}')">
+        <h3 class="text-xl font-bold text-gray-800 mb-2 group-hover:text-indigo-600 transition-colors">${c.name || 'Untitled Course'}</h3>
+        <p class="text-gray-500 text-sm mb-4 line-clamp-2">Enrolled Student Course</p>
+        <div class="mt-auto pt-4 border-t border-gray-50 flex items-center justify-between text-xs">
+            <span class="flex items-center text-gray-400 font-medium"><i class="fa-solid fa-calendar mr-2"></i> ${courseDate}</span>
+            <div class="flex gap-2 items-center">
+                <span class="px-2 py-1 bg-amber-100 text-amber-700 rounded-md font-bold uppercase tracking-wider text-[10px]">ENROLLED</span>
+                <span class="px-2 py-1 bg-indigo-50 text-indigo-600 rounded-md font-bold uppercase tracking-wider text-[10px] group-hover:bg-indigo-100">Details</span>
             </div>
         </div>
       </div>
@@ -479,11 +499,11 @@ async function showResources(courseId, courseName) {
       }
 
       resourceList.innerHTML += `
-                <div class="card glow small-card">
-                    <i class="fa-solid ${icon}" style="font-size:1.5em; margin-bottom:10px; color:#4f46e5"></i>
-                    <h4>${r.title}</h4>
-                    <p style="font-size:0.8em; margin:10px 0">${r.type.toUpperCase()}</p>
-                    <a href="${finalUrl}" target="_blank" class="btn-primary" style="padding:5px 10px; font-size:0.8em">Visit Resource</a>
+                <div class="bg-white p-4 rounded-xl shadow-sm border border-gray-100 hover:shadow-md transition-all">
+                    <i class="fa-solid ${icon} text-2xl mb-3 text-indigo-600"></i>
+                    <h4 class="font-bold text-gray-800 text-sm mb-1">${r.title}</h4>
+                    <p class="text-xs text-gray-400 font-bold uppercase mb-3">${r.type.toUpperCase()}</p>
+                    <a href="${finalUrl}" target="_blank" class="inline-block w-full text-center bg-indigo-50 hover:bg-indigo-100 text-indigo-700 text-xs font-bold py-2 rounded-lg transition-colors">Visit Resource</a>
                 </div>
             `;
     });
@@ -581,29 +601,29 @@ function renderAssignments(tasks) {
       const safeTitle = (t.title || "Untitled Assignment").replace(/'/g, "\\'");
 
       if (isSubmittable && !isSubmitted) {
-        actionBtns = `<button onclick="openSubmitModal(${t.id}, '${safeTitle}')" class="btn-primary" style="padding:6px 14px; font-size:0.85em; border-radius:8px">Submit</button>`;
+        actionBtns = `<button onclick="openSubmitModal(${t.id}, '${safeTitle}')" class="bg-indigo-600 hover:bg-indigo-700 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors shadow-sm">Submit</button>`;
       } else if (isSubmitted) {
         const feedback = t.feedback ? t.feedback.replace(/'/g, "\\'") : "Wait for trainer feedback...";
         const grade = t.grade ? `Grade: ${t.grade}` : "Grading Pending";
         const btnText = t.grade ? "View Grade" : "View Status";
-        actionBtns = `<button onclick="openViewModal('${safeTitle}', '${feedback}', '${t.grade || ''}')" class="btn-primary" style="padding:6px 14px; font-size:0.85em; border-radius:8px; background:#64748b">${btnText}</button>`;
+        actionBtns = `<button onclick="openViewModal('${safeTitle}', '${feedback}', '${t.grade || ''}')" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors border border-slate-200">${btnText}</button>`;
       } else if (isDataRevealed && !isSubmitted) {
-        actionBtns = `<button disabled class="btn-primary" style="padding:6px 14px; font-size:0.85em; border-radius:8px; background:#94a3b8; cursor:not-allowed">Locked</button>`;
+        actionBtns = `<button disabled class="bg-slate-100 text-slate-400 font-semibold py-2 px-4 rounded-lg text-sm cursor-not-allowed border border-slate-200">Locked</button>`;
       }
 
       const displayTitle = isDataRevealed ? `: ${t.title}` : "";
       let displayDesc = isDataRevealed ? (t.due_date ? '📅 Due: ' + t.due_date : 'No Deadline') : '🔒 This assignment is locked until the previous one is submitted.';
 
       listContainer.innerHTML += `
-            <div class="task glow ${(!isDataRevealed) ? 'locked-task' : ''}" style="opacity: ${isDataRevealed ? 1 : 0.4}; border-left: 5px solid ${statusColor}; align-items: center">
-                <div style="flex:1">
-                    <div style="display:flex; align-items:center; gap:10px; margin-bottom:5px">
-                        <span class="tag" style="background:${statusColor}; color:#fff">${statusText}</span>
-                        <h4 style="margin:0">Week ${weekNum}${displayTitle}</h4>
+            <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-all ${(!isDataRevealed) ? 'opacity-50 grayscale' : ''}" style="border-left: 5px solid ${statusColor};">
+                <div class="flex-1 pr-4">
+                    <div class="flex items-center gap-3 mb-2">
+                        <span class="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider text-white" style="background:${statusColor}">${statusText}</span>
+                        <h4 class="font-bold text-gray-800 text-lg m-0">Week ${weekNum}${displayTitle}</h4>
                     </div>
-                    <small style="color:#666">${displayDesc}</small>
+                    <p class="text-sm text-gray-500 font-medium">${displayDesc}</p>
                 </div>
-                <div style="margin-left:20px">
+                <div>
                     ${actionBtns}
                 </div>
             </div>
@@ -695,14 +715,14 @@ async function loadStudentQuizzes() {
           const statusColor = isSubmitted ? "#22c55e" : (isVisible ? "#4f46e5" : "#94a3b8");
 
           quizHtml += `
-            <div class="card glow" style="padding:20px; border-left: 5px solid ${statusColor}; border-top:none; display:flex; justify-content:space-between; align-items:center; opacity: ${isVisible ? 1 : 0.6}">
+            <div class="bg-white p-5 rounded-xl shadow-sm border border-gray-100 flex justify-between items-center hover:shadow-md transition-all ${isVisible ? '' : 'opacity-60'}" style="border-left: 5px solid ${statusColor};">
               <div>
-                <span style="font-size:0.8em; font-weight:700; color:${statusColor}; text-transform:uppercase">Week ${q.week_number}</span>
-                <h4 style="margin:5px 0">${q.title}</h4>
-                <small style="color:#64748b">${isVisible ? (q.deadline ? 'Deadline: ' + q.deadline : 'No Deadline') : 'Available after previous week deadline'}</small>
+                <span class="text-xs font-bold uppercase tracking-wider block mb-1" style="color:${statusColor}">Week ${q.week_number}</span>
+                <h4 class="font-bold text-gray-800 m-0 text-lg">${q.title}</h4>
+                <small class="text-gray-500 font-medium mt-1 block">${isVisible ? (q.deadline ? 'Deadline: ' + q.deadline : 'No Deadline') : 'Available after previous week deadline'}</small>
               </div>
               <div>
-                ${isVisible && !isSubmitted ? `<button onclick="takeQuiz(${q.id}, '${q.title.replace(/'/g, "\\'")}')" class="btn-primary">Take Quiz</button>` : `<span style="font-weight:bold; color:${statusColor}">${statusText}</span>`}
+                ${isVisible && !isSubmitted ? `<button onclick="takeQuiz(${q.id}, '${q.title.replace(/'/g, "\\'")}')" class="bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold py-2 px-4 rounded-lg transition-colors">Take Quiz</button>` : `<span class="font-bold text-[${statusColor}]" style="color:${statusColor}">${statusText}</span>`}
               </div>
             </div>
           `;
@@ -736,13 +756,25 @@ async function takeQuiz(quizId, title) {
 
   quiz.questions.forEach((q, idx) => {
     container.innerHTML += `
-      <div class="quiz-question-box" style="margin-bottom:20px; padding:15px; background:#f8fafc; border-radius:8px">
-        <p><strong>Q${idx + 1}:</strong> ${q.text}</p>
-        <div class="options" style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:10px">
-          <label><input type="radio" name="q${q.id}" value="A"> A) ${q.option_a}</label>
-          <label><input type="radio" name="q${q.id}" value="B"> B) ${q.option_b}</label>
-          <label><input type="radio" name="q${q.id}" value="C"> C) ${q.option_c}</label>
-          <label><input type="radio" name="q${q.id}" value="D"> D) ${q.option_d}</label>
+      <div class="quiz-question-box bg-gray-50 p-4 rounded-xl border border-gray-200 mb-6" data-id="${q.id}">
+        <p class="font-medium text-gray-800 mb-3 text-lg"><strong>Q${idx + 1}:</strong> ${q.text}</p>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-3">
+          <label class="flex items-center gap-3 bg-white p-3 rounded-lg border border-gray-200 cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all select-none">
+            <input type="radio" name="q${q.id}" value="A" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500"> 
+            <span class="text-gray-700">A) ${q.option_a}</span>
+          </label>
+          <label class="flex items-center gap-3 bg-white p-3 rounded-lg border border-gray-200 cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all select-none">
+            <input type="radio" name="q${q.id}" value="B" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500"> 
+            <span class="text-gray-700">B) ${q.option_b}</span>
+          </label>
+          <label class="flex items-center gap-3 bg-white p-3 rounded-lg border border-gray-200 cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all select-none">
+            <input type="radio" name="q${q.id}" value="C" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500"> 
+            <span class="text-gray-700">C) ${q.option_c}</span>
+          </label>
+          <label class="flex items-center gap-3 bg-white p-3 rounded-lg border border-gray-200 cursor-pointer hover:border-indigo-500 hover:bg-indigo-50 transition-all select-none">
+            <input type="radio" name="q${q.id}" value="D" class="w-4 h-4 text-indigo-600 focus:ring-indigo-500"> 
+            <span class="text-gray-700">D) ${q.option_d}</span>
+          </label>
         </div>
       </div>
     `;
@@ -763,7 +795,7 @@ async function submitQuizAnswers() {
   let allAnswered = true;
   questions.forEach(box => {
     const radio = box.querySelector('input[type="radio"]:checked');
-    const qId = box.querySelector('input[type="radio"]').name.substring(1);
+    const qId = box.dataset.id;
     if (radio) {
       answers[qId] = radio.value;
     } else {

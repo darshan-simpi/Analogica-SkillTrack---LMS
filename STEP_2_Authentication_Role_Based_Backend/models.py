@@ -143,6 +143,12 @@ class Task(db.Model):
         nullable=True
     )
 
+    course_id = db.Column(
+        db.Integer,
+        db.ForeignKey("courses.id"),
+        nullable=True
+    )
+
     status = db.Column(db.String(50), default="Pending")
     priority = db.Column(db.String(20), default="Medium")
     week_number = db.Column(db.Integer, default=1)   # ✅ Added for parity with Assignments

@@ -1,17 +1,25 @@
 /* ================= ROOT COLOR SYSTEM ================= */
 :root {
-  --bg-main:  #020617;        /* Page background */
-  --card-dark: #111827;     /* Right panel & course cards */
-  --card-blue: #1F3A5F;     /* Login panel */
-  --input-bg: #1E293B;      /* Input fields */
+  --bg-main: #020617;
+  /* Page background */
+  --card-dark: #111827;
+  /* Right panel & course cards */
+  --card-blue: #1F3A5F;
+  /* Login panel */
+  --input-bg: #1E293B;
+  /* Input fields */
 
-  --primary: #2563EB;       /* Buttons */
+  --primary: #2563EB;
+  /* Buttons */
   --primary-hover: #1D4ED8;
 
-  --accent: #38BDF8;        /* Course titles, links */
+  --accent: #38BDF8;
+  /* Course titles, links */
 
-  --text-main: #F8FAFC;     /* Headings */
-  --text-muted: #CBD5E1;    /* Labels & secondary text */
+  --text-main: #F8FAFC;
+  /* Headings */
+  --text-muted: #CBD5E1;
+  /* Labels & secondary text */
 }
 
 /* ================= RESET ================= */
@@ -38,7 +46,7 @@ body {
   display: flex;
   border-radius: 22px;
   overflow: hidden;
-  box-shadow: 0 30px 70px rgba(0,0,0,0.6);
+  box-shadow: 0 30px 70px rgba(0, 0, 0, 0.6);
   animation: containerIn 0.8s ease;
 }
 
@@ -177,7 +185,7 @@ select:focus {
 
 .course-card:hover {
   transform: translateY(-3px);
-  box-shadow: 0 10px 20px rgba(0,0,0,0.4);
+  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
 }
 
 .course-card h4 {
@@ -231,15 +239,32 @@ select:focus {
 
 /* ================= ANIMATIONS ================= */
 @keyframes containerIn {
-  from { opacity: 0; transform: scale(0.96); }
-  to   { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }
 
 @keyframes courseIn {
-  to { opacity: 1; transform: translateY(0); }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
 }
 
 @keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.9); }
-  to   { opacity: 1; transform: scale(1); }
+  from {
+    opacity: 0;
+    transform: scale(0.9);
+  }
+
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
 }

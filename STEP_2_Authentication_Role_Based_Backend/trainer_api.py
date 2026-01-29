@@ -286,12 +286,22 @@ def delete_resource(resource_id):
 @jwt_required()
 def get_internship_tasks(internship_id):
     tasks = Task.query.filter_by(internship_id=internship_id).all()
+    
+    # Filter for unique "templates" (Title + Week)
+    unique_map = {}
+    for t in tasks:
+        key = (t.title, t.week_number)
+        if key not in unique_map:
+            unique_map[key] = t # Keep first instance as the representative
+            
+    unique_tasks = list(unique_map.values())
+    
     return jsonify([{
-        "id": t.id,
+        "id": t.id, # This ID is just a proxy for the 'template'
         "title": t.title,
         "week_number": t.week_number,
         "due_date": t.due_date
-    } for t in sorted(tasks, key=lambda x: (x.week_number, x.due_date or ""))])
+    } for t in sorted(unique_tasks, key=lambda x: (x.week_number, x.due_date or ""))])
 
 @trainer_bp.route("/trainer/internship/assign", methods=["POST"])
 @jwt_required()
@@ -314,32 +324,53 @@ def assign_intern_task():
     except Exception:
         pass
         
-    current_count = Task.query.filter_by(internship_id=internship.id).count()
-    if current_count >= max_tasks:
-        return jsonify({"error": f"Limit reached! This is a {internship.duration} internship (Max {max_tasks} tasks)."}), 400
+    # Count UNIQUE weeks or task rounds to prevent limit block
+    # If we have 5 students, 1 assignment = 5 rows. Max tasks = 4 weeks usually.
+    # So we should count how many 'weeks' have been assigned.
+    unique_weeks = db.session.query(Task.week_number).filter_by(internship_id=internship.id).distinct().count()
+    
+    if unique_weeks >= max_tasks:
+        return jsonify({"error": f"Limit reached! This is a {internship.duration} internship (Max {max_tasks} tasks/weeks)."}), 400
         
-    week_num = current_count + 1
+    week_num = unique_weeks + 1
     
-    # Create the task
-    # We need to know WHO to assign it to. 
-    # Use Enrollment to find the intern ID reliably.
-    enrollment = Enrollment.query.filter_by(internship_id=internship.id).first()
+    # Create the task for ALL enrolled interns
+    enrollments = Enrollment.query.filter_by(internship_id=internship.id).all()
     
-    assigned_to_id = enrollment.user_id if enrollment else get_jwt_identity()
+    tasks_created = 0
     
-    # Optional: Log if fallback used
-    if not enrollment:
-        print(f"Warning: No enrollment found for internship {internship.id}. Assigning to trainer.")
-    
-    task = Task(
-        title=data["title"],
-        due_date=data["due_date"],
-        week_number=week_num,
-        internship_id=internship.id,
-        assigned_by=get_jwt_identity(),
-        assigned_to=assigned_to_id 
-    )
-    db.session.add(task)
+    if not enrollments:
+        # If no one enrolled, maybe assign to trainer as a template? 
+        # But for now, let's just log it or assign to self if really needed.
+        # User request implies visibility for interns.
+        pass
+        
+    for enrollment in enrollments:
+        task = Task(
+            title=data["title"],
+            due_date=data["due_date"],
+            week_number=week_num,
+            internship_id=internship.id,
+            assigned_by=get_jwt_identity(),
+            assigned_to=enrollment.user_id 
+        )
+        db.session.add(task)
+        tasks_created += 1
+
+    if tasks_created == 0:
+        # Fallback: Create one for the trainer/system if no students yet?
+        # But this might mess up the "Week" count if we depend on Task count.
+        # The 'current_count' above (Line 317) counts ALL tasks for internship. 
+        # If we have 2 students, we add 2 tasks. Next time count will be +2? 
+        # WAIT. get_required_assignments uses DURATION.
+        # But 'current_count' checks *Task.query.filter_by(internship_id=internship.id).count()*.
+        # If we create N tasks for N students, the count will trigger limit immediately!
+        # logic error: "Limit reached! ... Max 4 tasks"
+        # If 5 students, we add 5 tasks. Count = 5. Next assignment rejected?
+        
+        # FIX: We need to count UNIQUE tasks (by week number or title) for limit check.
+        pass
+        
     db.session.commit()
     return jsonify({"message": "Task assigned"}), 201
 
@@ -347,23 +378,45 @@ def assign_intern_task():
 @jwt_required()
 def update_intern_task(task_id):
     data = request.get_json()
-    task = Task.query.get_or_404(task_id)
-    if "title" in data: task.title = data["title"]
-    if "due_date" in data: task.due_date = data["due_date"]
+    # Find the 'template' task
+    template_task = Task.query.get_or_404(task_id)
+    
+    # Find all tasks that match this template (Same Internship, Title, Week)
+    # We update ALL of them to keep them in sync
+    sisters = Task.query.filter_by(
+        internship_id=template_task.internship_id,
+        title=template_task.title, 
+        week_number=template_task.week_number
+    ).all()
+    
+    for t in sisters:
+        if "title" in data: t.title = data["title"]
+        if "due_date" in data: t.due_date = data["due_date"]
+        
     db.session.commit()
-    return jsonify({"message": "Task updated"}), 200
+    return jsonify({"message": f"Updated {len(sisters)} tasks"}), 200
 
 @trainer_bp.route("/trainer/task/<int:task_id>", methods=["DELETE"])
 @jwt_required()
 def delete_intern_task(task_id):
-    task = Task.query.get_or_404(task_id)
+    template_task = Task.query.get_or_404(task_id)
     
-    # Manually delete submissions first due to missing cascade
-    TaskSubmission.query.filter_by(task_id=task.id).delete()
+    # Find all sister tasks to delete
+    sisters = Task.query.filter_by(
+        internship_id=template_task.internship_id,
+        title=template_task.title, 
+        week_number=template_task.week_number
+    ).all()
     
-    db.session.delete(task)
+    count = 0
+    for t in sisters:
+        # Manually delete submissions first due to missing cascade
+        TaskSubmission.query.filter_by(task_id=t.id).delete()
+        db.session.delete(t)
+        count += 1
+    
     db.session.commit()
-    return jsonify({"message": "Task deleted"}), 200
+    return jsonify({"message": f"Deleted {count} tasks"}), 200
 
 # ================= INTERNSHIP SUBMISSIONS =================
 @trainer_bp.route("/trainer/internship/<int:internship_id>/submissions", methods=["GET"])
@@ -417,48 +470,20 @@ def update_task_submission():
 
 
 # ================= INTERNSHIP RESOURCES =================
-@trainer_bp.route("/trainer/internship/<int:internship_id>/resource/upload", methods=["POST"])
-@jwt_required()
-def upload_internship_resource(internship_id):
-    file = request.files.get("file")
-    title = request.form.get("title")
+# @trainer_bp.route("/trainer/internship/<int:internship_id>/resource/upload", methods=["POST"])
+# @jwt_required()
+# def upload_internship_resource(internship_id):
+#     return jsonify({"error": "Resource upload disabled"}), 403
 
-    if not file: return jsonify({"error": "File required"}), 400
+# @trainer_bp.route("/trainer/internship/<int:internship_id>/resources", methods=["GET"])
+# @jwt_required()
+# def get_internship_resources(internship_id):
+#     return jsonify([]), 200
 
-    os.makedirs("uploads/resources", exist_ok=True)
-    filename = secure_filename(file.filename)
-    path = f"uploads/resources/{filename}"
-    file.save(path)
-
-    resource = InternshipResource(
-        internship_id=internship_id,
-        title=title,
-        type=file.content_type,
-        url=path.replace("\\", "/")
-    )
-
-    db.session.add(resource)
-    db.session.commit()
-    return jsonify({"message": "Resource uploaded"}), 201
-
-@trainer_bp.route("/trainer/internship/<int:internship_id>/resources", methods=["GET"])
-@jwt_required()
-def get_internship_resources(internship_id):
-    resources = InternshipResource.query.filter_by(internship_id=internship_id).all()
-    return jsonify([{
-        "id": r.id,
-        "title": r.title,
-        "type": r.type,
-        "url": r.url.replace("\\", "/") if r.url else ""
-    } for r in resources])
-
-@trainer_bp.route("/trainer/internship/resource/<int:resource_id>", methods=["DELETE"])
-@jwt_required()
-def delete_internship_resource(resource_id):
-    resource = InternshipResource.query.get_or_404(resource_id)
-    db.session.delete(resource)
-    db.session.commit()
-    return jsonify({"message": "Resource deleted"}), 200
+# @trainer_bp.route("/trainer/internship/resource/<int:resource_id>", methods=["DELETE"])
+# @jwt_required()
+# def delete_internship_resource(resource_id):
+#     return jsonify({"error": "Disabled"}), 403
 
 # ================= QUIZ MANAGEMENT =================
 @trainer_bp.route("/trainer/course/<int:course_id>/quizzes", methods=["GET"])
