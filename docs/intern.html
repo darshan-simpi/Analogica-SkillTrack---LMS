@@ -55,25 +55,25 @@
       </div>
 
       <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
-        <a class="nav active flex items-center p-3 rounded-xl transition-all cursor-pointer bg-blue-600 text-white shadow-lg shadow-blue-500/30"
+        <a class="nav active flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer text-slate-400 font-bold hover:bg-[#1e40af] hover:text-white hover:translate-x-1"
           data-target="dashboard">
-          <i class="fa-solid fa-chart-pie w-8"></i> <span class="font-medium">Dashboard</span>
+          <i class="fa-solid fa-chart-pie w-5 text-center"></i> <span class="font-medium">Dashboard</span>
         </a>
-        <a class="nav flex items-center p-3 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
+        <a class="nav flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#1e40af] text-slate-400 hover:text-white transition-all cursor-pointer hover:translate-x-1"
           data-target="tasks">
-          <i class="fa-solid fa-list-check w-8"></i> <span class="font-medium">Tasks</span>
+          <i class="fa-solid fa-list-check w-5 text-center"></i> <span class="font-medium">Tasks</span>
         </a>
-        <a class="nav flex items-center p-3 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
+        <a class="nav flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#1e40af] text-slate-400 hover:text-white transition-all cursor-pointer hover:translate-x-1"
           data-target="progress">
-          <i class="fa-solid fa-bars-progress w-8"></i> <span class="font-medium">Progress</span>
+          <i class="fa-solid fa-bars-progress w-5 text-center"></i> <span class="font-medium">Progress</span>
         </a>
-        <a class="nav flex items-center p-3 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
+        <a class="nav flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#1e40af] text-slate-400 hover:text-white transition-all cursor-pointer hover:translate-x-1"
           data-target="mentor">
-          <i class="fa-solid fa-user-group w-8"></i> <span class="font-medium">Mentor</span>
+          <i class="fa-solid fa-user-group w-5 text-center"></i> <span class="font-medium">Mentor</span>
         </a>
-        <a class="nav flex items-center p-3 rounded-xl hover:bg-slate-800 text-slate-400 hover:text-white transition-all cursor-pointer"
+        <a class="nav flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#1e40af] text-slate-400 hover:text-white transition-all cursor-pointer hover:translate-x-1"
           data-target="internships">
-          <i class="fa-solid fa-briefcase w-8"></i> <span class="font-medium">Internships</span>
+          <i class="fa-solid fa-briefcase w-5 text-center"></i> <span class="font-medium">Internships</span>
         </a>
       </nav>
 
@@ -186,8 +186,8 @@
                 <span class="text-[10px] text-slate-400 font-bold uppercase">Completed</span>
               </div>
               <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
-                <div class="progress-fill bg-blue-500 h-1.5 rounded-full transition-all duration-500"
-                  style="width: 0%"></div>
+                <div class="progress-fill bg-blue-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%">
+                </div>
               </div>
             </div>
 
@@ -335,13 +335,11 @@
     navs.forEach(nav => {
       nav.addEventListener('click', () => {
         navs.forEach(n => {
-          n.classList.remove('bg-blue-600', 'text-white', 'shadow-lg', 'shadow-blue-500/30');
-          n.classList.add('hover:bg-slate-800', 'text-slate-400');
+          n.classList.remove('font-bold', 'active');
           if (n.classList.contains('active')) n.classList.remove('active');
         });
 
-        nav.classList.remove('hover:bg-slate-800', 'text-slate-400');
-        nav.classList.add('bg-blue-600', 'text-white', 'shadow-lg', 'shadow-blue-500/30', 'active');
+        nav.classList.add('font-bold', 'active');
 
         const targetId = nav.getAttribute('data-target');
         pages.forEach(p => {
