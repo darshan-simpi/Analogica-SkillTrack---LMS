@@ -102,7 +102,9 @@ def get_workshops():
             "id": w.id,
             "title": w.title,
             "trainer_name": w.trainer_name,
-            "date": w.date
+            "location": w.location,
+            "start_date": w.start_date,
+            "end_date": w.end_date
         }
         for w in workshops
     ]), 200
@@ -119,7 +121,9 @@ def add_workshop():
     workshop = Workshop(
         title=data.get("title"),
         trainer_name=data.get("trainer_name"),
-        date=data.get("date")
+        location=data.get("location"),
+        start_date=data.get("start_date"),
+        end_date=data.get("end_date")
     )
     db.session.add(workshop)
     db.session.commit()
@@ -151,7 +155,9 @@ def edit_workshop(id):
 
     workshop.title = data.get("title", workshop.title)
     workshop.trainer_name = data.get("trainer_name", workshop.trainer_name)
-    workshop.date = data.get("date", workshop.date)
+    workshop.location = data.get("location", workshop.location)
+    workshop.start_date = data.get("start_date", workshop.start_date)
+    workshop.end_date = data.get("end_date", workshop.end_date)
 
     db.session.commit()
     return jsonify({"message": "Workshop updated"}), 200

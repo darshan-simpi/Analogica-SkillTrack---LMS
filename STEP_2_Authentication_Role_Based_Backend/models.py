@@ -103,7 +103,9 @@ class Workshop(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     title = db.Column(db.String(150))
     trainer_name = db.Column(db.String(100))
-    date = db.Column(db.String(50))
+    location = db.Column(db.String(150))      # ✅ NEW
+    start_date = db.Column(db.String(50))     # ✅ NEW (Renamed from date)
+    end_date = db.Column(db.String(50))       # ✅ NEW
 
 # ================= INTERNSHIPS =================
 class Internship(db.Model):
