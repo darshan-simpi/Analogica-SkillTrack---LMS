@@ -8,7 +8,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor
 
-from models import Enrollment, Course, Assignment, Submission, StudentProgress, CourseResource, Certificate, User, Quiz, Question, QuizSubmission
+from models import Enrollment, Course, Assignment, Submission, StudentProgress, CourseResource, Certificate, User, Quiz, Question, QuizSubmission, Task
 from extensions import db
 from utils import allowed_file, get_required_assignments
 
@@ -60,6 +60,24 @@ def student_progress():
             # 4. Duration Safety
             raw_dur = str(course.duration) if (course.duration and str(course.duration).strip()) else "1 Month"
 
+            # 5. Check if certificate already exists AND is physically present
+            cert_record = Certificate.query.filter_by(user_id=student_id, course_id=course.id).first()
+            cert_url = None
+            if cert_record and cert_record.certificate_url:
+                 # Support both old (/certificates/...) and new (/static/certificates/...) formats
+                 lpath = cert_record.certificate_url.lstrip("/")
+                 if lpath.startswith("static/"):
+                      lpath = lpath.replace("static/", "", 1)
+                 
+                 expected_path = os.path.join(current_app.root_path, "static", lpath)
+                 
+                 if os.path.exists(expected_path):
+                     # Always return with /static/ for consistent frontend handling
+                     filename = os.path.basename(cert_record.certificate_url)
+                     cert_url = f"/static/certificates/{filename}"
+                 else:
+                     cert_url = None
+
             item = {
                 "course_id": course.id,
                 "course": course.name,
@@ -70,7 +88,9 @@ def student_progress():
                 "total_assignments": req,
                 "quizzes_completed": quiz_done,
                 "total_quizzes": total_quizzes, 
-                "duration": raw_dur
+                "duration": raw_dur,
+                "can_generate_certificate": min(prog_val, 100) >= 100,
+                "certificate_url": cert_url
             }
             response.append(item)
 
@@ -262,13 +282,15 @@ def student_dashboard():
         cert_url = None
         if cert_record and cert_record.certificate_url:
              # Verify file exists using ABSOLUTE path
-             # certificate_url is like "/certificates/foo.pdf"
-             # we need "C:/.../static/certificates/foo.pdf"
              lpath = cert_record.certificate_url.lstrip("/")
+             if lpath.startswith("static/"):
+                  lpath = lpath.replace("static/", "", 1)
+                  
              expected_path = os.path.join(current_app.root_path, "static", lpath)
              
              if os.path.exists(expected_path):
-                 cert_url = cert_record.certificate_url
+                 filename = os.path.basename(cert_record.certificate_url)
+                 cert_url = f"/static/certificates/{filename}"
              else:
                  # File missing, treat as not generated
                  cert_url = None
@@ -565,60 +587,66 @@ def generate_certificate_pdf(student_name, course_name, output_path, cert_id, is
     c.setFillColor(HexColor("#7F8C8D"))
     c.drawCentredString(width / 2, height - 145, "Center for Technical Excellence")
 
-    # 5. Certificate Title
+    # 5. Certificate Title (Moved up slightly)
     c.setFont("Helvetica-Bold", 42)
     c.setFillColor(HexColor("#C0392B")) # Deep Red for Title
-    c.drawCentredString(width / 2, height - 220, "CERTIFICATE OF ACHIEVEMENT")
+    c.drawCentredString(width / 2, height - 200, "CERTIFICATE OF ACHIEVEMENT")
     
-    # 6. Body Text
+    # 6. Body Text (Adjusted Spacing)
     c.setFont("Helvetica", 16)
     c.setFillColor(HexColor("#34495E"))
-    c.drawCentredString(width / 2, height - 270, "This is to certify that")
+    c.drawCentredString(width / 2, height - 250, "This is to certify that")
     
     # Student Name
     c.setFont("Helvetica-Bold", 32)
     c.setFillColor(HexColor("#2980B9")) # Nice Blue
-    c.drawCentredString(width / 2, height - 320, student_name.upper())
+    c.drawCentredString(width / 2, height - 300, student_name.upper())
     
     # Decorative Line
     c.setLineWidth(1)
     c.setStrokeColor(HexColor("#BDC3C7"))
-    c.line(width/2 - 200, height - 330, width/2 + 200, height - 330)
+    c.line(width/2 - 200, height - 310, width/2 + 200, height - 310)
 
     c.setFont("Helvetica", 16)
     c.setFillColor(HexColor("#34495E"))
-    c.drawCentredString(width / 2, height - 370, "has successfully completed the course")
+    c.drawCentredString(width / 2, height - 350, "has successfully completed the")
 
     # Course Name
     c.setFont("Helvetica-Bold", 26)
     c.setFillColor(HexColor("#E67E22")) # Pumpkin Orange
-    c.drawCentredString(width / 2, height - 420, course_name)
+    c.drawCentredString(width / 2, height - 390, course_name)
+    
+    # New Description Text
+    c.setFont("Helvetica", 14)
+    c.setFillColor(HexColor("#34495E"))
+    c.drawCentredString(width / 2, height - 430, "and has demonstrated the required skills, knowledge, and hands-on")
+    c.drawCentredString(width / 2, height - 450, "expertise in designing and managing automated workflows.")
     
     # Dates
-    c.setFont("Helvetica", 14)
+    c.setFont("Helvetica", 12)
     c.setFillColor(HexColor("#7F8C8D"))
-    c.drawCentredString(width / 2, height - 460, f"Issued on: {issue_date}")
+    c.drawCentredString(width / 2, height - 490, f"Issued on: {issue_date}")
 
-    # 7. Signatures
+    # 7. Signatures (Positions Adjusted)
     # Bottom Left
     c.setLineWidth(1)
     c.setStrokeColor(HexColor("#2C3E50"))
     
-    c.line(100, 100, 300, 100)
+    c.line(100, 80, 300, 80)
     c.setFont("Helvetica-Bold", 12)
     c.setFillColor(HexColor("#2C3E50"))
-    c.drawString(100, 80, "Director")
+    c.drawString(100, 60, "Director")
     
     # Bottom Right
-    c.line(width - 300, 100, width - 100, 100)
-    c.drawRightString(width - 100, 80, "Program Manager")
+    c.line(width - 300, 80, width - 100, 80)
+    c.drawRightString(width - 100, 60, "Program Manager")
     c.setFont("Helvetica", 10)
-    c.drawRightString(width - 110, 65, "Analogica SkillTrack")
+    c.drawRightString(width - 110, 45, "Analogica SkillTrack")
     
     # 8. Verification Link/ID
     c.setFont("Courier", 8)
     c.setFillColor(HexColor("#BDC3C7"))
-    c.drawCentredString(width/2, 40, f"ID: {cert_id}")
+    c.drawCentredString(width/2, 30, f"ID: {cert_id}")
 
     c.save()
 
@@ -674,7 +702,7 @@ def generate_certificate(course_id):
     except Exception as e:
         return jsonify({"error": f"Failed to generate PDF: {str(e)}"}), 500
 
-    cert_url = f"/certificates/{filename}"
+    cert_url = f"/static/certificates/{filename}"
 
     if not existing:
         cert = Certificate(
@@ -689,3 +717,69 @@ def generate_certificate(course_id):
         existing.certificate_url = cert_url
         db.session.commit()
         return jsonify({"message": "Certificate updated", "url": existing.certificate_url}), 200
+
+# ================= ENROLLMENT =================
+@student_bp.route("/student/enroll", methods=["POST"])
+@jwt_required()
+def enroll_course():
+    student_id = int(get_jwt_identity())
+    student = User.query.get(student_id)
+
+    if not student or student.role != "STUDENT":
+        return jsonify({"error": "Unauthorized"}), 403
+
+    data = request.get_json()
+    course_id = data.get("course_id")
+
+    if not course_id:
+        return jsonify({"error": "Course ID is required"}), 400
+
+    # 1. Check if course exists
+    course = Course.query.get(course_id)
+    if not course:
+        return jsonify({"error": "Course not found"}), 404
+
+    # 2. Check strict Duplicate Enrollment
+    existing = Enrollment.query.filter_by(user_id=student_id, course_id=course_id).first()
+    if existing:
+        return jsonify({"error": "You are already enrolled in this course"}), 400
+
+    # 3. Create Enrollment
+    enrollment = Enrollment(
+        user_id=student_id,
+        course_id=course_id
+    )
+    db.session.add(enrollment)
+
+    # 4. Create Progress Record
+    student_progress = StudentProgress(
+        user_id=student_id,
+        course_id=course_id,
+        status="Enrolled"
+    )
+    db.session.add(student_progress)
+    
+    # 5. Backfill Tasks (Copy from auth.py logic)
+    existing_tasks = Task.query.filter_by(course_id=course_id).all()
+    
+    unique_templates = {}
+    for t in existing_tasks:
+        if t.title not in unique_templates:
+            unique_templates[t.title] = t
+    
+    for _, t in unique_templates.items():
+        new_task = Task(
+            title=t.title,
+            description=t.description,
+            assigned_to=student_id,
+            assigned_by=t.assigned_by,
+            course_id=course_id,
+            priority=t.priority,
+            due_date=t.due_date,
+            status="Pending",
+            week_number=t.week_number
+        )
+        db.session.add(new_task)
+
+    db.session.commit()
+    return jsonify({"message": f"Successfully enrolled in {course.name}"}), 201

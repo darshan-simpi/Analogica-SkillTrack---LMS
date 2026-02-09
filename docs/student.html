@@ -92,6 +92,43 @@
         /* Center contents */
 
         /* Custom Status Colors for dynamic content if needed, though Tailwind classes preferred */
+        /* Star Celebration Animation */
+        .celebration-container {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            pointer-events: none;
+            z-index: 9999;
+            overflow: hidden;
+        }
+
+        .star {
+            position: absolute;
+            width: 15px;
+            height: 15px;
+            background-color: gold;
+            clip-path: polygon(50% 0%, 61% 35%, 98% 35%, 68% 57%, 79% 91%, 50% 70%, 21% 91%, 32% 57%, 2% 35%, 39% 35%);
+            animation: fall linear forwards;
+            opacity: 0;
+        }
+
+        @keyframes fall {
+            0% {
+                transform: translateY(-10vh) rotate(0deg) scale(0);
+                opacity: 1;
+            }
+
+            10% {
+                transform: translateY(0) rotate(45deg) scale(1);
+            }
+
+            100% {
+                transform: translateY(110vh) rotate(720deg) scale(0.5);
+                opacity: 0;
+            }
+        }
     </style>
 </head>
 
@@ -268,6 +305,10 @@
             <section id="courses" class="page fade-in">
                 <div class="flex items-center justify-between mb-6">
                     <h2 class="text-2xl font-bold text-[#172554]">My Courses</h2>
+                    <button onclick="openEnrollModal()"
+                        class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-4 rounded-xl transition-colors shadow-lg shadow-blue-200 text-sm">
+                        <i class="fa-solid fa-plus mr-2"></i> Enroll in New Course
+                    </button>
                 </div>
                 <!-- Grid Container populated by JS -->
                 <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="courseList">
@@ -405,6 +446,34 @@
                     class="btn-primary w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-all"
                     onclick="submitQuizAnswers()">
                     Submit Answers
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Enroll Modal -->
+    <div id="enrollModal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
+        <div class="modal-content bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 relative">
+            <span class="close-modal absolute top-4 right-4 text-gray-400 hover:text-gray-600 cursor-pointer text-xl"
+                onclick="closeEnrollModal()">&times;</span>
+            <h3 class="modal-title text-xl font-bold text-gray-900 mb-2">Enroll in a New Course</h3>
+            <p class="text-slate-500 text-sm mb-6">Select a course to start learning.</p>
+
+            <div class="space-y-4">
+                <div class="relative">
+                    <select id="enrollCourseSelect"
+                        class="w-full bg-gray-50 text-gray-800 border border-gray-200 rounded-xl px-4 py-3 outline-none focus:border-blue-500 text-sm appearance-none cursor-pointer hover:border-blue-300 transition-colors">
+                        <option value="">Loading available courses...</option>
+                    </select>
+                    <i
+                        class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none text-xs"></i>
+                </div>
+
+                <div id="enrollMsg" class="hidden text-center text-sm font-bold p-3 rounded-lg"></div>
+
+                <button onclick="submitEnrollment()"
+                    class="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-lg shadow-blue-200 mt-2">
+                    Confirm Enrollment
                 </button>
             </div>
         </div>

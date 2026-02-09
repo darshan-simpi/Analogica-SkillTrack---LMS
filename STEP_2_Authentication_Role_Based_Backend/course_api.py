@@ -264,17 +264,20 @@ def get_interns():
 @jwt_required()
 def get_tasks():
     claims = get_jwt()
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     role = claims.get("role")
 
     if role == "INTERN" or role == "STUDENT":
-        raw_tasks = Task.query.filter_by(assigned_to=user_id).order_by(Task.id).all()
+        # Order by internship first to grouping works for unlocking logic
+        raw_tasks = Task.query.filter_by(assigned_to=user_id).order_by(Task.internship_id, Task.week_number, Task.id).all()
         tasks = []
         
         for index, t in enumerate(raw_tasks):
-            week_num = index + 1
+            week_num = t.week_number # Trust the week number
             is_unlocked = True
-            if index > 0:
+            
+            # Check previous task ONLY if it belongs to same internship
+            if index > 0 and t.internship_id == raw_tasks[index-1].internship_id:
                 prev_task = raw_tasks[index-1]
                 prev_submitted = (prev_task.status == 'Completed')
                 prev_deadline_passed = True
@@ -304,7 +307,9 @@ def get_tasks():
                 "display_week": f"Week {week_num}",
                 "assigned_by": User.query.get(t.assigned_by).name if t.assigned_by else None,
                 "grade": grade,
-                "feedback": feedback
+                "feedback": feedback,
+                "internship_name": Internship.query.get(t.internship_id).intern_name if t.internship_id else "General Tasks",
+                "internship_id": t.internship_id
             })
 
         return jsonify(tasks), 200
@@ -330,7 +335,7 @@ def get_tasks():
 @course_bp.route("/student/courses", methods=["GET"])
 @jwt_required()
 def get_student_courses():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     progress_records = StudentProgress.query.filter_by(user_id=user_id).all()
     
     enrolled_courses = []
@@ -355,7 +360,7 @@ def assign_task():
         return jsonify({"error": "Trainer access required"}), 403
 
     data = request.get_json()
-    trainer_id = get_jwt_identity()
+    trainer_id = int(get_jwt_identity())
     
     tasks_to_create = []
     
@@ -409,7 +414,7 @@ def assign_task():
 def update_task(id):
     claims = get_jwt()
     task = Task.query.get_or_404(id)
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     role = claims.get("role")
 
     if role == "INTERN" and task.assigned_to != user_id:
@@ -431,13 +436,13 @@ def update_task(id):
 def submit_task(id):
     claims = get_jwt()
     task = Task.query.get_or_404(id)
-    if task.assigned_to != get_jwt_identity():
+    if task.assigned_to != int(get_jwt_identity()):
         return jsonify({"error": "Unauthorized"}), 403
 
     data = request.get_json()
     submission = Submission(
         task_id=id,
-        submitted_by=get_jwt_identity(),
+        submitted_by=int(get_jwt_identity()),
         content=data.get("content")
     )
     task.status = "Submitted"
@@ -453,7 +458,7 @@ def get_submissions():
     if claims.get("role") != "TRAINER":
         return jsonify({"error": "Trainer access required"}), 403
 
-    submissions = Submission.query.join(Task).filter(Task.assigned_by == get_jwt_identity()).all()
+    submissions = Submission.query.join(Task).filter(Task.assigned_by == int(get_jwt_identity())).all()
     return jsonify([
         {
             "id": s.id,
@@ -471,27 +476,44 @@ def get_submissions():
 @course_bp.route("/enrollments", methods=["GET"])
 @jwt_required()
 def get_enrollments():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
 
     enrollments = Enrollment.query.filter_by(user_id=user_id).all()
     enrolled_internships = []
+    
     for e in enrollments:
-        internship = Internship.query.get(e.internship_id)
-        if internship:
-            enrolled_internships.append({
-                "id": internship.id,
-                "intern_name": internship.intern_name,
-                "mentor_name": internship.mentor_name,
-                "duration": internship.duration,
-                "enrolled_at": e.enrolled_at.isoformat()
-            })
+        if e.internship_id:
+            internship = Internship.query.get(e.internship_id)
+            if internship:
+                # Calculate progress for this specific internship
+                tasks = Task.query.filter_by(internship_id=internship.id, assigned_to=user_id).all()
+                completed = len([t for t in tasks if t.status == 'Completed'])
+                
+                # Dynamic requirement based on duration
+                required = get_required_assignments(internship.duration)
+                
+                # Progress calculation
+                progress = int((completed / max(required, 1)) * 100)
+                progress = min(progress, 100)
+
+                enrolled_internships.append({
+                    "id": internship.id,
+                    "intern_name": internship.intern_name,
+                    "mentor_name": internship.mentor_name,
+                    "duration": internship.duration,
+                    "enrolled_at": e.enrolled_at.isoformat(),
+                    "progress": progress,
+                    "tasks_completed": completed,
+                    "tasks_total": required
+                })
+                
     return jsonify(enrolled_internships), 200
 
 
 @course_bp.route("/enrollments", methods=["POST"])
 @jwt_required()
 def enroll_internship():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
 
     data = request.get_json()
     internship_id = data.get("internship_id")
@@ -508,11 +530,15 @@ def enroll_internship():
     
     # Backfill logic simplified
     existing_tasks = Task.query.filter_by(internship_id=internship_id).all()
+    
+    # Logic to populate tasks if they exist for the internship template (via other users or trainers)
+    # Ideally should copy from a TemplateTask table, but here acts as copy from peers
     if not existing_tasks:
         peer_enrollments = Enrollment.query.filter_by(internship_id=internship_id).all()
         peer_ids = [e.user_id for e in peer_enrollments if e.user_id != user_id]
         if peer_ids:
-            peer_tasks = Task.query.filter(Task.assigned_to.in_(peer_ids)).all()
+            # Get tasks assigned to peers for this internship
+            peer_tasks = Task.query.filter(Task.assigned_to.in_(peer_ids), Task.internship_id == internship_id).all()
             existing_tasks.extend(peer_tasks)
 
     unique_tasks = {t.title: t for t in existing_tasks} 
@@ -539,7 +565,7 @@ def enroll_internship():
 @course_bp.route("/mentors", methods=["GET"])
 @jwt_required()
 def get_mentors():
-    user_id = get_jwt_identity()
+    user_id = int(get_jwt_identity())
     user = User.query.get(user_id)
     trainers = []
     if user and user.role == "STUDENT":
@@ -574,39 +600,45 @@ def get_intern_stats():
     user_id = int(get_jwt_identity())
     user = User.query.get(user_id)
     
+    # Calculate Total Tasks (Assigned across all internships)
     tasks = Task.query.filter_by(assigned_to=user_id).all()
-    total_tasks = len(tasks)
+    total_assigned_tasks = len(tasks)
     completed_tasks = len([t for t in tasks if t.status == 'Completed'])
-    pending_tasks = total_tasks - completed_tasks
+    pending_tasks = total_assigned_tasks - completed_tasks
     
-    enrollments = Enrollment.query.filter_by(user_id=user_id).all()
-    enrolled_count = len(enrollments)
-    
-    overall_progress = int((completed_tasks / total_tasks) * 100) if total_tasks > 0 else 0
-        
+    tasks_done_today = 0
     today = datetime.utcnow().date()
     submissions = TaskSubmission.query.filter_by(student_id=user_id).all()
     tasks_done_today = len([s for s in submissions if s.submitted_at.date() == today])
     
+    # Calculate Overall Progress (Average of all Enrolled Internships)
+    enrollments = Enrollment.query.filter_by(user_id=user_id).all()
+    enrolled_count = 0
+    completion_rates = []
     mentor_name = "Not Assigned"
-    required_tasks = 4 # Default
     
-    if enrollments:
-        last_enrollment = enrollments[-1] 
-        if last_enrollment.internship_id:
-             internship = Internship.query.get(last_enrollment.internship_id)
-             if internship:
-                 mentor_name = internship.mentor_name
-                 required_tasks = get_required_assignments(internship.duration)
-
-    # Use required_tasks as the baseline for progress
-    overall_progress = int((completed_tasks / max(required_tasks, 1)) * 100)
-    overall_progress = min(overall_progress, 100)
+    for e in enrollments:
+        if e.internship_id:
+            enrolled_count += 1
+            internship = Internship.query.get(e.internship_id)
+            if internship:
+                mentor_name = internship.mentor_name # Takes the last one
+                
+                # Internship specific progress
+                i_tasks = Task.query.filter_by(internship_id=internship.id, assigned_to=user_id).all()
+                 
+                i_completed = len([t for t in i_tasks if t.status == 'Completed'])
+                i_required = get_required_assignments(internship.duration)
+                
+                rate = int((i_completed / max(i_required, 1)) * 100)
+                completion_rates.append(min(rate, 100))
+    
+    # Average progress across all internships
+    overall_progress = int(sum(completion_rates) / len(completion_rates)) if completion_rates else 0
 
     return jsonify({
         "tasks_completed": completed_tasks,
-        "tasks_pending": pending_tasks, # Reverted to actual assigned pending
-        "tasks_required": required_tasks, # Added for frontend if needed
+        "tasks_pending": pending_tasks,
         "overall_progress": overall_progress,
         "internships_enrolled": enrolled_count,
         "tasks_done_today": tasks_done_today,
@@ -620,15 +652,33 @@ def generate_intern_certificate():
     user_id = int(get_jwt_identity())
     user = User.query.get(user_id)
     
-    tasks = Task.query.filter_by(assigned_to=user_id).all()
-    # Check against REQUIRED count, not just assigned
-    enrollment = Enrollment.query.filter_by(user_id=user_id).first()
+    data = request.get_json() or {}
+    internship_id = data.get("internship_id")
+    
+    # Identify target enrollment
+    if internship_id:
+        enrollment = Enrollment.query.filter_by(user_id=user_id, internship_id=internship_id).first()
+    else:
+        # Default to most recent
+        enrollment = Enrollment.query.filter_by(user_id=user_id).order_by(Enrollment.enrolled_at.desc()).first()
+        
+    if not enrollment:
+        return jsonify({"error": "No enrollment found"}), 404
+        
     required_count = 4
-    if enrollment and enrollment.internship_id:
+    if enrollment.internship_id:
         internship = Internship.query.get(enrollment.internship_id)
         if internship:
              required_count = get_required_assignments(internship.duration)
     
+    # Check tasks specific to this internship
+    if enrollment.internship_id:
+        tasks = Task.query.filter_by(assigned_to=user_id, internship_id=enrollment.internship_id).all()
+        # Fallback for old tasks without internship_id but enrolled in only 1? 
+        # Better to be strict: only count tasks linked to this internship
+    else:
+        tasks = Task.query.filter_by(assigned_to=user_id).all()
+
     completed = [t for t in tasks if t.status == 'Completed']
     
     if len(completed) < required_count:
@@ -646,7 +696,7 @@ def generate_intern_certificate():
         cert_dir = os.path.join(os.getcwd(), 'static', 'certificates')
         os.makedirs(cert_dir, exist_ok=True)
         
-        filename = f"Intern_Certificate_{user_id}.pdf"
+        filename = f"Intern_Certificate_{user_id}_{enrollment.internship_id}.pdf"
         filepath = os.path.join(cert_dir, filename)
         
         # Setup Canvas (Portrait A4)
@@ -658,7 +708,6 @@ def generate_intern_certificate():
         start_date = "December 2024"
         end_date = "January 2025"
         
-        enrollment = Enrollment.query.filter_by(user_id=user_id).first()
         mentor_name = "Mentor"
         
         if enrollment:
@@ -804,7 +853,7 @@ def generate_intern_certificate():
              c.drawImage(msme_path, start_x_logos + 60, logo_y_bottom, width=80, height=50, mask='auto', preserveAspectRatio=True)
 
         c.save()
-        return jsonify({"message": "Certificate generated", "url": f"/certificates/{filename}"}), 201
+        return jsonify({"message": "Certificate generated", "url": f"/static/certificates/{filename}"}), 201
         
     except Exception as e:
         import traceback

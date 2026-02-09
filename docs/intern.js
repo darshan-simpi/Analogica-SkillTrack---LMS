@@ -68,11 +68,11 @@ async function loadProgressPage() {
 
         // Render a card for each internship (Student Style)
         enrollments.forEach(e => {
-            // For now, using global stats for the specific internship progress since we only have 1 active usually.
-            const progress = stats.overall_progress;
-            const completed = stats.tasks_completed;
-            const pending = stats.tasks_pending;
-            const total = completed + pending;
+            // Use per-internship stats
+            const progress = e.progress !== undefined ? e.progress : 0;
+            const completed = e.tasks_completed !== undefined ? e.tasks_completed : 0;
+            const total = e.tasks_total !== undefined ? e.tasks_total : 4;
+            const pending = total - completed;
 
             // Status Logic
             let status = "In Progress";
@@ -108,9 +108,14 @@ async function loadProgressPage() {
                     </div>
                 </div>
                 
+                
                    <div class="relative z-10 mt-4 pt-4 border-t border-gray-50 flex gap-4 text-xs text-gray-400 font-medium">
                         <span><i class="fa-regular fa-calendar mr-1"></i> Enrolled: ${new Date(e.enrolled_at).toLocaleDateString()}</span>
                    </div>
+                   ${progress >= 100
+                    ? `<div class="relative z-10 mt-4 inline-flex items-center gap-2 bg-green-100 text-green-700 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide border border-green-200 shadow-sm"><i class="fa-solid fa-unlock"></i> Certificate Unlocked</div>`
+                    : `<div class="relative z-10 mt-4 inline-flex items-center gap-2 bg-slate-100 text-slate-500 px-4 py-2 rounded-lg text-xs font-bold uppercase tracking-wide border border-slate-200"><i class="fa-solid fa-lock"></i> Certificate Locked</div>`
+                }
                 </div>
             `;
             container.innerHTML += card;
@@ -119,6 +124,43 @@ async function loadProgressPage() {
     } catch (e) {
         console.error("Error loading progress page", e);
         container.innerHTML = '<p style="color:red">Failed to load progress details.</p>';
+    }
+}
+
+async function downloadCertificateForInternship(internshipId, btn) {
+    const originalContent = btn.innerHTML;
+    btn.innerHTML = 'Generating... <i class="fa-solid fa-spinner fa-spin"></i>';
+    btn.disabled = true;
+
+    try {
+        const res = await fetch(API_BASE + '/intern/certificate', {
+            method: 'POST',
+            headers: {
+                'Authorization': `Bearer ${localStorage.getItem('token')}`,
+                'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ internship_id: internshipId })
+        });
+        const data = await res.json();
+
+        if (res.ok) {
+            const fullUrl = API_BASE.replace('/api', '') + data.url;
+            window.open(fullUrl, '_blank');
+            btn.innerHTML = 'Downloaded <i class="fa-solid fa-check"></i>';
+            setTimeout(() => {
+                btn.innerHTML = originalContent;
+                btn.disabled = false;
+            }, 3000);
+        } else {
+            alert(data.error || "Failed to generate.");
+            btn.innerHTML = 'Retry <i class="fa-solid fa-rotate-right"></i>';
+            btn.disabled = false;
+        }
+    } catch (e) {
+        console.error(e);
+        alert("Error requesting certificate.");
+        btn.innerHTML = originalContent;
+        btn.disabled = false;
     }
 }
 
@@ -135,7 +177,7 @@ async function downloadCertificate(btn) {
         const data = await res.json();
 
         if (res.ok) {
-            const fullUrl = API_BASE + data.url;
+            const fullUrl = API_BASE.replace('/api', '') + data.url;
             window.open(fullUrl, '_blank');
             btn.innerHTML = 'Downloaded <i class="fa-solid fa-check"></i>';
             setTimeout(() => {
@@ -276,7 +318,9 @@ async function loadInternships() {
                             <p><i class="fa-solid fa-user-tie w-5 text-gray-400"></i> Mentor: ${internship.mentor_name}</p>
                             <p><i class="fa-regular fa-clock w-5 text-gray-400"></i> Duration: ${internship.duration}</p>
                         </div>
-                        <!-- No Enroll Button -->
+                        <button onclick="enrollInInternship(${internship.id})" class="w-full py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-lg text-xs uppercase tracking-wide transition-colors shadow-lg shadow-blue-500/20">
+                            Enroll Now <i class="fa-solid fa-arrow-right ml-1"></i>
+                        </button>
                     </div>
                 `;
                 availableList.innerHTML += internshipCard;
@@ -374,45 +418,118 @@ async function loadDashboardData() {
         // Update charts
         // updateCharts(stats); // Charts removed
 
+        // Fetch Enrollments for Certificate Logic
+        const enrollRes = await fetch(API_BASE + '/enrollments', {
+            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }
+        });
+        const enrollments = enrollRes.ok ? await enrollRes.json() : [];
+
         // Update Dashboard Certificate Section
-        checkCertificateEligibilityForDashboard(stats);
+        checkCertificateEligibilityForDashboard(enrollments);
 
     } catch (error) {
         console.error('Error fetching dashboard data:', error);
     }
 }
 
-function checkCertificateEligibilityForDashboard(stats) {
+function checkCertificateEligibilityForDashboard(enrollments) {
     const certSection = document.getElementById('dashboard-certificate-section');
-    const certBtn = document.getElementById('dashboard-download-cert-btn');
-    const certMsg = document.getElementById('dashboard-cert-message');
+    const container = document.getElementById('certificateContainer');
 
-    if (certSection && certBtn) {
-        if (stats.tasks_pending === 0 && stats.tasks_completed > 0) {
+    if (certSection && container) {
+        // Filter completed internships
+        // Completion logic: progress >= 100
+        const completedInternships = enrollments.filter(e => {
+            const progress = (e.progress !== undefined) ? e.progress : 0;
+            return progress >= 100;
+        });
+
+        if (completedInternships.length > 0) {
             certSection.classList.remove('hidden');
-            certBtn.disabled = false;
-            certBtn.className = "bg-indigo-600 hover:bg-indigo-700 text-white font-bold py-3 px-6 rounded-xl shadow-lg shadow-indigo-500/20 transition-all transform active:scale-95";
-            certBtn.innerHTML = 'Download Certificate <i class="fa-solid fa-certificate ml-2"></i>';
-            certBtn.onclick = generateCertificate;
 
-            certMsg.innerText = "Congratulations! You have completed your internship program.";
-            certMsg.className = "text-blue-600 font-bold mb-6 max-w-md mx-auto";
+            // Trigger Celebration if newly unlocked (simple check)
+            if (!sessionStorage.getItem("celebrationShown")) {
+                triggerCelebration();
+            }
+
+            container.innerHTML = `
+                <div class="inline-flex items-center justify-center h-16 w-16 bg-blue-100 text-blue-600 rounded-full mb-4 text-2xl">
+                    <i class="fa-solid fa-certificate"></i>
+                </div>
+                <h3 class="text-xl font-bold text-[#172554] mb-2">Internship Certifications</h3>
+                <p class="text-slate-500 text-sm mb-6 max-w-md mx-auto">You have earned the following certificates:</p>
+                <div class="space-y-3">
+            `;
+
+            completedInternships.forEach(internship => {
+                container.innerHTML += `
+                    <button onclick="downloadCertificateForInternship(${internship.id}, this)" class="w-full text-left p-4 bg-emerald-50 hover:bg-emerald-100 rounded-xl border border-emerald-200 transition-colors flex justify-between items-center group">
+                        <div>
+                            <h4 class="font-bold text-emerald-800 text-sm">${internship.intern_name}</h4>
+                            <span class="text-xs text-emerald-600">Generate & Download Certificate</span>
+                        </div>
+                        <i class="fa-solid fa-download text-emerald-500 group-hover:text-emerald-700 text-lg"></i>
+                    </button>
+                 `;
+            });
+
+            container.innerHTML += `</div>`;
+
         } else {
-            // In new design, we keep it hidden if locked, or show locked state. 
-            // We'll follow the previous logic of showing it locked if user is close or just general availability
-            // But usually we hide it until unlocked or show a locked card.
-            // The HTML defaults to hidden. 
-            // Let's show it only if user has made some progress? Or always show locked?
-            // Let's show locked state.
-            certSection.classList.remove('hidden');
-            certBtn.disabled = true;
-            certBtn.className = "bg-slate-200 text-slate-400 font-bold py-3 px-6 rounded-xl cursor-not-allowed transition-all";
-            certBtn.innerHTML = '<i class="fa-solid fa-lock mr-2"></i> Certificate Locked';
-
-            certMsg.innerText = `Complete all tasks to unlock. (${stats.tasks_pending} remaining)`;
-            certMsg.className = "text-slate-500 mb-6 max-w-md mx-auto";
+            // Show locked state if enrolled but not completed
+            if (enrollments.length > 0) {
+                certSection.classList.remove('hidden');
+                container.innerHTML = `
+                    <div class="inline-flex items-center justify-center h-16 w-16 bg-slate-100 text-slate-400 rounded-full mb-4 text-2xl">
+                        <i class="fa-solid fa-lock"></i>
+                    </div>
+                    <h3 class="text-xl font-bold text-slate-600 mb-2">Certificates Locked</h3>
+                    <p class="text-slate-500 text-sm mb-4 max-w-md mx-auto">Complete all tasks in an internship to unlock its certificate.</p>
+                 `;
+            } else {
+                certSection.classList.add('hidden');
+            }
         }
     }
+}
+
+// 🎉 Celebration Logic
+function triggerCelebration() {
+    console.log("CELEBRATION TRIGGERED!");
+    const container = document.createElement("div");
+    container.className = "celebration-container";
+    document.body.appendChild(container);
+
+    const colors = ["#FFD700", "#FFC107", "#FFEB3B", "#FFA000", "#FF5722", "#4CAF50", "#2196F3"];
+
+    for (let i = 0; i < 60; i++) {
+        const star = document.createElement("div");
+        star.className = "star";
+        star.style.left = Math.random() * 100 + "vw";
+        star.style.animationDuration = Math.random() * 2 + 3 + "s";
+        star.style.animationDelay = Math.random() * 2 + "s";
+        star.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+
+        const size = Math.random() * 10 + 5 + "px";
+        star.style.width = size;
+        star.style.height = size;
+
+        // Inline styles for basic star shape/anim since we might not have CSS
+        star.style.position = 'absolute';
+        star.style.top = '-10px';
+        star.style.borderRadius = '50%';
+        star.style.opacity = '0';
+        star.style.animationName = 'fall';
+        star.style.animationTimingFunction = 'linear';
+
+        container.appendChild(star);
+    }
+
+    sessionStorage.setItem("celebrationShown", "true");
+
+    setTimeout(() => {
+        container.remove();
+    }, 6000);
 }
 
 async function generateCertificateForDashboard(btn, msgDiv) {
@@ -466,64 +583,80 @@ async function loadTasks() {
             return;
         }
 
-        tasks.forEach((task, index) => {
-            const weekNum = task.week_number || (index + 1);
-            const isUnlocked = task.is_unlocked;
-            const isSubmitted = task.status === 'Completed';
+        // Group tasks by internship
+        const grouped = {};
+        tasks.forEach(t => {
+            const key = t.internship_name || "General Tasks";
+            if (!grouped[key]) grouped[key] = [];
+            grouped[key].push(t);
+        });
 
-            const isRejected = task.status === 'Rejected';
+        Object.keys(grouped).forEach(groupName => {
+            // Add Section Header
+            container.innerHTML += `<div class="mb-4 text-xl font-bold border-b border-gray-200 pb-2 text-blue-800 mt-8 first:mt-0 flex items-center gap-2">
+                <i class="fa-solid fa-briefcase"></i> ${groupName}
+            </div>`;
 
-            const statusColor = isSubmitted ? '#22c55e' : (isRejected ? '#ef4444' : (isUnlocked ? '#4f46e5' : '#94a3b8'));
-            const opacity = isUnlocked ? 1 : 0.7;
+            const groupTasks = grouped[groupName];
+            groupTasks.forEach((task, index) => {
+                const weekNum = task.week_number || (index + 1);
+                const isUnlocked = task.is_unlocked;
+                const isSubmitted = task.status === 'Completed';
 
-            let actionBtn = '';
+                const isRejected = task.status === 'Rejected';
 
-            if (isRejected) {
-                actionBtn = `<button onclick="openSubmissionModal(${task.id})" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg text-sm transition-colors shadow-sm">Re-Submit Task</button>`;
-            } else if (isUnlocked && !isSubmitted) {
-                actionBtn = `<button onclick="openSubmissionModal(${task.id})" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-sm transition-colors shadow-lg shadow-indigo-500/20">Mark Complete</button>`;
-            } else {
-                if (task.grade) {
-                    actionBtn = `<span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wide">Graded: ${task.grade} <i class="fa-solid fa-star text-yellow-500"></i></span>`;
-                } else if (isSubmitted) {
-                    actionBtn = `<span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wide">Completed <i class="fa-solid fa-check"></i></span>`;
+                const statusColor = isSubmitted ? '#22c55e' : (isRejected ? '#ef4444' : (isUnlocked ? '#4f46e5' : '#94a3b8'));
+                const opacity = isUnlocked ? 1 : 0.7;
+
+                let actionBtn = '';
+
+                if (isRejected) {
+                    actionBtn = `<button onclick="openSubmissionModal(${task.id})" class="px-4 py-2 bg-red-500 hover:bg-red-600 text-white font-bold rounded-lg text-sm transition-colors shadow-sm">Re-Submit Task</button>`;
+                } else if (isUnlocked && !isSubmitted) {
+                    actionBtn = `<button onclick="openSubmissionModal(${task.id})" class="px-4 py-2 bg-indigo-600 hover:bg-indigo-700 text-white font-bold rounded-lg text-sm transition-colors shadow-lg shadow-indigo-500/20">Mark Complete</button>`;
                 } else {
-
-                    // Check Deadline
-                    let isDeadlinePassed = false;
-                    if (task.due_date) {
-                        const todayStr = new Date().toISOString().split('T')[0];
-                        if (todayStr > task.due_date) isDeadlinePassed = true;
-                    }
-
-                    if (isDeadlinePassed) {
-                        // ALLOW LATE SUBMISSION
-                        actionBtn = `<button onclick="openSubmissionModal(${task.id})" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-sm transition-colors">Submit Late <i class="fa-solid fa-clock"></i></button>`;
+                    if (task.grade) {
+                        actionBtn = `<span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wide">Graded: ${task.grade} <i class="fa-solid fa-star text-yellow-500"></i></span>`;
+                    } else if (isSubmitted) {
+                        actionBtn = `<span class="px-3 py-1 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wide">Completed <i class="fa-solid fa-check"></i></span>`;
                     } else {
-                        actionBtn = `<span class="px-3 py-1 bg-slate-100 text-slate-500 rounded-full text-xs font-bold uppercase tracking-wide"><i class="fa-solid fa-lock"></i> Locked</span>`;
+
+                        // Check Deadline
+                        let isDeadlinePassed = false;
+                        if (task.due_date) {
+                            const todayStr = new Date().toISOString().split('T')[0];
+                            if (todayStr > task.due_date) isDeadlinePassed = true;
+                        }
+
+                        if (isDeadlinePassed) {
+                            // ALLOW LATE SUBMISSION
+                            actionBtn = `<button onclick="openSubmissionModal(${task.id})" class="px-4 py-2 bg-amber-500 hover:bg-amber-600 text-white font-bold rounded-lg text-sm transition-colors">Submit Late <i class="fa-solid fa-clock"></i></button>`;
+                        } else {
+                            actionBtn = `<span class="px-3 py-1 bg-slate-100 text-slate-500 rounded-full text-xs font-bold uppercase tracking-wide"><i class="fa-solid fa-lock"></i> Locked</span>`;
+                        }
                     }
                 }
-            }
 
-            const taskCard = `
-                <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center mb-6 hover:shadow-md transition-all gap-4 ${opacity < 1 ? 'opacity-70 grayscale' : ''}" style="border-left: 5px solid ${statusColor};">
-                    <div class="flex-1 w-full">
-                        <div class="flex items-center gap-3 mb-2">
-                            <span class="px-2 py-1 rounded text-xs font-bold uppercase tracking-wide text-white" style="background: ${statusColor};">Week ${weekNum}</span>
-                             <h3 class="m-0 text-lg font-bold text-gray-900">${task.title}</h3>
+                const taskCard = `
+                    <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col md:flex-row justify-between items-center mb-6 hover:shadow-md transition-all gap-4 ${opacity < 1 ? 'opacity-70 grayscale' : ''}" style="border-left: 5px solid ${statusColor};">
+                        <div class="flex-1 w-full">
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="px-2 py-1 rounded text-xs font-bold uppercase tracking-wide text-white" style="background: ${statusColor};">Week ${weekNum}</span>
+                                <h3 class="m-0 text-lg font-bold text-gray-900">${task.title}</h3>
+                            </div>
+                            <p class="text-sm text-gray-500 mb-2">${task.description || 'Complete the assigned work for this week.'}</p>
+                            ${task.due_date ? `<small class="text-gray-400 font-medium text-xs"><i class="fa-regular fa-calendar mr-1"></i> Due: ${task.due_date}</small>` : ''}
+                            
+                            ${task.feedback ? `<div class="mt-3 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500 text-sm"><strong class="text-blue-800">Feedback:</strong> <span class="text-blue-600">${task.feedback}</span></div>` : ''}
                         </div>
-                        <p class="text-sm text-gray-500 mb-2">${task.description || 'Complete the assigned work for this week.'}</p>
-                         ${task.due_date ? `<small class="text-gray-400 font-medium text-xs"><i class="fa-regular fa-calendar mr-1"></i> Due: ${task.due_date}</small>` : ''}
                         
-                         ${task.feedback ? `<div class="mt-3 p-3 bg-blue-50 rounded-lg border-l-4 border-blue-500 text-sm"><strong class="text-blue-800">Feedback:</strong> <span class="text-blue-600">${task.feedback}</span></div>` : ''}
+                        <div class="whitespace-nowrap w-full md:w-auto flex justify-end">
+                            ${actionBtn}
+                        </div>
                     </div>
-                    
-                    <div class="whitespace-nowrap w-full md:w-auto flex justify-end">
-                        ${actionBtn}
-                    </div>
-                </div>
-            `;
-            container.innerHTML += taskCard;
+                `;
+                container.innerHTML += taskCard;
+            });
         });
 
     } catch (error) {
@@ -610,7 +743,7 @@ async function generateCertificate() {
 
         if (res.ok) {
             // Student Style: Open directly
-            const fullUrl = API_BASE + data.url;
+            const fullUrl = API_BASE.replace('/api', '') + data.url;
             window.open(fullUrl, '_blank');
 
             btn.innerHTML = 'Download Certificate <i class="fa-solid fa-download"></i>';
