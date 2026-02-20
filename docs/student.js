@@ -1,4 +1,4 @@
-const API = "http://localhost:5005/api";
+const API = "http://127.0.0.1:5005/api";
 const token = localStorage.getItem("token");
 const role = localStorage.getItem("role");
 
@@ -26,6 +26,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupTabs();
   setupLogout();
   setupAssignmentForm();
+  setupTaskForm();
 
   // Safety: Ensure no modals are open by default
   const quizModal = document.getElementById("quizModal");
@@ -134,7 +135,15 @@ function renderProgressPage(data) {
                     <span class="font-bold text-slate-700">${item.quizzes_completed} / ${item.total_quizzes}</span>
                 </div>
                  <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
-                    <div class="bg-purple-500 h-full rounded-full transition-all duration-500" style="width: ${(item.quizzes_completed / item.total_quizzes) * 100}%"></div>
+                    <div class="bg-purple-500 h-full rounded-full transition-all duration-500" style="width: ${(item.quizzes_completed / (item.total_quizzes || 1)) * 100}%"></div>
+                </div>
+
+                <div class="flex justify-between text-sm pt-2">
+                    <span class="text-slate-500">Additional Tasks</span>
+                    <span class="font-bold text-slate-700">${item.tasks_completed || 0} / ${item.total_tasks || 0}</span>
+                </div>
+                 <div class="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                    <div class="bg-amber-500 h-full rounded-full transition-all duration-500" style="width: ${(item.tasks_completed / (item.total_tasks || 1)) * 100}%"></div>
                 </div>
                 
                 ${certHtml}
@@ -314,7 +323,7 @@ async function loadCourses() {
 
 async function loadAssignments() {
   try {
-    const res = await fetch(`${API}/student/dashboard`, {
+    const res = await fetch(`${API}/student/dashboard?v=${Date.now()}`, {
       headers: { "Authorization": `Bearer ${token}` }
     });
 
@@ -337,19 +346,17 @@ async function loadAssignments() {
       if (gradeEl) gradeEl.innerText = rawData.overall_grade;
     }
 
-    // ✅ NEW: Calculate Total Pending Tasks
-    // Pending = Unlocked AND Not Submitted
     let totalPending = 0;
+    const processedIds = new Set(); // To avoid double counting same entities across loops
+
     if (dashboardData.length > 0) {
       dashboardData.forEach(c => {
-        const tasks = c.assignments || [];
-        tasks.forEach(t => {
-          // Determine if 'pending'. Logic: Is unlocked/revealed AND not submitted.
-          // Assuming t.is_unlocked handles date/week logic.
-          if (t.is_unlocked && !t.is_submitted) {
-            totalPending++;
-          }
-        });
+        // Use the summary numbers from the API which are more reliable than counting items in JS
+        const pAsgns = (c.total_assignments || 0) - (c.assignments_completed || 0);
+        const pQuizzes = (c.pending_quizzes_count || 0);
+        const pTasks = (c.total_tasks || 0) - (c.tasks_completed || 0);
+
+        totalPending += Math.max(0, pAsgns) + Math.max(0, pQuizzes) + Math.max(0, pTasks);
       });
     }
     const pendingEl = document.getElementById("pendingCount");
@@ -510,25 +517,32 @@ function renderAssignments(courseList) {
 
     // Iterate through courses to create groupings
     courseList.forEach(c => {
+
+
       // Create Section Header
       const section = document.createElement("div");
       section.className = "mb-8";
       section.innerHTML = `
-            <div class="flex items-center gap-3 mb-4 border-b border-gray-100 pb-2">
-                <div class="h-8 w-1 bg-indigo-500 rounded-full"></div>
-                <h3 class="text-xl font-bold text-gray-800">${c.course} <span class="text-sm font-normal text-slate-500">(${c.duration})</span></h3>
+            <div class="flex items-center justify-between mb-4 border-b border-gray-100 pb-2">
+                <div class="flex items-center gap-3">
+                    <div class="h-8 w-1 bg-indigo-500 rounded-full"></div>
+                    <h3 class="text-xl font-bold text-gray-800">${c.course} <span class="text-sm font-normal text-slate-500">(${c.duration})</span></h3>
+                </div>
+
             </div>
         `;
 
       const tasksContainer = document.createElement("div");
       tasksContainer.className = "space-y-4";
 
-      const tasks = c.assignments || [];
+      const asgns = c.assignments || [];
+      const tasks = c.tasks || [];
 
-      if (tasks.length === 0) {
-        tasksContainer.innerHTML = `<p class="text-slate-400 text-sm ml-4">No assignments for this course yet.</p>`;
+      if (asgns.length === 0 && tasks.length === 0) {
+        tasksContainer.innerHTML = `<p class="text-slate-400 text-sm ml-4">No assignments or tasks for this course yet.</p>`;
       } else {
-        tasks.forEach((t, index) => {
+        // Render Assignments
+        asgns.forEach((t, index) => {
           // Safety defaults
           const weekNum = t.week_number || (index + 1);
           const isDataRevealed = !!t.is_data_revealed;
@@ -562,6 +576,36 @@ function renderAssignments(courseList) {
                                 <h4 class="font-bold text-gray-800 text-lg m-0">Week ${weekNum}${displayTitle}</h4>
                             </div>
                             <p class="text-sm text-gray-500 font-medium">${displayDesc}</p>
+                        </div>
+                        <div>
+                            ${actionBtns}
+                        </div>
+                    </div>
+                `;
+        });
+
+        // Render Tasks
+        tasks.forEach((t) => {
+          const isSubmitted = !!t.is_submitted;
+          const statusText = isSubmitted ? "Completed" : "Pending";
+          const statusColor = isSubmitted ? "#22c55e" : "#f59e0b"; // Yellow for pending tasks
+
+          let actionBtns = "";
+          if (!isSubmitted) {
+            actionBtns = `<button onclick="openSubmitTaskModal(${t.id}, '${t.title.replace(/'/g, "\\'")}')" class="bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 px-4 rounded-lg text-sm transition-colors shadow-sm">Submit Task</button>`;
+          } else {
+            const feedback = t.feedback ? t.feedback.replace(/'/g, "\\'") : "Wait for trainer feedback...";
+            actionBtns = `<button onclick="openViewModal('${t.title.replace(/'/g, "\\'")}', '${feedback}', '${t.grade || ''}')" class="bg-slate-100 hover:bg-slate-200 text-slate-600 font-semibold py-2 px-4 rounded-lg text-sm transition-colors border border-slate-200">View Status</button>`;
+          }
+
+          tasksContainer.innerHTML += `
+                    <div class="bg-white p-5 rounded-2xl shadow-sm border border-gray-100 flex items-center justify-between hover:shadow-md transition-all" style="border-left: 5px solid ${statusColor};">
+                        <div class="flex-1 pr-4">
+                            <div class="flex items-center gap-3 mb-2">
+                                <span class="px-2 py-1 rounded text-[10px] font-bold uppercase tracking-wider text-white" style="background:${statusColor}">${statusText}</span>
+                                <h4 class="font-bold text-gray-800 text-lg m-0">Task: ${t.title}</h4>
+                            </div>
+                            <p class="text-sm text-gray-500 font-medium">${t.due_date ? '📅 Due: ' + t.due_date : 'No Deadline'}</p>
                         </div>
                         <div>
                             ${actionBtns}
@@ -612,6 +656,24 @@ function openViewModal(title, feedback, grade) {
 
     document.getElementById("feedbackContent").innerHTML = content;
     modal.classList.add("show");
+  }
+}
+
+function openSubmitTaskModal(id, title) {
+  const modal = document.getElementById("submitTaskModal");
+  if (modal) {
+    document.getElementById("submitTaskId").value = id;
+    document.getElementById("modalTaskTitle").innerText = title;
+    modal.classList.add("show");
+  }
+}
+
+function closeSubmitTaskModal() {
+  const modal = document.getElementById("submitTaskModal");
+  if (modal) {
+    modal.classList.remove("show");
+    document.getElementById("taskSubmitMsg").style.display = "none";
+    document.getElementById("taskForm").reset();
   }
 }
 
@@ -770,6 +832,7 @@ async function submitQuizAnswers() {
       closeQuizModal();
       loadStudentQuizzes(); // Refresh list
       loadProgress(); // Update progress
+      loadAssignments(); // Update pending count on dashboard
     } else {
       alert(data.error || "Submission failed");
     }
@@ -1000,6 +1063,57 @@ function setupAssignmentForm() {
   });
 }
 
+function setupTaskForm() {
+  const form = document.getElementById("taskForm");
+  if (!form) return;
+
+  form.addEventListener("submit", async (e) => {
+    e.preventDefault();
+
+    const submitBtn = document.getElementById("finalSubmitTaskBtn");
+    const msg = document.getElementById("taskSubmitMsg");
+
+    const taskId = document.getElementById("submitTaskId").value;
+    const fileInput = document.getElementById("taskFile");
+
+    if (!fileInput.files[0]) return alert("Please select a file");
+
+    const formData = new FormData();
+    formData.append("file", fileInput.files[0]);
+
+    submitBtn.disabled = true;
+    submitBtn.innerText = "Submitting...";
+
+    try {
+      const res = await fetch(`${API}/intern/task/${taskId}/complete`, {
+        method: "POST",
+        headers: { "Authorization": `Bearer ${token}` },
+        body: formData
+      });
+
+      if (res.ok) {
+        msg.innerText = "Task submitted successfully! ✅";
+        msg.style.display = "block";
+        form.reset();
+
+        setTimeout(() => {
+          closeSubmitTaskModal();
+          loadAssignments();
+          loadProgress();
+        }, 1500);
+      } else {
+        const data = await res.json();
+        alert("Error: " + (data.error || "Failed to submit task"));
+      }
+    } catch (err) {
+      console.error(err);
+      alert("Server error");
+    } finally {
+      submitBtn.disabled = false;
+      submitBtn.innerText = "Submit Task";
+    }
+  });
+}
 
 function renderCourses(courses) {
   const container = document.getElementById("courseList");

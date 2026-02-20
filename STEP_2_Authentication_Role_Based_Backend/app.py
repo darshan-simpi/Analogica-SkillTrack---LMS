@@ -6,12 +6,12 @@ from flask import send_from_directory
 
 from config import Config
 from extensions import db, mail
-from models import User, Internship, Task
+from models import User, Internship, Task, Enrollment
 from auth import auth_bp
 from course_api import course_bp
 from trainer_api import trainer_bp
 from student_api import student_bp
-from flask_cors import CORS
+
 
 
 def create_default_admin():
@@ -34,13 +34,12 @@ def create_app():
 
     # 🔥 IMPORTANT CORS FIX
     # 🔥 IMPORTANT CORS FIX
-    CORS(
-        app,
-        supports_credentials=True,
-        resources={r"/*": {"origins": ["http://127.0.0.1:5500", "http://localhost:5500"]}},
-        allow_headers=["Authorization", "Content-Type", "Access-Control-Allow-Origin"],
-        methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-    )
+    CORS(app, resources={r"/*": {"origins": "*"}}, supports_credentials=True)
+    
+    @app.after_request
+    def add_cors_headers(response):
+        response.headers["Access-Control-Allow-Private-Network"] = "true"
+        return response
 
     db.init_app(app)
     mail.init_app(app)
@@ -68,7 +67,9 @@ def create_app():
         return {"message": "Analogica LMS Backend Running"}
 
     with app.app_context():
+        print("🔄 Connecting to Database...")
         db.create_all()
+        print("✅ Database Connected & Tables Verified!")
         
         # ✅ FIX:        # Schema updates (Individual checks)
         with db.engine.connect() as conn:

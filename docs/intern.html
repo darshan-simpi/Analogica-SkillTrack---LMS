@@ -346,28 +346,6 @@
   </div>
 
   <script src="intern.js"></script>
-  <script>
-    // Tab Switching Logic (Inline for immediate effect, logic also in intern.js)
-    const navs = document.querySelectorAll('.nav');
-    const pages = document.querySelectorAll('.page');
-
-    navs.forEach(nav => {
-      nav.addEventListener('click', () => {
-        navs.forEach(n => {
-          n.classList.remove('font-bold', 'active');
-          if (n.classList.contains('active')) n.classList.remove('active');
-        });
-
-        nav.classList.add('font-bold', 'active');
-
-        const targetId = nav.getAttribute('data-target');
-        pages.forEach(p => {
-          p.classList.remove('show');
-          if (p.id === targetId) p.classList.add('show');
-        });
-      });
-    });
-  </script>
 </body>
 
 </html>

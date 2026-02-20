@@ -358,17 +358,17 @@ def assign_intern_task():
         tasks_created += 1
 
     if tasks_created == 0:
-        # Fallback: Create one for the trainer/system if no students yet?
-        # But this might mess up the "Week" count if we depend on Task count.
-        # The 'current_count' above (Line 317) counts ALL tasks for internship. 
-        # If we have 2 students, we add 2 tasks. Next time count will be +2? 
-        # WAIT. get_required_assignments uses DURATION.
-        # But 'current_count' checks *Task.query.filter_by(internship_id=internship.id).count()*.
-        # If we create N tasks for N students, the count will trigger limit immediately!
-        # logic error: "Limit reached! ... Max 4 tasks"
-        # If 5 students, we add 5 tasks. Count = 5. Next assignment rejected?
-        
-        # FIX: We need to count UNIQUE tasks (by week number or title) for limit check.
+        # Fallback: Create one for the trainer so it appears in the dashboard
+        # This acts as a "Template" task
+        task = Task(
+            title=data["title"],
+            due_date=data["due_date"],
+            week_number=week_num,
+            internship_id=internship.id,
+            assigned_by=get_jwt_identity(),
+            assigned_to=get_jwt_identity() # Assign to self (Trainer)
+        )
+        db.session.add(task)
         pass
         
     db.session.commit()

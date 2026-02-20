@@ -428,6 +428,38 @@
         </div>
     </div>
 
+    <!-- Submit Task Modal (NEW) -->
+    <div id="submitTaskModal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
+        <div class="modal-content bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 relative">
+            <span class="close-modal absolute top-4 right-4 text-gray-400 hover:text-gray-600 cursor-pointer text-xl"
+                onclick="closeSubmitTaskModal()">&times;</span>
+            <h3 class="modal-title text-xl font-bold text-gray-900 mb-2">Submit Task</h3>
+            <p id="modalTaskTitle" class="text-amber-600 font-semibold mb-6"></p>
+
+            <form id="taskForm" class="submit-form space-y-4">
+                <input type="hidden" id="submitTaskId" name="task_id" />
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-2">Upload File (PDF/Zip/Docs)</label>
+                    <div class="relative">
+                        <input type="file" id="taskFile" required
+                            accept=".pdf,.zip,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx" class="block w-full text-sm text-slate-500
+                            file:mr-4 file:py-2 file:px-4
+                            file:rounded-full file:border-0
+                            file:text-sm file:font-semibold
+                            file:bg-amber-50 file:text-amber-700
+                            hover:file:bg-amber-100 cursor-pointer" />
+                    </div>
+                </div>
+                <button type="submit" id="finalSubmitTaskBtn"
+                    class="w-full bg-amber-500 hover:bg-amber-600 text-white font-bold py-3 px-4 rounded-xl transition-colors shadow-lg shadow-amber-200">
+                    Submit Task
+                </button>
+            </form>
+            <p id="taskSubmitMsg"
+                class="hidden text-amber-600 text-sm font-bold text-center mt-4 bg-amber-50 py-2 rounded-lg"></p>
+        </div>
+    </div>
+
     <!-- Quiz Modal -->
     <div id="quizModal" class="modal fixed inset-0 z-50 items-center justify-center p-4">
         <div

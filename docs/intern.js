@@ -47,10 +47,17 @@ async function loadProgressPage() {
     container.innerHTML = '<p>Loading progress...</p>';
 
     try {
-        // 1. Fetch Global Stats (for overall progress calculation)
+        const currentToken = localStorage.getItem("token");
+        // 1. Fetch Global Stats
         const statsRes = await fetch(API_BASE + '/intern/stats', {
-            headers: { 'Authorization': `Bearer ${token}` }
+            headers: { 'Authorization': `Bearer ${currentToken}` }
         });
+
+        if (statsRes.status === 401) {
+            handleUnauthorized();
+            return;
+        }
+
         const stats = statsRes.ok ? await statsRes.json() : { overall_progress: 0, tasks_completed: 0, tasks_pending: 0 };
 
         // 2. Fetch Enrollments (for details)
@@ -574,6 +581,12 @@ async function loadTasks() {
                 'Authorization': `Bearer ${localStorage.getItem('token')}`
             }
         });
+
+        if (response.status === 401) {
+            handleUnauthorized();
+            return;
+        }
+
         const tasks = response.ok ? await response.json() : [];
 
         container.innerHTML = '';
@@ -701,11 +714,17 @@ async function submitTaskFile() {
     formData.append('file', fileInput.files[0]);
 
     try {
+        const currentToken = localStorage.getItem("token");
         const res = await fetch(API_BASE + `/intern/task/${currentTaskId}/complete`, {
             method: 'POST',
-            headers: { 'Authorization': `Bearer ${localStorage.getItem('token')}` }, // No Content-Type for FormData!
+            headers: { 'Authorization': `Bearer ${currentToken}` }, // No Content-Type for FormData!
             body: formData
         });
+
+        if (res.status === 401) {
+            handleUnauthorized();
+            return;
+        }
 
         if (res.ok) {
             alert("Task Submitted Successfully!");
@@ -718,6 +737,12 @@ async function submitTaskFile() {
             alert("Failed: " + (err.error || "Unknown error"));
         }
     } catch (e) { console.error(e); alert("Transmission error"); }
+}
+
+function handleUnauthorized() {
+    alert("Session expired. Please login again.");
+    localStorage.clear();
+    window.location.href = "index.html";
 }
 
 // Consolidated Generate Certificate Function

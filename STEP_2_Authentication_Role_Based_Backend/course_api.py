@@ -1,6 +1,6 @@
 from flask import Blueprint, request, jsonify
 from flask_jwt_extended import jwt_required, get_jwt, get_jwt_identity
-from datetime import datetime
+from datetime import datetime, timedelta
 from extensions import db
 from models import Course, Workshop, Internship, User, Task, Submission, Enrollment, StudentProgress, TaskSubmission, CourseResource
 
@@ -293,7 +293,9 @@ def get_tasks():
                         if datetime.utcnow().date() <= p_date.date():
                             prev_deadline_passed = False
                     except: pass
-                is_unlocked = prev_submitted and prev_deadline_passed
+                # UNLOCK LOGIC: Time-gated by previous deadline
+                # "task should unlock only when previous deadline is met"
+                is_unlocked = prev_deadline_passed
 
             is_submitted = (t.status == 'Completed')
             submission = TaskSubmission.query.filter_by(task_id=t.id, student_id=user_id).first()
@@ -606,6 +608,21 @@ def get_intern_stats():
     user_id = int(get_jwt_identity())
     user = User.query.get(user_id)
     
+    # ✅ STREAK UPDATE LOGIC (Same as Student Dashboard)
+    today = datetime.utcnow().date()
+    yesterday = today - timedelta(days=1)
+    
+    # If no activity recorded yet, or last activity was NOT today
+    if user.last_activity_date != today:
+        if user.last_activity_date == yesterday:
+            user.current_streak = (user.current_streak or 0) + 1
+        else:
+            # Broken streak (unless it's the very first time, handled by 0 default)
+            # If last activity was older than yesterday, reset to 1
+            user.current_streak = 1
+        
+        user.last_activity_date = today
+        db.session.commit()
     # Calculate Total Tasks (Assigned across all internships)
     tasks = Task.query.filter_by(assigned_to=user_id).all()
     total_assigned_tasks = len(tasks)

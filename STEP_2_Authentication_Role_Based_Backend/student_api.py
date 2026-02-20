@@ -8,7 +8,7 @@ from reportlab.pdfgen import canvas
 from reportlab.lib.units import inch
 from reportlab.lib.colors import HexColor
 
-from models import Enrollment, Course, Assignment, Submission, StudentProgress, CourseResource, Certificate, User, Quiz, Question, QuizSubmission, Task
+from models import Enrollment, Course, Assignment, Submission, StudentProgress, CourseResource, Certificate, User, Quiz, Question, QuizSubmission, Task, TaskSubmission, Internship
 from extensions import db
 from utils import allowed_file, get_required_assignments
 
@@ -23,10 +23,14 @@ def student_progress():
     try:
         student_id = int(get_jwt_identity())
         
-        # Collect all course IDs
-        enroll_ids = {e.course_id for e in Enrollment.query.filter_by(user_id=student_id).all()}
-        prog_ids = {p.course_id for p in StudentProgress.query.filter_by(user_id=student_id).all()}
-        all_course_ids = enroll_ids.union(prog_ids)
+        # Collect all course and internship IDs for progress tracking
+        enrollments = Enrollment.query.filter_by(user_id=student_id).all()
+        all_course_ids = {e.course_id for e in enrollments if e.course_id}
+        all_internship_ids = {e.internship_id for e in enrollments if e.internship_id}
+        
+        # Legacy progress tracking check
+        prog_ids = {p.course_id for p in StudentProgress.query.filter_by(user_id=student_id).all() if p.course_id}
+        all_course_ids = all_course_ids.union(prog_ids)
         
         response = []
         for cid in all_course_ids:
@@ -42,20 +46,30 @@ def student_progress():
             q_subs = QuizSubmission.query.filter_by(student_id=student_id).all()
             q_ids = {q.id for q in Quiz.query.filter_by(course_id=course.id).all()}
             quiz_done = len({s.quiz_id for s in q_subs if s.quiz_id in q_ids})
+
+            # ✅ NEW: Tasks Completed
+            tasks = Task.query.filter_by(assigned_to=student_id, course_id=course.id).all()
+            task_submissions = TaskSubmission.query.filter_by(student_id=student_id).all()
+            submitted_task_ids = {ts.task_id for ts in task_submissions}
+            task_done = len([t for t in tasks if t.id in submitted_task_ids])
+            total_tasks_count = len(tasks)
             
             # 3. Required Count
             req = get_required_assignments(course.duration)
             if not req or not isinstance(req, int) or req <= 0: 
                 req = 4
             
-            total_quizzes = len(q_ids) if len(q_ids) > 0 else req # Fallback to req if no quizzes in DB (logic choice)
-
-            total_tasks = req * 2 # Asgn + Quiz (Approximation for progress bar)
-            # Or better: total_tasks = req + total_quizzes? 
-            # Sticking to previous logic for progress calc to avoid Regression, but fixing display data.
+            # CONSISTENT LOGIC: use max of actual assigned items or required count
+            asgn_total = max(len(asgn_ids), req)
+            quiz_total = max(len(q_ids), req)
             
-            done_tasks = asgn_done + quiz_done
-            prog_val = int((done_tasks / max(total_tasks, 1)) * 100)
+            total_denominator = asgn_total + quiz_total + total_tasks_count
+            done_tasks = asgn_done + quiz_done + task_done
+            
+            print(f"DEBUG PROG: CID={cid} AsgnTotal={asgn_total} QuizTotal={quiz_total} TasksTotal={total_tasks_count} Req={req}")
+            print(f"DEBUG PROG: DoneTotal={done_tasks} (A={asgn_done} Q={quiz_done} T={task_done})")
+            
+            prog_val = int((done_tasks / max(total_denominator, 1)) * 100)
             
             # 4. Duration Safety
             raw_dur = str(course.duration) if (course.duration and str(course.duration).strip()) else "1 Month"
@@ -85,14 +99,47 @@ def student_progress():
                 "progress": min(prog_val, 100),
                 "status": "Completed" if prog_val >= 100 else "On Track",
                 "assignments_completed": asgn_done,
-                "total_assignments": req,
+                "total_assignments": asgn_total,
                 "quizzes_completed": quiz_done,
-                "total_quizzes": total_quizzes, 
+                "total_quizzes": quiz_total, 
+                "tasks_completed": task_done,
+                "total_tasks": total_tasks_count,
                 "duration": raw_dur,
                 "can_generate_certificate": min(prog_val, 100) >= 100,
                 "certificate_url": cert_url
             }
             response.append(item)
+
+        # ✅ 2. INTERNSHIPS PROGRESS
+        for iid in all_internship_ids:
+            internship = Internship.query.get(iid)
+            if not internship: continue
+            
+            tasks = Task.query.filter_by(assigned_to=student_id, internship_id=iid).all()
+            task_submissions = TaskSubmission.query.filter_by(student_id=student_id).all()
+            submitted_ids = {ts.task_id for ts in task_submissions}
+            done_count = len([t for t in tasks if t.id in submitted_ids])
+            total_count = len(tasks)
+            
+            prog = int((done_count / max(total_count, 1)) * 100) if total_count > 0 else 0
+            
+            response.append({
+                "course_id": None,
+                "internship_id": internship.id,
+                "course": f"Internship: {internship.intern_name}",
+                "course_name": f"Internship: {internship.intern_name}",
+                "progress": min(prog, 100),
+                "status": "Completed" if prog >= 100 and total_count > 0 else "On Track",
+                "assignments_completed": 0,
+                "total_assignments": 0,
+                "quizzes_completed": 0,
+                "total_quizzes": 0,
+                "tasks_completed": done_count,
+                "total_tasks": total_count,
+                "duration": internship.duration,
+                "can_generate_certificate": prog >= 100 and total_count > 0,
+                "certificate_url": None
+            })
 
         print(f"DEBUG PROGRESS RESPONSE: {response}")
         return jsonify(response), 200
@@ -105,219 +152,318 @@ def student_progress():
 @student_bp.route("/student/dashboard", methods=["GET"])
 @jwt_required()
 def student_dashboard():
-    student_id = int(get_jwt_identity())
-    student = User.query.get(student_id)
+    try:
+        student_id = int(get_jwt_identity())
+        student = User.query.get(student_id)
+        if not student:
+            return jsonify({"error": "Student not found"}), 404
 
-    # ✅ 1. STUDY STREAK LOGIC
-    today_date = datetime.utcnow().date()
-    yesterday = today_date - timedelta(days=1)
-    
-    # If no activity recorded yet, or last activity was NOT today
-    if student.last_activity_date != today_date:
-        if student.last_activity_date == yesterday:
-            student.current_streak += 1
-        elif student.last_activity_date != today_date:
-             # Broken streak (unless it's the very first time, handled by 0 default)
-             # If last activity was older than yesterday, reset to 1 (active today)
-             student.current_streak = 1
+        # ✅ 1. STUDY STREAK LOGIC
+        today_date = datetime.utcnow().date()
+        yesterday = today_date - timedelta(days=1)
         
-        student.last_activity_date = today_date
-        db.session.commit()
+        # If no activity recorded yet, or last activity was NOT today
+        if student.last_activity_date != today_date:
+            if student.last_activity_date == yesterday:
+                student.current_streak += 1
+            elif student.last_activity_date != today_date:
+                 # Broken streak (unless it's the very first time, handled by 0 default)
+                 # If last activity was older than yesterday, reset to 1 (active today)
+                 student.current_streak = 1
+            
+            student.last_activity_date = today_date
+            db.session.commit()
 
+        # ✅ 2. OVERALL GRADE LOGIC
+        # Get all submissions that have a grade
+        all_submissions = Submission.query.filter_by(student_id=student_id).all()
+        valid_grades = []
+        
+        import re
+        from flask import current_app # Ensure this is imported
+        
+        grade_map = {"A+": 100, "A": 95, "A-": 90, "B+": 85, "B": 80, "B-": 75, "C": 70, "D": 60, "F": 0}
 
+        for s in all_submissions:
+            if s.grade:
+                try:
+                    # 1. Try Map First (e.g. "A")
+                    sg = s.grade.strip().upper()
+                    if sg in grade_map:
+                        valid_grades.append(grade_map[sg])
+                        continue
+                    
+                    # 2. Try Regex (e.g. "90/100")
+                    match = re.search(r"(\d+(\.\d+)?)", str(s.grade))
+                    if match:
+                        val = float(match.group(1))
+                        if val <= 100: # Sanity check
+                            valid_grades.append(val)
+                except:
+                    pass 
+        
+        if len(valid_grades) > 0:
+            overall_grade = int(sum(valid_grades) / len(valid_grades))
+            overall_grade_str = f"{overall_grade}%"
+        else:
+            overall_grade_str = "N/A"
 
-    # ✅ 2. OVERALL GRADE LOGIC
-    # Get all submissions that have a grade
-    all_submissions = Submission.query.filter_by(student_id=student_id).all()
-    valid_grades = []
-    
-    import re
-    from flask import current_app # Ensure this is imported
-    
-    grade_map = {"A+": 100, "A": 95, "A-": 90, "B+": 85, "B": 80, "B-": 75, "C": 70, "D": 60, "F": 0}
+        # Collect all course and internship IDs for the student
+        enrollments = Enrollment.query.filter_by(user_id=student_id).all()
+        all_course_ids = {e.course_id for e in enrollments if e.course_id}
+        all_internship_ids = {e.internship_id for e in enrollments if e.internship_id}
+        
+        # Also check StudentProgress for any legacy or extra progress-tracked courses
+        prog_course_ids = {p.course_id for p in StudentProgress.query.filter_by(user_id=student_id).all() if p.course_id}
+        all_course_ids = all_course_ids.union(prog_course_ids)
 
-    for s in all_submissions:
-        if s.grade:
-            try:
-                # 1. Try Map First (e.g. "A")
-                sg = s.grade.strip().upper()
-                if sg in grade_map:
-                    valid_grades.append(grade_map[sg])
-                    continue
+        response = []
+        for cid in all_course_ids:
+            course = Course.query.get(cid)
+            if not course: continue
                 
-                # 2. Try Regex (e.g. "90/100")
-                match = re.search(r"(\d+(\.\d+)?)", str(s.grade))
-                if match:
-                    val = float(match.group(1))
-                    if val <= 100: # Sanity check
-                        valid_grades.append(val)
+            assignments = Assignment.query.filter_by(course_id=course.id).all()
+
+            # Re-use global submissions list for this course
+            submitted_assignment_ids = {s.assignment_id for s in all_submissions}
+
+            # ✅ NEW: Get Tasks for this course
+            tasks = Task.query.filter_by(assigned_to=student_id, course_id=course.id).all()
+            task_submissions = TaskSubmission.query.filter_by(student_id=student_id).all()
+            submitted_task_ids = {ts.task_id for ts in task_submissions}
+
+            today = datetime.utcnow().strftime('%Y-%m-%d')
+            start_date_str = course.start_date  # Expected "YYYY-MM-DD"
+            
+            try:
+                start_date_obj = datetime.strptime(start_date_str, '%Y-%m-%d')
             except:
-                pass 
-    
-    if len(valid_grades) > 0:
-        overall_grade = int(sum(valid_grades) / len(valid_grades))
-        overall_grade_str = f"{overall_grade}%"
-    else:
-        overall_grade_str = "N/A"
+                start_date_obj = datetime.utcnow()
 
-    # Merge course IDs from both sources
-    enroll_ids = {e.course_id for e in Enrollment.query.filter_by(user_id=student_id).all()}
-    prog_ids = {p.course_id for p in StudentProgress.query.filter_by(user_id=student_id).all()}
-    all_course_ids = enroll_ids.union(prog_ids)
-    
-    response = []
-    for cid in all_course_ids:
-        course = Course.query.get(cid)
-        if not course: continue
+            required_count = get_required_assignments(course.duration)
+            assignments_list = []
             
-        assignments = Assignment.query.filter_by(course_id=course.id).all()
+            # Get actual assignments and map them by week number
+            actual_assignments = {a.week_number: a for a in assignments}
 
-        progress = StudentProgress.query.filter_by(
-            user_id=student_id,
-            course_id=course.id
-        ).first()
+            can_reveal_next = True
+            completed_count = 0
 
-        # Get submissions for this student once
-        student_submissions = Submission.query.filter_by(student_id=student_id).all()
-        submitted_assignment_ids = {s.assignment_id for s in student_submissions}
+            for i in range(1, required_count + 1):
+                expected_due_date = (start_date_obj + timedelta(weeks=i)).strftime('%Y-%m-%d')
+                real_a = actual_assignments.get(i)
+                prev_a = actual_assignments.get(i-1) if i > 1 else None
+                
+                is_prev_deadline_passed = True # Default for Week 1
+                if i > 1:
+                    if prev_a and prev_a.due_date:
+                        try:
+                            p_date = datetime.strptime(prev_a.due_date, '%Y-%m-%d')
+                            if datetime.utcnow().date() <= p_date.date():
+                                is_prev_deadline_passed = False
+                        except: pass
+                    else:
+                        prev_due_date_obj = start_date_obj + timedelta(weeks=i-1)
+                        if datetime.utcnow() <= prev_due_date_obj:
+                             is_prev_deadline_passed = False
 
-        today = datetime.utcnow().strftime('%Y-%m-%d')
-        start_date_str = course.start_date  # Expected "YYYY-MM-DD"
-        
-        try:
-            start_date_obj = datetime.strptime(start_date_str, '%Y-%m-%d')
-        except:
-            start_date_obj = datetime.utcnow()
-
-        required_count = get_required_assignments(course.duration)
-        assignments_list = []
-        
-        # Get actual assignments and map them by week number
-        actual_assignments = {a.week_number: a for a in assignments}
-
-        can_reveal_next = True
-        completed_count = 0
-
-        for i in range(1, required_count + 1):
-            # Calculate expected due date for this week (+i weeks)
-            expected_due_date = (start_date_obj + timedelta(weeks=i)).strftime('%Y-%m-%d')
-            
-            real_a = actual_assignments.get(i)
-            # Determine previous assignment details for unlocking logic
-            prev_a = actual_assignments.get(i-1) if i > 1 else None
-            
-            # PREVIOUS Logic: can_reveal_next = is_data_revealed and is_submitted
-            # NEW Logic: Also check if PREVIOUS one's deadline has passed.
-            
-            is_prev_deadline_passed = True # Default for Week 1
-            if i > 1:
-                # Need to check Week i-1
-                # If Week i-1 doesn't exist (placeholder), rely on generic date math?
-                # User says "if it's due data didn't end yet".
-                # If there IS a real assignment for i-1, check its due date.
-                if prev_a and prev_a.due_date:
-                    try:
-                        p_date = datetime.strptime(prev_a.due_date, '%Y-%m-%d')
-                        if datetime.utcnow().date() <= p_date.date():
-                            is_prev_deadline_passed = False
-                    except: pass
+                # Logic: Unlock next if previous usage submitted
+                # We ignore strict deadline waiting if the student is working ahead (completed previous)
+                
+                if i == 1:
+                    is_data_revealed = True
                 else:
-                    # Fallback if no specific assignment or date: Use calculated course timeline
-                    prev_due_date_obj = start_date_obj + timedelta(weeks=i-1)
-                    if datetime.utcnow() <= prev_due_date_obj:
-                         is_prev_deadline_passed = False
+                    # Reveal if previous was submitted
+                    is_data_revealed = can_reveal_next 
+                
+                # Check for "Available Date" only if not revealing by submission? 
+                # For now, strict sequential: Must submit Prev to see Next.
+                
+                is_submitted = real_a.id in submitted_assignment_ids if real_a else False
+                target_due_date = real_a.due_date if (real_a and real_a.due_date) else expected_due_date
+                
+                # Unlocked if revealed and not submitted
+                is_submittable = is_data_revealed and (real_a is not None) and not is_submitted
+                
+                assignments_list.append({
+                    "id": real_a.id if real_a else None,
+                    "title": (real_a.title if real_a else "Pending Trainer Upload") if is_data_revealed else "Locked Assignment",
+                    "week_number": i,
+                    "due_date": target_due_date if is_data_revealed else "Hidden",
+                    "is_unlocked": is_submittable, 
+                    "is_data_revealed": is_data_revealed,
+                    "is_submitted": is_submitted,
+                    "feedback": next((s.feedback for s in all_submissions if s.assignment_id == real_a.id), None) if real_a else None,
+                    "grade": next((s.grade for s in all_submissions if s.assignment_id == real_a.id), None) if real_a else None,
+                    "is_placeholder": real_a is None
+                })
 
-            if i == 1:
-                is_data_revealed = True
-            else:
-                # Rule: Reveal content only if previous submitted AND previous deadline passed
-                is_data_revealed = can_reveal_next and is_prev_deadline_passed
+                can_reveal_next = is_data_revealed and is_submitted
+                if is_submitted:
+                    completed_count += 1
 
-            # Define variables that were missing
-            is_submitted = real_a.id in submitted_assignment_ids if real_a else False
-            target_due_date = real_a.due_date if (real_a and real_a.due_date) else expected_due_date
+            # ✅ NEW: Process Tasks List
+            tasks_list = []
+            for t in tasks:
+                is_tsub = t.id in submitted_task_ids
+                tasks_list.append({
+                    "id": t.id,
+                    "title": t.title,
+                    "due_date": t.due_date,
+                    "status": t.status,
+                    "is_submitted": is_tsub,
+                    "feedback": next((ts.feedback for ts in task_submissions if ts.task_id == t.id), None),
+                    "grade": next((ts.grade for ts in task_submissions if ts.task_id == t.id), None)
+                })
+                if is_tsub:
+                    completed_count += 1
 
-            # Submittability logic: 
-            is_unlocked_by_date = (i == 1) or is_prev_deadline_passed
-            is_submittable = is_data_revealed and (real_a is not None) and not is_submitted and is_unlocked_by_date
+            # Get quizzes
+            quizzes = Quiz.query.filter_by(course_id=course.id).all()
+            quiz_submissions = QuizSubmission.query.filter_by(student_id=student_id).all()
+            submitted_quiz_ids = {s.quiz_id for s in quiz_submissions}
             
-            assignments_list.append({
-                "id": real_a.id if real_a else None,
-                "title": (real_a.title if real_a else "Pending Trainer Upload") if is_data_revealed else "Locked Assignment",
-                "week_number": i,
-                "due_date": target_due_date if is_data_revealed else "Hidden",
-                "is_unlocked": is_submittable, 
-                "is_data_revealed": is_data_revealed,
-                "is_submitted": is_submitted,
-                "feedback": next((s.feedback for s in student_submissions if s.assignment_id == real_a.id), None) if real_a else None,
-                "grade": next((s.grade for s in student_submissions if s.assignment_id == real_a.id), None) if real_a else None,
-                "is_placeholder": real_a is None
+            quizzes_completed = 0
+            for quiz in quizzes:
+                if quiz.id in submitted_quiz_ids:
+                    quizzes_completed += 1
+
+            # Calculate dynamic progress
+            asgn_total = max(len(assignments), required_count)
+            quiz_total = max(len(quizzes), required_count)
+            total_tasks_count = len(tasks)
+            
+            total_items = asgn_total + quiz_total + total_tasks_count
+            completed_items = completed_count + quizzes_completed
+            
+            progress_val = int((completed_items / max(total_items, 1)) * 100)
+            dynamic_progress = min(progress_val, 100)
+
+            # Check if certificate already exists AND is physically present
+            cert_record = Certificate.query.filter_by(user_id=student_id, course_id=course.id).first()
+            cert_url = None
+            if cert_record and cert_record.certificate_url:
+                 # Verify file exists using ABSOLUTE path
+                 lpath = cert_record.certificate_url.lstrip("/")
+                 if lpath.startswith("static/"):
+                      lpath = lpath.replace("static/", "", 1)
+                      
+                 expected_path = os.path.join(current_app.root_path, "static", lpath)
+                 
+                 if os.path.exists(expected_path):
+                     filename = os.path.basename(cert_record.certificate_url)
+                     cert_url = f"/static/certificates/{filename}"
+                 else:
+                     cert_url = None
+
+            final_duration = str(course.duration) if course.duration else "1 Month"
+
+            # Calculate Rank for Dashboard
+            rank = None
+            if dynamic_progress >= 100:
+                # Use same logic as certificate
+                grade_map = {"A+": 100, "A": 95, "A-": 90, "B+": 85, "B": 80, "B-": 75, "C": 70, "D": 60, "F": 0}
+                scores = []
+                for s in all_submissions:
+                    if s.assignment_id in {a.id for a in assignments}:
+                        if s.grade:
+                            sg = s.grade.strip().upper()
+                            if sg in grade_map: scores.append(grade_map[sg])
+                            else:
+                                import re
+                                match = re.search(r"(\d+(\.\d+)?)", str(s.grade))
+                                if match: 
+                                    val = float(match.group(1))
+                                    if val <= 100: scores.append(val)
+                # Quiz scores
+                q_subs = QuizSubmission.query.filter_by(student_id=student_id).all()
+                q_ids = {q.id for q in quizzes}
+                for qs in q_subs:
+                    if qs.quiz_id in q_ids and qs.total_questions > 0:
+                        scores.append((qs.score / qs.total_questions) * 100)
+                
+                avg_val = sum(scores) / len(scores) if scores else 0
+                if avg_val >= 90: rank = "DISTINCTION"
+                elif avg_val >= 75: rank = "MERIT"
+                else: rank = "PASS"
+
+            response.append({
+                "course_id": course.id,
+                "course": course.name,
+                "course_name": course.name,
+                "progress": dynamic_progress,
+                "rank": rank, # ✅ NEW
+                "assignments": assignments_list,
+                "tasks": tasks_list, # ✅ NEW
+                "can_generate_certificate": dynamic_progress >= 100,
+                "certificate_url": cert_url,
+                "total_assignments": len(assignments), # Show actual count for UI
+                "assignments_completed": len([a for a in assignments_list if a["is_submitted"]]),
+                "total_quizzes": len(quizzes), # Show actual count for UI
+                "quizzes_completed": quizzes_completed,
+                "pending_quizzes_count": max(0, len(quizzes) - quizzes_completed), # ✅ UPDATED: Use actual count
+                "total_tasks": total_tasks_count,
+                "tasks_completed": len([t for t in tasks_list if t["is_submitted"]]),
+                "duration": final_duration
             })
 
-            # The next assignment can only be revealed if this one is submitted
-            # AND (implicitly handled by next iteration) this one's deadline passed
-            can_reveal_next = is_data_revealed and is_submitted
-            if is_submitted:
-                completed_count += 1
+        # ✅ 4. PROCESS INTERNSHIPS
+        for iid in all_internship_ids:
+            internship = Internship.query.get(iid)
+            if not internship: continue
+            
+            # Get tasks for this internship
+            tasks = Task.query.filter_by(assigned_to=student_id, internship_id=internship.id).all()
+            task_submissions = TaskSubmission.query.filter_by(student_id=student_id).all()
+            submitted_task_ids = {ts.task_id for ts in task_submissions}
+            
+            tasks_list = []
+            for t in tasks:
+                is_tsub = t.id in submitted_task_ids
+                tasks_list.append({
+                    "id": t.id,
+                    "title": t.title,
+                    "due_date": t.due_date,
+                    "status": t.status,
+                    "is_submitted": is_tsub,
+                    "feedback": next((ts.feedback for ts in task_submissions if ts.task_id == t.id), None),
+                    "grade": next((ts.grade for ts in task_submissions if ts.task_id == t.id), None)
+                })
 
-        # Get quizzes for this course
-        quizzes = Quiz.query.filter_by(course_id=course.id).all()
-        quiz_submissions = QuizSubmission.query.filter_by(student_id=student_id).all()
-        submitted_quiz_ids = {s.quiz_id for s in quiz_submissions}
-        
-        quizzes_completed = 0
-        for quiz in quizzes:
-            if quiz.id in submitted_quiz_ids:
-                quizzes_completed += 1
+            tasks_done = len([t for t in tasks_list if t["is_submitted"]])
+            total_tasks = len(tasks_list)
+            prog_val = int((tasks_done / max(total_tasks, 1)) * 100) if total_tasks > 0 else 0
+            
+            response.append({
+                "course_id": None, 
+                "internship_id": internship.id,
+                "course": f"Internship: {internship.intern_name}",
+                "course_name": f"Internship: {internship.intern_name}",
+                "progress": prog_val,
+                "assignments": [], 
+                "tasks": tasks_list,
+                "can_generate_certificate": prog_val >= 100 and total_tasks > 0,
+                "certificate_url": None, 
+                "total_assignments": 0,
+                "assignments_completed": 0,
+                "total_quizzes": 0,
+                "quizzes_completed": 0,
+                "pending_quizzes_count": 0,
+                "total_tasks": total_tasks,
+                "tasks_completed": tasks_done,
+                "duration": internship.duration
+            })
 
-        # Calculate dynamic progress based on BOTH assignments and quizzes
-        # User: "after completeing the assigned quizes and assignment then only he is eligible to get certificate"
-        total_tasks = required_count * 2 # required_count assignments + required_count quizzes
-        completed_tasks = completed_count + quizzes_completed
-        progress_val = int((completed_tasks / max(total_tasks, 1)) * 100)
-        dynamic_progress = min(progress_val, 100)
-
-        # Check if certificate already exists AND is physically present
-        cert_record = Certificate.query.filter_by(user_id=student_id, course_id=course.id).first()
-        cert_url = None
-        if cert_record and cert_record.certificate_url:
-             # Verify file exists using ABSOLUTE path
-             lpath = cert_record.certificate_url.lstrip("/")
-             if lpath.startswith("static/"):
-                  lpath = lpath.replace("static/", "", 1)
-                  
-             expected_path = os.path.join(current_app.root_path, "static", lpath)
-             
-             if os.path.exists(expected_path):
-                 filename = os.path.basename(cert_record.certificate_url)
-                 cert_url = f"/static/certificates/{filename}"
-             else:
-                 # File missing, treat as not generated
-                 cert_url = None
-
-        # Dashboard sync
-        final_duration = str(course.duration) if course.duration else "1 Month"
-
-        response.append({
-            "course_id": course.id,
-            "course": course.name,
-            "course_name": course.name,
-            "progress": dynamic_progress,
-            "assignments": assignments_list,
-            "can_generate_certificate": dynamic_progress >= 100,
-            "certificate_url": cert_url,
-            "total_assignments": required_count,
-            "assignments_completed": completed_count,
-            "total_quizzes": required_count,
-            "quizzes_completed": quizzes_completed,
-            "duration": final_duration
-        })
-
-    return jsonify({
-        "courses": response,
-        "study_streak": student.current_streak,
-        "overall_grade": overall_grade_str
-    }), 200
+        return jsonify({
+            "courses": response,
+            "study_streak": student.current_streak,
+            "overall_grade": overall_grade_str
+        }), 200
+    except Exception as e:
+        print(f"🔥 ERROR in student_dashboard: {str(e)}")
+        import traceback
+        traceback.print_exc()
+        return jsonify({"error": "Server error", "details": str(e)}), 500
 
 # ================= QUIZ LOGIC =================
 @student_bp.route("/student/course/<int:course_id>/quizzes", methods=["GET"])
@@ -611,6 +757,7 @@ def generate_certificate_pdf(student_name, course_name, output_path, cert_id, is
     c.setFillColor(HexColor("#34495E"))
     c.drawCentredString(width / 2, height - 350, "has successfully completed the")
 
+    # Course Name & Rank
     # Course Name
     c.setFont("Helvetica-Bold", 26)
     c.setFillColor(HexColor("#E67E22")) # Pumpkin Orange
@@ -622,6 +769,8 @@ def generate_certificate_pdf(student_name, course_name, output_path, cert_id, is
     c.drawCentredString(width / 2, height - 430, "and has demonstrated the required skills, knowledge, and hands-on")
     c.drawCentredString(width / 2, height - 450, "expertise in designing and managing automated workflows.")
     
+
+
     # Dates
     c.setFont("Helvetica", 12)
     c.setFillColor(HexColor("#7F8C8D"))
@@ -675,10 +824,21 @@ def generate_certificate(course_id):
 
     required_count = get_required_assignments(course.duration)
     
-    # Must complete ALL required assignments AND ALL required quizzes
-    if asgn_completed < required_count or quiz_completed < required_count:
+    # NEW: Consistent denominators
+    asgn_total = max(len(course_assignments), required_count)
+    quiz_total = max(len(course_quizzes), required_count)
+    
+    # 3. Tasks
+    tasks = Task.query.filter_by(assigned_to=student_id, course_id=course_id).all()
+    task_subs = TaskSubmission.query.filter_by(student_id=student_id).all()
+    submitted_task_ids = {ts.task_id for ts in task_subs}
+    tasks_completed = len([t for t in tasks if t.id in submitted_task_ids])
+    tasks_total = len(tasks)
+
+    # Must complete ALL items
+    if asgn_completed < asgn_total or quiz_completed < quiz_total or tasks_completed < tasks_total:
         return jsonify({
-            "error": f"Certificate locked. You must complete all {required_count} assignments AND all {required_count} quizzes."
+            "error": "Certificate locked. You must complete all assignments, quizzes, and tasks to reach 100% progress."
         }), 403
 
     # Generate filename
@@ -695,11 +855,25 @@ def generate_certificate(course_id):
     short_uuid = str(uuid.uuid4())[:8].upper()
     cert_id = f"ANLG-{course.id:02d}-{short_uuid}"
     issue_date = datetime.utcnow().strftime("%B %d, %Y")
-    
-    # Generate Actual PDF
+
     try:
         generate_certificate_pdf(student.name, course.name, filepath, cert_id, issue_date)
     except Exception as e:
+        import traceback
+        error_trace = traceback.format_exc()
+        print(f"❌ Certificate Generation Error: {error_trace}")
+        
+        # Log to file for debugging
+        try:
+            with open("certificate_error.log", "w") as f:
+                f.write(f"Error generating certificate for student {student_id}, course {course_id}\n")
+                f.write(f"Student: {student.name}, Course: {course.name}\n")
+
+                f.write(f"Error: {str(e)}\n")
+                f.write(f"Traceback:\n{error_trace}\n")
+        except:
+            pass
+        
         return jsonify({"error": f"Failed to generate PDF: {str(e)}"}), 500
 
     cert_url = f"/static/certificates/{filename}"
