@@ -9,7 +9,7 @@ class Config:
     JWT_HEADER_TYPE = "Bearer"
 
     # ================= DATABASE =================
-    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:@127.0.0.1/abhijna"
+    SQLALCHEMY_DATABASE_URI = "mysql+pymysql://root:@127.0.0.1/skilltrack"
     SQLALCHEMY_TRACK_MODIFICATIONS = False
 
     # ================= EMAIL CONFIG =================

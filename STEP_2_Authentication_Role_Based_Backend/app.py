@@ -114,6 +114,11 @@ def create_app():
                 conn.execute(db.text("ALTER TABLE tasks ADD COLUMN course_id INTEGER"))
                 print("✅ Added course_id column to tasks")
             except Exception: pass
+
+            try:
+                conn.execute(db.text("ALTER TABLE internships ADD COLUMN assignment_limit INTEGER"))
+                print("✅ Added assignment_limit column to internships")
+            except Exception: pass
             
             # ✅ DATA MIGRATION: Backfill course_id for existing tasks
             # Logic: If task assigned_to user who is enrolled in a course, set task.course_id to that course_id
