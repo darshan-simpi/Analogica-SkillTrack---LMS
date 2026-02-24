@@ -1,0 +1,347 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SkillTrack - Login</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap"
+    rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    body {
+      font-family: 'Outfit', sans-serif;
+      background: #0f172a;
+      /* Dark slate background */
+    }
+
+    .glass {
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(10px);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+    }
+
+    .gradient-text {
+      background: linear-gradient(135deg, #2563EB 0%, #38BDF8 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    /* Animated Background Shapes */
+    .blob {
+      position: absolute;
+      width: 500px;
+      height: 500px;
+      background: linear-gradient(180deg, #2563EB 0%, #38BDF8 100%);
+      border-radius: 50%;
+      filter: blur(80px);
+      opacity: 0.3;
+      animation: blob-bounce 10s infinite ease-in-out alternate;
+      z-index: 0;
+    }
+
+    @keyframes blob-bounce {
+      0% {
+        transform: translate(0, 0) scale(1);
+      }
+
+      100% {
+        transform: translate(50px, 50px) scale(1.1);
+      }
+    }
+  </style>
+</head>
+
+<body
+  class="h-screen w-full flex items-center justify-center overflow-hidden relative selection:bg-blue-500 selection:text-white">
+
+  <!-- Background Blobs -->
+  <div class="blob top-[-100px] left-[-100px]"></div>
+  <div class="blob bottom-[-150px] right-[-100px]"
+    style="background: linear-gradient(180deg, #06b6d4 0%, #3b82f6 100%); animation-delay: -5s;"></div>
+
+  <div
+    class="relative z-10 w-full max-w-5xl h-full md:h-auto md:min-h-[600px] flex shadow-2xl rounded-3xl overflow-hidden m-4 glass">
+
+    <!-- RIGHT PANEL: Hero / Info (Order switched on desktop for better visual flow, or keep left. Let's keep Login on Left) -->
+    <!-- LEFT PANEL: LOGIN FORM -->
+    <div
+      class="w-full md:w-1/2 bg-white/10 backdrop-blur-xl p-8 md:p-12 flex flex-col justify-center relative border-r border-white/5">
+
+      <div class="mb-8">
+        <div class="flex items-center gap-3 mb-2">
+          <div class="w-10 h-10 bg-blue-600 rounded-xl flex items-center justify-center shadow-lg shadow-blue-500/30">
+            <img src="new_logo.jpg" alt="Logo" class="w-8 h-8 rounded-full object-contain">
+          </div>
+          <h2 class="text-2xl font-bold text-white tracking-tight">Analogica SkillTrack</h2>
+        </div>
+        <p class="text-slate-400 text-sm">Welcome back! Please enter your details.</p>
+      </div>
+
+      <div class="space-y-5">
+        <!-- Role Select -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">I am a...</label>
+          <div class="grid grid-cols-4 gap-2">
+            <label class="cursor-pointer">
+              <input type="radio" name="roleStr" value="STUDENT" class="peer sr-only" checked
+                onchange="document.getElementById('role').value = this.value">
+              <div
+                class="h-full flex flex-col items-center justify-center p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-slate-400 peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-500 transition-all">
+                <i class="fa-solid fa-graduation-cap text-lg mb-1"></i>
+                <span class="text-[10px] font-bold">Student</span>
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="roleStr" value="INTERN" class="peer sr-only"
+                onchange="document.getElementById('role').value = this.value">
+              <div
+                class="h-full flex flex-col items-center justify-center p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-slate-400 peer-checked:bg-blue-600 peer-checked:text-white peer-checked:border-blue-500 transition-all">
+                <i class="fa-solid fa-briefcase text-lg mb-1"></i>
+                <span class="text-[10px] font-bold">Intern</span>
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="roleStr" value="TRAINER" class="peer sr-only"
+                onchange="document.getElementById('role').value = this.value">
+              <div
+                class="h-full flex flex-col items-center justify-center p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-slate-400 peer-checked:bg-amber-600 peer-checked:text-white peer-checked:border-amber-500 transition-all">
+                <i class="fa-solid fa-chalkboard-user text-lg mb-1"></i>
+                <span class="text-[10px] font-bold">Trainer</span>
+              </div>
+            </label>
+            <label class="cursor-pointer">
+              <input type="radio" name="roleStr" value="ADMIN" class="peer sr-only"
+                onchange="document.getElementById('role').value = this.value">
+              <div
+                class="h-full flex flex-col items-center justify-center p-3 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 text-slate-400 peer-checked:bg-rose-600 peer-checked:text-white peer-checked:border-rose-500 transition-all">
+                <i class="fa-solid fa-user-shield text-lg mb-1"></i>
+                <span class="text-[10px] font-bold">Admin</span>
+              </div>
+            </label>
+          </div>
+          <!-- Hidden Select for JS Compatibility -->
+          <select id="role" class="hidden">
+            <option value="STUDENT" selected>Student</option>
+            <option value="INTERN">Intern</option>
+            <option value="TRAINER">Trainer</option>
+            <option value="ADMIN">Admin</option>
+          </select>
+        </div>
+
+        <!-- Email -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Email</label>
+          <div class="relative group">
+            <i
+              class="fa-regular fa-envelope absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors"></i>
+            <input type="email" id="email"
+              class="w-full bg-slate-950/50 text-white border border-slate-700 rounded-xl px-12 py-3.5 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-slate-600 font-medium"
+              placeholder="name@example.com">
+          </div>
+        </div>
+
+        <!-- Password -->
+        <div>
+          <label class="block text-xs font-bold text-slate-300 uppercase tracking-wider mb-2">Password</label>
+          <div class="relative group">
+            <i
+              class="fa-solid fa-lock absolute left-4 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-blue-400 transition-colors"></i>
+            <input type="password" id="password"
+              class="w-full bg-slate-950/50 text-white border border-slate-700 rounded-xl px-12 py-3.5 outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all placeholder:text-slate-600 font-medium"
+              placeholder="">
+          </div>
+        </div>
+
+        <button onclick="login()"
+          class="w-full bg-gradient-to-r from-blue-600 to-sky-600 hover:from-blue-500 hover:to-sky-500 text-white font-bold py-4 rounded-xl shadow-lg shadow-blue-500/30 hover:scale-[1.02] active:scale-95 transition-all text-sm uppercase tracking-wider">
+          Sign In
+        </button>
+
+        <p id="error" class="text-rose-500 text-sm font-medium text-center min-h-[20px]"></p>
+
+        <div class="flex justify-between items-center text-xs font-medium text-slate-400 mt-4">
+          <span onclick="openForgot()" class="hover:text-white cursor-pointer transition-colors">Forgot Password?</span>
+          <span class="text-slate-600">|</span>
+          <span onclick="openRegister()" class="hover:text-blue-400 cursor-pointer transition-colors">Create
+            Account</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- RIGHT PANEL: CONTENT -->
+    <div
+      class="hidden md:flex w-1/2 bg-slate-950/50 p-12 flex-col justify-between items-start relative overflow-hidden">
+      <div
+        class="absolute inset-0 bg-[url('https://images.unsplash.com/photo-1550745165-9bc0b252726f?q=80&w=2070&auto=format&fit=crop')] bg-cover bg-center opacity-20 hover:scale-105 transition-transform duration-[20s]">
+      </div>
+      <div class="absolute inset-0 bg-gradient-to-t from-slate-950 via-slate-950/40 to-transparent"></div>
+
+      <div class="relative z-10 w-full">
+        <span
+          class="px-3 py-1 bg-blue-500/20 text-blue-300 border border-blue-500/30 rounded-full text-[10px] font-bold uppercase tracking-wider mb-4 inline-block backdrop-blur-md">Feature
+          Spotlight</span>
+        <h1 class="text-4xl font-extrabold text-white leading-tight mb-4">Master Your <br><span
+            class="gradient-text">Future Skills</span></h1>
+        <p class="text-slate-300 text-sm leading-relaxed max-w-sm">
+          SkillTrack provides a comprehensive platform for managing your learning journey. Track assignments, quizzes,
+          and internships all in one place.
+        </p>
+      </div>
+
+      <div class="relative z-10 w-full bg-black/40 backdrop-blur-md border border-white/10 rounded-2xl p-5 mt-auto">
+        <h4 class="text-white font-bold text-sm mb-3 flex items-center gap-2"><i
+            class="fa-solid fa-calendar-check text-blue-400"></i> Upcoming Courses</h4>
+        <div id="courseList" class="space-y-2 max-h-40 overflow-y-auto pr-1 custom-scrollbar">
+          <!-- JS Populates this -->
+          <div class="animate-pulse flex space-x-4">
+            <div class="flex-1 space-y-2 py-1">
+              <div class="h-2 bg-slate-700 rounded w-3/4"></div>
+              <div class="h-2 bg-slate-700 rounded"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- REGISTER MODAL -->
+  <div id="registerModal"
+    class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div
+      class="bg-slate-950 border border-slate-700 w-full max-w-md rounded-2xl shadow-2xl overflow-hidden transform scale-100 transition-all p-8 relative">
+
+      <button onclick="closeRegister()"
+        class="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"><i
+          class="fa-solid fa-xmark text-lg"></i></button>
+
+      <h3 class="text-2xl font-bold text-white mb-1">Create Account</h3>
+      <p class="text-slate-400 text-xs mb-6">Join the SkillTrack community today.</p>
+
+      <div class="space-y-4">
+        <input id="regName"
+          class="w-full bg-slate-800 text-white border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-blue-500 text-sm"
+          placeholder="Full Name">
+        <input id="regEmail" type="email"
+          class="w-full bg-slate-800 text-white border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-blue-500 text-sm"
+          placeholder="Email Address">
+        <input id="regPassword" type="password"
+          class="w-full bg-slate-800 text-white border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-blue-500 text-sm"
+          placeholder="Password">
+
+        <div class="relative">
+          <select id="regRole" onchange="toggleRoleFields()"
+            class="w-full bg-slate-800 text-white border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-blue-500 text-sm appearance-none cursor-pointer">
+            <option value="">Select Role</option>
+            <option value="STUDENT">Student</option>
+            <option value="TRAINER">Trainer</option>
+            <option value="INTERN">Intern</option>
+          </select>
+          <i
+            class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none text-xs"></i>
+        </div>
+
+        <div id="studentFields" style="display:none;">
+          <div class="relative">
+            <select id="regCourse"
+              class="w-full bg-slate-800 text-white border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-blue-500 text-sm appearance-none cursor-pointer">
+              <option value="">Select Course</option>
+            </select>
+            <i
+              class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none text-xs"></i>
+          </div>
+        </div>
+
+        <div id="internFields" style="display:none;">
+          <div class="relative">
+            <select id="regInternship"
+              class="w-full bg-slate-800 text-white border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-blue-500 text-sm appearance-none cursor-pointer">
+              <option value="">Select Internship</option>
+            </select>
+            <i
+              class="fa-solid fa-chevron-down absolute right-4 top-1/2 -translate-y-1/2 text-slate-500 pointer-events-none text-xs"></i>
+          </div>
+        </div>
+      </div>
+
+      <button onclick="register()"
+        class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl mt-6 transition-all text-sm shadow-lg shadow-blue-500/20">Register
+        Now</button>
+    </div>
+  </div>
+
+  <!-- FORGOT PASSWORD MODAL -->
+  <div id="forgotModal"
+    class="hidden fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm">
+    <div class="bg-slate-950 border border-slate-700 w-full max-w-sm rounded-2xl shadow-2xl p-8 relative">
+      <button onclick="closeForgot()"
+        class="absolute top-4 right-4 text-slate-500 hover:text-white transition-colors"><i
+          class="fa-solid fa-xmark text-lg"></i></button>
+
+      <h3 class="text-xl font-bold text-white mb-2">Reset Password</h3>
+      <p class="text-slate-400 text-xs mb-6">Enter your email to receive a recovery link.</p>
+
+      <input id="fpEmail" type="email"
+        class="w-full bg-slate-800 text-white border border-slate-700 rounded-xl px-4 py-3 outline-none focus:border-blue-500 text-sm mb-4"
+        placeholder="Registered Email">
+
+      <button onclick="sendResetLink()"
+        class="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-all text-sm shadow-lg shadow-blue-500/20">Send
+        Recovery Link</button>
+    </div>
+  </div>
+
+  <script src="login.js"></script>
+  <script>
+    // Update course list styling dynamically if needed via JS or keep login.js generic.
+    // login.js generates divs with class 'course-card'. We can style them using Tailwind in the global style or inline here.
+    // Ideally we update login.js to produce better HTML, but to avoid touching JS too much, we add CSS override.
+  </script>
+  <style>
+    /* Override login.js generated elements styling for transparency */
+    .course-card {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      padding: 10px;
+      border-radius: 8px;
+      margin-bottom: 8px;
+      color: white;
+      transition: all 0.3s ease;
+    }
+
+    .course-card:hover {
+      background: rgba(255, 255, 255, 0.1);
+      transform: translateX(5px);
+    }
+
+    .course-card h4 {
+      font-weight: 600;
+      font-size: 0.9em;
+      color: #e2e8f0;
+      margin-bottom: 2px;
+    }
+
+    .course-card p {
+      font-size: 0.75em;
+      color: #94a3b8;
+    }
+
+    /* CustomScrollbar */
+    .custom-scrollbar::-webkit-scrollbar {
+      width: 4px;
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-track {
+      background: rgba(255, 255, 255, 0.05);
+    }
+
+    .custom-scrollbar::-webkit-scrollbar-thumb {
+      background: rgba(255, 255, 255, 0.2);
+      border-radius: 2px;
+    }
+  </style>
+</body>
+
+</html>

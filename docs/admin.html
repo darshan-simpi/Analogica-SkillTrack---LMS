@@ -1,0 +1,1022 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Admin Dashboard - SkillTrack</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Toggle visibility classes */
+    .section {
+      display: none;
+    }
+
+    .section:not(.hidden) {
+      display: block;
+    }
+  </style>
+</head>
+
+<body class="bg-blue-50 text-slate-800 h-screen flex overflow-hidden">
+
+  <!-- SIDEBAR -->
+  <aside class="w-64 bg-[#172554] border-r border-[#1e40af] flex-col hidden md:flex h-full flex-shrink-0">
+    <div class="p-6 border-b border-[#1e40af]">
+      <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+        <img src="analogica_logo.jpg" alt="Logo" class="w-8 h-8 rounded-full object-contain"> SkillTrack
+      </h2>
+      <p class="text-slate-500 text-xs mt-1 font-medium tracking-wider uppercase">Admin Portal</p>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto p-4 space-y-1">
+      <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 ml-2">Main</div>
+      <a onclick="showSection('dashboard')"
+        class="nav-item active flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 font-medium hover:bg-[#1e40af] hover:text-white cursor-pointer transition-all">
+        <i class="fa-solid fa-chart-simple w-5 text-center"></i> Dashboard
+      </a>
+      <a onclick="showSection('users')"
+        class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 font-medium hover:bg-[#1e40af] hover:text-white cursor-pointer transition-all">
+        <i class="fa-solid fa-users w-5 text-center"></i> Users
+      </a>
+
+      <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 mt-6 ml-2">Management</div>
+      <a onclick="showSection('courses')"
+        class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 font-medium hover:bg-[#1e40af] hover:text-white cursor-pointer transition-all">
+        <i class="fa-solid fa-book w-5 text-center"></i> Courses
+      </a>
+      <a onclick="showSection('workshops')"
+        class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 font-medium hover:bg-[#1e40af] hover:text-white cursor-pointer transition-all">
+        <i class="fa-solid fa-chalkboard-user w-5 text-center"></i> Workshops
+      </a>
+      <a onclick="showSection('internships')"
+        class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 font-medium hover:bg-[#1e40af] hover:text-white cursor-pointer transition-all">
+        <i class="fa-solid fa-briefcase w-5 text-center"></i> Internships
+      </a>
+    </nav>
+
+    <div class="p-4 border-t border-[#1e40af]">
+      <button onclick="logout()"
+        class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-rose-400 hover:bg-rose-500/10 hover:text-rose-500 font-medium transition-all">
+        <i class="fa-solid fa-right-from-bracket"></i> Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- CONTENT -->
+  <main class="flex-1 h-full overflow-y-auto relative w-full flex flex-col">
+
+    <!-- HEADER -->
+    <header
+      class="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-20 px-8 py-4 flex justify-between items-center">
+      <div>
+        <h2 id="adminName" class="text-xl font-bold text-slate-800">Admin Dashboard</h2>
+        <p class="text-sm text-slate-500">Manage your organization efficiently</p>
+      </div>
+      <div class="relative">
+        <i class="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+        <input type="text" id="globalSearch" onkeyup="globalSearch()" placeholder="Search..."
+          class="pl-10 pr-4 py-2 bg-blue-50 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none w-64 transition-all focus:w-80">
+      </div>
+    </header>
+
+    <div class="p-8 max-w-7xl mx-auto space-y-8 flex-1 w-full">
+
+      <!-- DASHBOARD SECTION -->
+      <section id="dashboard" class="section fade-in">
+        <!-- Stats Grid -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col relative overflow-hidden">
+            <p class="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Students</p>
+            <h3 class="text-3xl font-extrabold text-slate-800 stat-value" data-stat="students">0</h3>
+            <div
+              class="absolute -right-4 -bottom-4 w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center text-sky-200 text-4xl">
+              <i class="fa-solid fa-user-graduate"></i>
+            </div>
+          </div>
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col relative overflow-hidden">
+            <p class="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Trainers</p>
+            <h3 class="text-3xl font-extrabold text-slate-800 stat-value" data-stat="trainers">0</h3>
+            <div
+              class="absolute -right-4 -bottom-4 w-20 h-20 bg-amber-50 rounded-full flex items-center justify-center text-amber-200 text-4xl">
+              <i class="fa-solid fa-chalkboard-user"></i>
+            </div>
+          </div>
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col relative overflow-hidden">
+            <p class="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Interns</p>
+            <h3 class="text-3xl font-extrabold text-slate-800 stat-value" data-stat="interns">0</h3>
+            <div
+              class="absolute -right-4 -bottom-4 w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center text-blue-200 text-4xl">
+              <i class="fa-solid fa-user-tie"></i>
+            </div>
+          </div>
+          <div class="bg-white p-6 rounded-2xl shadow-sm border border-gray-100 flex flex-col relative overflow-hidden">
+            <p class="text-slate-500 text-xs font-bold uppercase tracking-wider mb-1">Courses</p>
+            <h3 id="courseCount" class="text-3xl font-extrabold text-slate-800">0</h3>
+            <div
+              class="absolute -right-4 -bottom-4 w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center text-sky-200 text-4xl">
+              <i class="fa-solid fa-book"></i>
+            </div>
+          </div>
+        </div>
+
+        <!-- Preview Tables Area -->
+        <div class="grid grid-cols-1 lg:grid-cols-2 gap-8">
+          <!-- Courses Preview -->
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="font-bold text-slate-800">Recent Courses</h3>
+              <button onclick="showSection('courses')" class="text-xs text-blue-600 font-bold hover:underline">View
+                All</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm text-slate-600">
+                <thead class="border-b border-gray-100 text-xs uppercase text-slate-400 lg:table-header-group hidden">
+                  <tr>
+                    <th class="py-2">Name</th>
+                    <th class="py-2">Start</th>
+                    <th class="py-2">Mentor</th>
+                  </tr>
+                </thead>
+                <tbody id="courseTable" class="divide-y divide-gray-50"></tbody>
+              </table>
+            </div>
+          </div>
+
+          <!-- Workshops Preview -->
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="font-bold text-slate-800">Upcoming Workshops</h3>
+              <button onclick="showSection('workshops')" class="text-xs text-blue-600 font-bold hover:underline">View
+                All</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm text-slate-600">
+                <thead class="border-b border-gray-100 text-xs uppercase text-slate-400 lg:table-header-group hidden">
+                  <tr>
+                    <th class="py-2">Title</th>
+                    <th class="py-2">Trainer</th>
+                    <th class="py-2">Date</th>
+                  </tr>
+                </thead>
+                <tbody id="workshopDashboardTable" class="divide-y divide-gray-50"></tbody>
+              </table>
+            </div>
+          </div>
+          <!-- Internships Preview -->
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 col-span-1 lg:col-span-2">
+            <div class="flex justify-between items-center mb-6">
+              <h3 class="font-bold text-slate-800">Active Internships</h3>
+              <button onclick="showSection('internships')" class="text-xs text-blue-600 font-bold hover:underline">View
+                All</button>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-sm text-slate-600">
+                <thead class="border-b border-gray-100 text-xs uppercase text-slate-400">
+                  <tr>
+                    <th class="py-3 px-2">Role</th>
+                    <th class="py-3 px-2">Mentor</th>
+                    <th class="py-3 px-2">Duration</th>
+                  </tr>
+                </thead>
+                <tbody id="internDashboardTable" class="divide-y divide-gray-50"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- USERS SECTION -->
+      <section id="users" class="section hidden fade-in space-y-8">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="p-6 border-b border-gray-100 bg-blue-50/50">
+            <h3 class="font-bold text-slate-800">Manage Trainers</h3>
+          </div>
+          <div class="overflow-x-auto p-0">
+            <table class="w-full text-left text-sm text-slate-600">
+              <thead class="bg-blue-50 text-xs uppercase text-slate-500 font-semibold">
+                <tr>
+                  <th class="py-4 px-6">Name</th>
+                  <th class="py-4 px-6">Email</th>
+                  <th class="py-4 px-6 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="trainerTable" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div
+            class="p-6 border-b border-gray-100 bg-blue-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <h3 class="font-bold text-slate-800">Manage Interns</h3>
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-filter text-slate-400 text-xs"></i>
+              <select id="internProgramFilter" onchange="filterUserTable('internUserTable', this.value)"
+                class="text-xs border-none bg-white rounded-lg px-3 py-1.5 focus:ring-0 outline-none font-bold text-slate-600 shadow-sm">
+                <option value="">All Internships</option>
+              </select>
+            </div>
+          </div>
+          <div class="overflow-x-auto p-0">
+            <table class="w-full text-left text-sm text-slate-600">
+              <thead class="bg-blue-50 text-xs uppercase text-slate-500 font-semibold">
+                <tr>
+                  <th class="py-4 px-6">Name</th>
+                  <th class="py-4 px-6">Email</th>
+                  <th class="py-4 px-6 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="internUserTable" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div
+            class="p-6 border-b border-gray-100 bg-blue-50/50 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <h3 class="font-bold text-slate-800">Manage Students</h3>
+            <div class="flex items-center gap-2">
+              <i class="fa-solid fa-filter text-slate-400 text-xs"></i>
+              <select id="studentProgramFilter" onchange="filterUserTable('studentTable', this.value)"
+                class="text-xs border-none bg-white rounded-lg px-3 py-1.5 focus:ring-0 outline-none font-bold text-slate-600 shadow-sm">
+                <option value="">All Courses</option>
+              </select>
+            </div>
+          </div>
+          <div class="overflow-x-auto p-0">
+            <table class="w-full text-left text-sm text-slate-600">
+              <thead class="bg-blue-50 text-xs uppercase text-slate-500 font-semibold">
+                <tr>
+                  <th class="py-4 px-6">Name</th>
+                  <th class="py-4 px-6">Email</th>
+                  <th class="py-4 px-6 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="studentTable" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- COURSES MANAGEMENT SECTION -->
+      <section id="courses" class="section hidden fade-in">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+          <h3 class="font-bold text-slate-800 mb-4">Add New Course</h3>
+          <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
+            <input id="courseName"
+              class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+              placeholder="Course Name">
+            <input type="date" id="courseDate"
+              class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+            <select id="courseMentor"
+              class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+              <option value="">Select Mentor</option>
+            </select>
+            <input id="courseDuration"
+              class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+              placeholder="Duration">
+            <button onclick="addCourse()"
+              class="bg-blue-600 hover:bg-sky-700 text-white font-bold py-2 rounded-lg transition-colors text-sm">Add
+              Course</button>
+          </div>
+        </div>
+
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+              <thead class="bg-blue-50 text-xs uppercase text-slate-500 font-semibold">
+                <tr>
+                  <th class="py-4 px-6">Name</th>
+                  <th class="py-4 px-6">StartDate</th>
+                  <th class="py-4 px-6">Mentor</th>
+                  <th class="py-4 px-6">Duration</th>
+                  <th class="py-4 px-6 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="courseManageTable" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- WORKSHOPS SECTION -->
+      <section id="workshops" class="section hidden fade-in">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+          <h3 class="font-bold text-slate-800 mb-4">Add Workshop</h3>
+          <div class="grid grid-cols-1 md:grid-cols-6 gap-4">
+            <input id="workshopTitle"
+              class="col-span-1 md:col-span-2 px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+              placeholder="Title">
+            <select id="workshopTrainer"
+              class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+              <option value="">Select Trainer</option>
+            </select>
+            <input id="workshopLocation"
+              class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+              placeholder="Location (e.g. Online)">
+            <input type="date" id="workshopStartDate"
+              class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+              title="Start Date">
+            <input type="date" id="workshopEndDate"
+              class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+              title="End Date">
+            <button onclick="addWorkshop()"
+              class="bg-blue-600 hover:bg-sky-700 text-white font-bold py-2 rounded-lg transition-colors text-sm">Add</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+              <thead class="bg-blue-50 text-xs uppercase text-slate-500 font-semibold">
+                <tr>
+                  <th class="py-4 px-6">Title</th>
+                  <th class="py-4 px-6">Trainer</th>
+                  <th class="py-4 px-6">Location</th>
+                  <th class="py-4 px-6">Dates</th>
+                  <th class="py-4 px-6 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="workshopTable" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- INTERNSHIPS SECTION -->
+      <section id="internships" class="section hidden fade-in">
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 mb-8">
+          <h3 class="font-bold text-slate-800 mb-4">Add Internship</h3>
+          <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+            <input id="internName"
+              class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+              placeholder="Intern Name">
+            <select id="mentorName"
+              class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+              <option value="">Select Mentor</option>
+            </select>
+            <input id="duration"
+              class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+              placeholder="Duration">
+            <button onclick="addIntern()"
+              class="bg-blue-600 hover:bg-sky-700 text-white font-bold py-2 rounded-lg transition-colors text-sm">Add</button>
+          </div>
+        </div>
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+          <div class="overflow-x-auto">
+            <table class="w-full text-left text-sm text-slate-600">
+              <thead class="bg-blue-50 text-xs uppercase text-slate-500 font-semibold">
+                <tr>
+                  <th class="py-4 px-6">Intern</th>
+                  <th class="py-4 px-6">Mentor</th>
+                  <th class="py-4 px-6">Duration</th>
+                  <th class="py-4 px-6 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="internTable" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+    </div>
+  </main>
+
+  <!-- EDIT MODAL -->
+  <div id="editModal"
+    class="fixed inset-0 z-50 hidden flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm">
+    <div class="bg-white w-full max-w-md rounded-2xl shadow-2xl p-6 relative">
+      <button onclick="closeModal()" class="absolute top-4 right-4 text-gray-400 hover:text-gray-600"><i
+          class="fa-solid fa-xmark text-lg"></i></button>
+      <h3 id="modalTitle" class="text-xl font-bold text-gray-900 mb-4">Edit Item</h3>
+      <div id="modalForm" class="space-y-4">
+        <!-- Injected fields -->
+      </div>
+      <button id="modalSaveBtn" onclick="saveModalChanges()"
+        class="w-full bg-blue-600 hover:bg-sky-700 text-white font-bold py-3 rounded-xl mt-6 transition-colors shadow-lg shadow-sky-200">Save
+        Changes</button>
+    </div>
+  </div>
+
+  <!-- JS Logic Reuse (Keep existing script logic but update DOM manipulation slightly if needed) -->
+  <!-- Ideally we should extract JS to admin.js but for now I'll embed strict minimal updates or keep inline -->
+  <script>
+    const API = "http://127.0.0.1:5005/api";
+    const token = localStorage.getItem("token");
+    // Re-declaring global vars might cause issues if I am not careful, but since this is a full file rewrite, it's fine.
+
+    if (!token || localStorage.getItem("role") !== "ADMIN") {
+      window.location.href = "index.html";
+    }
+
+    const nameEl = document.getElementById("adminName");
+    if (nameEl) nameEl.innerText = "Welcome, " + (localStorage.getItem("name") || "Admin");
+
+    // Helper for colorful avatars
+    function getColor(name) {
+      const colors = [
+        ['bg-sky-100', 'text-blue-600'], ['bg-blue-100', 'text-blue-600'],
+        ['bg-amber-100', 'text-amber-600'], ['bg-sky-100', 'text-blue-600'],
+        ['bg-sky-100', 'text-sky-600'], ['bg-sky-100', 'text-sky-600'],
+        ['bg-orange-100', 'text-orange-600'], ['bg-sky-100', 'text-blue-600']
+      ];
+      let hash = 0;
+      for (let i = 0; i < name.length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+      return colors[Math.abs(hash % colors.length)];
+    }
+
+    let currentEditType = null;
+    let currentEditId = null;
+
+    /* ================= NAV ================= */
+    function showSection(id) {
+      document.querySelectorAll(".section").forEach(s => s.classList.add("hidden"));
+      const target = document.getElementById(id);
+      if (target) target.classList.remove("hidden");
+
+      // Update Nav State
+      document.querySelectorAll(".nav-item").forEach(n => {
+        n.classList.remove("active", "bg-[#1e40af]", "text-white");
+        if (n.getAttribute("onclick").includes(id)) {
+          n.classList.add("active", "bg-[#1e40af]", "text-white");
+        }
+      });
+
+      if (id === "dashboard") loadDashboard();
+    }
+
+    function logout() {
+      localStorage.clear();
+      window.location.href = "index.html";
+    }
+
+    /* ================= LOADERS ================= */
+    // We need to redefine loadDashboard, etc. since we overwrote the HTML. 
+    // I will copy the logic from previous file but adapt table row generation to use Tailwind classes.
+
+    async function loadDashboard() {
+      try {
+        const statsRes = await fetch(`${API}/admin/stats`, { headers: { Authorization: `Bearer ${token}` } });
+        const d = await statsRes.json();
+
+        document.querySelectorAll(".stat-value").forEach(el => {
+          const key = el.dataset.stat;
+          if (d[key] !== undefined) el.innerText = d[key];
+        });
+        document.getElementById("courseCount").innerText = d.courses;
+
+        // Load Tables
+        const courseRes = await fetch(`${API}/courses`);
+        const courses = await courseRes.json();
+        const courseTable = document.getElementById("courseTable");
+        courseTable.innerHTML = "";
+        courses.slice(0, 5).forEach(c => {
+          const [bg, tx] = getColor(c.name);
+          courseTable.innerHTML += `
+                        <tr class="hover:bg-blue-50 transition-colors">
+                            <td class="py-3 font-medium text-slate-800 flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg ${bg} ${tx} flex items-center justify-center font-bold text-xs">${c.name.charAt(0)}</div>
+                                ${c.name}
+                            </td>
+                            <td class="py-3 text-xs font-semibold text-slate-500"><i class="fa-regular fa-calendar mr-1"></i> ${c.date}</td>
+                            <td class="py-3 flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-gray-100 flex items-center justify-center text-xs"><i class="fa-solid fa-user text-gray-400"></i></div> ${c.mentor_name || "-"}</td>
+                        </tr>`;
+        });
+
+        const workshopRes = await fetch(`${API}/workshops`);
+        const workshops = await workshopRes.json();
+        const workTable = document.getElementById("workshopDashboardTable");
+        workTable.innerHTML = "";
+        workshops.slice(0, 5).forEach(w => {
+          const [bg, tx] = getColor(w.title);
+          workTable.innerHTML += `
+                         <tr class="hover:bg-blue-50 transition-colors">
+                            <td class="py-3 font-medium text-slate-800 flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg ${bg} ${tx} flex items-center justify-center font-bold text-xs"><i class="fa-solid fa-chalkboard"></i></div>
+                                ${w.title}
+                            </td>
+                            <td class="py-3 text-sm">${w.trainer_name}</td>
+                            <td class="py-3 text-xs font-semibold text-slate-500">${w.start_date} to ${w.end_date}</td>
+                        </tr>`;
+        });
+
+        const internRes = await fetch(`${API}/internships`);
+        const interns = await internRes.json();
+        const internTable = document.getElementById("internDashboardTable");
+        internTable.innerHTML = "";
+        interns.slice(0, 5).forEach(i => {
+          const [bg, tx] = getColor(i.intern_name);
+          internTable.innerHTML += `
+                         <tr class="hover:bg-blue-50 transition-colors">
+                            <td class="py-3 px-2 font-medium text-slate-800 flex items-center gap-2">
+                                <div class="w-6 h-6 rounded-full ${bg} ${tx} flex items-center justify-center font-bold text-[10px]">${i.intern_name.charAt(0)}</div>
+                                ${i.intern_name}
+                            </td>
+                            <td class="py-3 px-2 text-sm text-slate-600">${i.mentor_name}</td>
+                            <td class="py-3 px-2"><span class="px-2 py-1 bg-slate-100 text-slate-600 text-xs font-bold rounded-md">${i.duration}</span></td>
+                        </tr>`;
+        });
+
+      } catch (e) { console.error(e); }
+    }
+
+    let allUsers = {}; // Global store for user data
+
+    async function loadUsers(role, tableId) {
+      const res = await fetch(`${API}/auth/users?role=${role}`, { headers: { Authorization: `Bearer ${token}` } });
+      const data = await res.json();
+      const table = document.getElementById(tableId);
+      table.innerHTML = "";
+      data.forEach(u => {
+        allUsers[u.id] = u; // Store in global map
+        const [bg, tx] = getColor(u.name);
+
+        // Only show enrollment info for STUDENTS and INTERNS
+        let subtitle = '';
+        const userRole = (u.role || '').toUpperCase();
+        const enrollCount = (u.enrollments || []).length;
+        if (userRole === 'STUDENT' || userRole === 'INTERN') {
+          subtitle = `<div class="text-[10px] text-slate-400 font-medium">${enrollCount > 0 ? enrollCount + ' Active Programs' : 'No Programs'}</div>`;
+        }
+
+        const programTitles = (u.enrollments || []).map(e => e.title.toLowerCase()).join('|');
+
+        table.innerHTML += `
+                     <tr class="hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0 group h-16" data-programs="${programTitles}">
+                        <td class="py-4 px-6 font-medium text-slate-800">
+                            <div class="flex items-center gap-3">
+                                <div class="w-9 h-9 rounded-full ${bg} ${tx} flex items-center justify-center font-bold text-sm shadow-sm">${u.name.charAt(0)}</div>
+                                <div>
+                                    <div class="font-bold flex items-center">${u.name}</div>
+                                    ${subtitle}
+                                </div>
+                            </div>
+                        </td>
+                        <td class="py-4 px-6 text-slate-500 font-medium">${u.email}</td>
+                        <td class="py-4 px-6 text-right space-x-2">
+                             <button onclick="editUser(${u.id})" class="text-xs bg-white border border-sky-200 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg font-bold shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">Manage</button>
+                            <button onclick="deleteUser(${u.id})" class="text-xs bg-white border border-sky-200 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg font-bold shadow-sm opacity-0 group-hover:opacity-100 transition-opacity">Delete</button>
+                        </td>
+                    </tr>`;
+      });
+    }
+
+    async function removeEnrollment(id, title) {
+      if (!confirm(`Remove user from "${title}"? This will also delete their progress for this specific item.`)) return;
+
+      const res = await fetch(`${API}/auth/enrollments/${id}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` }
+      });
+
+      if (res.ok) {
+        loadUsers("STUDENT", "studentTable");
+        loadUsers("INTERN", "internUserTable");
+        loadDashboard();
+      } else {
+        alert("Failed to remove enrollment");
+      }
+    }
+
+    async function loadCourses() {
+      const res = await fetch(`${API}/courses`);
+      const data = await res.json();
+      const table = document.getElementById("courseManageTable");
+      table.innerHTML = "";
+      data.forEach(c => {
+        const [bg, tx] = getColor(c.name);
+        table.innerHTML += `
+                     <tr class="hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0 group">
+                        <td class="py-4 px-6 font-medium text-slate-800 flex items-center gap-3">
+                            <div class="w-10 h-10 rounded-lg ${bg} ${tx} flex items-center justify-center font-bold text-lg shadow-sm">${c.name.charAt(0)}</div>
+                            ${c.name}
+                        </td>
+                        <td class="py-4 px-6 text-slate-500 font-medium text-xs"><i class="fa-regular fa-calendar mr-1"></i> ${c.date}</td>
+                        <td class="py-4 px-6 text-slate-500"><div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs"><i class="fa-solid fa-user"></i></div> ${c.mentor_name}</div></td>
+                        <td class="py-4 px-6"><span class="px-2 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-md uppercase tracking-wide">${c.duration}</span></td>
+                        <td class="py-4 px-6 text-right space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <button onclick="editCourse(${c.id})" class="text-xs bg-white border border-sky-200 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg font-bold shadow-sm">Edit</button>
+                            <button onclick="deleteCourse(${c.id})" class="text-xs bg-white border border-sky-200 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg font-bold shadow-sm">Delete</button>
+                        </td>
+                    </tr>`;
+      });
+    }
+
+    // ... Implement addCourse, deleteCourse, loadWorkshops, etc. with similar styling ...
+    // I will implement all CRUD functions now to be complete.
+
+    async function addCourse() {
+      const name = document.getElementById("courseName").value;
+      const date = document.getElementById("courseDate").value;
+      const mentor = document.getElementById("courseMentor").value;
+      const duration = document.getElementById("courseDuration").value;
+
+      if (!mentor) return alert("Select Mentor");
+
+      await fetch(`${API}/courses`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ name, date, mentor_name: mentor, duration })
+      });
+
+      document.getElementById("courseName").value = "";
+      document.getElementById("courseMentor").value = "";
+      // etc...
+      loadCourses();
+      loadDashboard(); // Update stats
+    }
+
+    async function deleteCourse(id) {
+      if (!confirm("Delete course?")) return;
+      await fetch(`${API}/courses/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      loadCourses(); loadDashboard();
+    }
+
+    async function editCourse(id) {
+      const res = await fetch(`${API}/courses`);
+      const courses = await res.json();
+      const c = courses.find(x => x.id === id);
+      if (c) openModal('course', id, c);
+    }
+
+    /* WORKSHOPS */
+    async function loadWorkshops() {
+      const res = await fetch(`${API}/workshops`);
+      const data = await res.json();
+      const table = document.getElementById("workshopTable");
+      table.innerHTML = "";
+      data.forEach(w => {
+        const [bg, tx] = getColor(w.title);
+        table.innerHTML += `
+                     <tr class="hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0 group">
+                        <td class="py-4 px-6 font-medium text-slate-800 flex items-center gap-3">
+                             <div class="w-10 h-10 rounded-lg ${bg} ${tx} flex items-center justify-center font-bold text-lg shadow-sm"><i class="fa-solid fa-chalkboard"></i></div>
+                             ${w.title}
+                        </td>
+                        <td class="py-4 px-6 text-slate-500"><div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs"><i class="fa-solid fa-user"></i></div> ${w.trainer_name}</div></td>
+                        <td class="py-4 px-6 text-slate-500 font-medium text-xs"><i class="fa-solid fa-location-dot mr-1"></i> ${w.location || '-'}</td>
+                        <td class="py-4 px-6 text-slate-500 font-medium text-xs"><i class="fa-regular fa-clock mr-1"></i> ${w.start_date} - ${w.end_date}</td>
+                        <td class="py-4 px-6 text-right space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <button onclick="editWorkshop(${w.id})" class="text-xs bg-white border border-sky-200 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg font-bold shadow-sm">Edit</button>
+                            <button onclick="deleteWorkshop(${w.id})" class="text-xs bg-white border border-sky-200 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg font-bold shadow-sm">Delete</button>
+                        </td>
+                    </tr>`;
+      });
+    }
+
+    async function addWorkshop() {
+      // ... logic similar to addCourse ...
+      const title = document.getElementById("workshopTitle").value;
+      const trainer = document.getElementById("workshopTrainer").value;
+      const location = document.getElementById("workshopLocation").value;
+      const sDate = document.getElementById("workshopStartDate").value;
+      const eDate = document.getElementById("workshopEndDate").value;
+
+      await fetch(`${API}/workshops`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ title, trainer_name: trainer, location, start_date: sDate, end_date: eDate })
+      });
+      loadWorkshops();
+    }
+
+    async function deleteWorkshop(id) {
+      if (!confirm("Delete?")) return;
+      await fetch(`${API}/workshops/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      loadWorkshops();
+    }
+    async function editWorkshop(id) {
+      const res = await fetch(`${API}/workshops`);
+      const data = await res.json();
+      const w = data.find(x => x.id === id);
+      if (w) openModal('workshop', id, w);
+    }
+
+    /* INTERNSHIPS */
+    async function loadInternships() {
+      const res = await fetch(`${API}/internships`);
+      const data = await res.json();
+      const table = document.getElementById("internTable");
+      table.innerHTML = "";
+      data.forEach(i => {
+        const [bg, tx] = getColor(i.intern_name);
+        table.innerHTML += `
+                     <tr class="hover:bg-blue-50 transition-colors border-b border-gray-50 last:border-0 group">
+                        <td class="py-4 px-6 font-medium text-slate-800 flex items-center gap-3">
+                             <div class="w-9 h-9 rounded-full ${bg} ${tx} flex items-center justify-center font-bold text-sm shadow-sm">${i.intern_name.charAt(0)}</div>
+                             ${i.intern_name}
+                        </td>
+                        <td class="py-4 px-6 text-slate-500"><div class="flex items-center gap-2"><div class="w-6 h-6 rounded-full bg-slate-100 flex items-center justify-center text-xs"><i class="fa-solid fa-user-tie"></i></div> ${i.mentor_name}</div></td>
+                        <td class="py-4 px-6"><span class="px-2 py-1 bg-blue-50 text-blue-600 text-xs font-bold rounded-md uppercase tracking-wide">${i.duration}</span></td>
+                        <td class="py-4 px-6 text-right space-x-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                             <button onclick="editIntern(${i.id})" class="text-xs bg-white border border-sky-200 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg font-bold shadow-sm">Edit</button>
+                            <button onclick="deleteIntern(${i.id})" class="text-xs bg-white border border-sky-200 text-blue-600 hover:bg-blue-50 px-3 py-1.5 rounded-lg font-bold shadow-sm">Delete</button>
+                        </td>
+                    </tr>`;
+      });
+    }
+
+    async function addIntern() {
+      const name = document.getElementById("internName").value;
+      const mentor = document.getElementById("mentorName").value;
+      const dur = document.getElementById("duration").value;
+      await fetch(`${API}/internships`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", "Authorization": `Bearer ${token}` },
+        body: JSON.stringify({ intern_name: name, mentor_name: mentor, duration: dur })
+      });
+      loadInternships(); loadDashboard();
+    }
+
+    async function deleteIntern(id) {
+      if (!confirm("Delete?")) return;
+      await fetch(`${API}/internships/${id}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      loadInternships(); loadDashboard();
+    }
+
+    async function editIntern(id) {
+      const res = await fetch(`${API}/internships`);
+      const data = await res.json();
+      const i = data.find(x => x.id === id);
+      if (i) openModal('internship', id, i);
+    }
+
+    function openModal(type, id, data) {
+      currentEditType = type;
+      currentEditId = id;
+      const modal = document.getElementById("editModal");
+      const form = document.getElementById("modalForm");
+      modal.classList.remove("hidden");
+      modal.classList.add("flex");
+
+      if (type === 'course') {
+        document.getElementById("modalTitle").innerText = "Edit Course";
+        form.innerHTML = `
+                  <input id="editName" value="${data.name}" class="w-full px-4 py-3 bg-blue-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-sky-500" placeholder="Course Name">
+                  <input type="date" id="editDate" value="${data.date}" class="w-full px-4 py-3 bg-blue-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-sky-500">
+                  <input id="editMentor" value="${data.mentor_name}" class="w-full px-4 py-3 bg-blue-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-sky-500" placeholder="Mentor Name">
+                  <input id="editDuration" value="${data.duration}" class="w-full px-4 py-3 bg-blue-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-sky-500" placeholder="Duration">
+                `;
+      } else if (type === 'workshop') {
+        document.getElementById("modalTitle").innerText = "Edit Workshop";
+        form.innerHTML = `
+                  <input id="editTitle" value="${data.title}" class="w-full px-4 py-3 bg-blue-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-sky-500" placeholder="Workshop Title">
+                  <input id="editTrainer" value="${data.trainer_name}" class="w-full px-4 py-3 bg-blue-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-sky-500" placeholder="Trainer Name">
+                  <input id="editLocation" value="${data.location || ''}" class="w-full px-4 py-3 bg-blue-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-sky-500" placeholder="Location">
+                  <div class="grid grid-cols-2 gap-4">
+                    <input type="date" id="editStartDate" value="${data.start_date}" class="w-full px-4 py-3 bg-blue-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-sky-500">
+                    <input type="date" id="editEndDate" value="${data.end_date}" class="w-full px-4 py-3 bg-blue-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-sky-500">
+                  </div>
+                `;
+      } else if (type === 'internship') {
+        document.getElementById("modalTitle").innerText = "Edit Internship";
+        form.innerHTML = `
+                  <input id="editIntern" value="${data.intern_name}" class="w-full px-4 py-3 bg-blue-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-sky-500" placeholder="Intern Name">
+                  <input id="editMentor" value="${data.mentor_name}" class="w-full px-4 py-3 bg-blue-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-sky-500" placeholder="Mentor Name">
+                  <input id="editDuration" value="${data.duration}" class="w-full px-4 py-3 bg-blue-50 border border-gray-200 rounded-lg outline-none focus:ring-2 focus:ring-sky-500" placeholder="Duration">
+                `;
+      } else if (type === 'user') {
+        document.getElementById("modalTitle").innerText = "Manage User Profile";
+
+        const userRole = (data.role || "").toUpperCase();
+        let enrollListHtml = '';
+
+        if (userRole === 'STUDENT' || userRole === 'INTERN') {
+          enrollListHtml = '<div class="space-y-2 mt-4 pt-4 border-t border-gray-100">';
+          enrollListHtml += '<h4 class="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3">Active Enrollments</h4>';
+
+          if (data.enrollments && data.enrollments.length > 0) {
+            data.enrollments.forEach(e => {
+              const icon = e.type === "Course" ? "fa-book" : "fa-briefcase";
+              enrollListHtml += `
+                        <div class="flex items-center justify-between p-3 bg-slate-50 border border-slate-100 rounded-xl group/item">
+                            <div class="flex items-center gap-3">
+                                <div class="w-8 h-8 rounded-lg bg-white shadow-sm flex items-center justify-center text-sky-600">
+                                    <i class="fa-solid ${icon} text-xs"></i>
+                                </div>
+                                <div>
+                                    <div class="text-[10px] font-bold text-slate-400 uppercase tracking-tight">${e.type}</div>
+                                    <div class="text-xs font-bold text-slate-700">${e.title}</div>
+                                </div>
+                            </div>
+                            <button onclick="removeEnrollment(${e.enrollment_id}, '${e.title}')" class="text-[10px] font-bold text-rose-500 hover:bg-rose-500 hover:text-white px-3 py-1 rounded-lg transition-all">
+                               Remove
+                            </button>
+                        </div>
+                    `;
+            });
+          } else {
+            enrollListHtml += '<div class="text-center py-4 bg-slate-50 rounded-xl border border-dashed border-slate-200 text-xs text-slate-500">No active programs found</div>';
+          }
+          enrollListHtml += '</div>';
+        }
+
+        form.innerHTML = `
+                  <div class="space-y-4">
+                      <div>
+                          <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Full Name</label>
+                          <input id="editName" value="${data.name}" class="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500 text-sm" placeholder="Name">
+                      </div>
+                      <div>
+                          <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">Email Address</label>
+                          <input id="editEmail" value="${data.email}" class="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500 text-sm" placeholder="Email">
+                      </div>
+                      <div>
+                          <label class="text-[10px] font-bold text-slate-400 uppercase ml-1">User Role</label>
+                          <select id="editRole" class="w-full px-4 py-2 bg-white border border-gray-200 rounded-xl outline-none focus:ring-2 focus:ring-sky-500 text-sm">
+                              <option value="STUDENT" ${userRole === 'STUDENT' ? 'selected' : ''}>Student</option>
+                              <option value="INTERN" ${userRole === 'INTERN' ? 'selected' : ''}>Intern</option>
+                              <option value="TRAINER" ${userRole === 'TRAINER' ? 'selected' : ''}>Trainer</option>
+                          </select>
+                      </div>
+                  </div>
+                  ${enrollListHtml}
+                `;
+      }
+    }
+
+    function closeModal() {
+      const modal = document.getElementById("editModal");
+      modal.classList.add("hidden");
+      modal.classList.remove("flex");
+    }
+
+    async function saveModalChanges() {
+      let data = {};
+      let endpoint = "";
+
+      if (currentEditType === 'course') {
+        data = {
+          name: document.getElementById("editName").value,
+          date: document.getElementById("editDate").value,
+          mentor_name: document.getElementById("editMentor").value,
+          duration: document.getElementById("editDuration").value
+        };
+        endpoint = `courses/${currentEditId}`;
+      } else if (currentEditType === 'workshop') {
+        data = {
+          title: document.getElementById("editTitle").value,
+          trainer_name: document.getElementById("editTrainer").value,
+          location: document.getElementById("editLocation").value,
+          start_date: document.getElementById("editStartDate").value,
+          end_date: document.getElementById("editEndDate").value
+        };
+        endpoint = `workshops/${currentEditId}`;
+      } else if (currentEditType === 'internship') {
+        data = {
+          intern_name: document.getElementById("editIntern").value,
+          mentor_name: document.getElementById("editMentor").value,
+          duration: document.getElementById("editDuration").value
+        };
+        endpoint = `internships/${currentEditId}`;
+      } else if (currentEditType === 'user') {
+        data = {
+          name: document.getElementById("editName").value,
+          email: document.getElementById("editEmail").value,
+          role: document.getElementById("editRole").value
+        };
+        endpoint = `auth/users/${currentEditId}`;
+      }
+
+      await fetch(`${API}/${endpoint}`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+        body: JSON.stringify(data)
+      });
+
+      closeModal();
+      if (currentEditType === 'course') loadCourses();
+      else if (currentEditType === 'workshop') loadWorkshops();
+      else if (currentEditType === 'internship') loadInternships();
+      else if (currentEditType === 'user') {
+        loadUsers("STUDENT", "studentTable");
+        loadUsers("TRAINER", "trainerTable");
+        loadUsers("INTERN", "internUserTable");
+      }
+      loadDashboard();
+    }
+
+    function editUser(id) {
+      const user = allUsers[id];
+      if (user) openModal('user', id, user);
+    }
+
+    async function loadMentors() {
+      const res = await fetch(`${API}/mentors`, { headers: { Authorization: `Bearer ${token}` } });
+      const mentors = await res.json();
+
+      const courseMentor = document.getElementById("courseMentor");
+      const workshopTrainer = document.getElementById("workshopTrainer");
+      const internshipMentor = document.getElementById("mentorName");
+
+      courseMentor.innerHTML = `<option value="">Select Mentor</option>`;
+      workshopTrainer.innerHTML = `<option value="">Select Trainer</option>`;
+      internshipMentor.innerHTML = `<option value="">Select Mentor</option>`;
+
+      mentors.forEach(m => {
+        const opt = `<option value="${m.name}">${m.name} (${m.email})</option>`;
+        courseMentor.innerHTML += opt;
+        workshopTrainer.innerHTML += opt;
+        internshipMentor.innerHTML += opt;
+      });
+
+      // Populate Program Filters
+      const cRes = await fetch(`${API}/courses`);
+      const courses = await cRes.json();
+      const sFilter = document.getElementById("studentProgramFilter");
+      sFilter.innerHTML = `<option value="">All Courses</option>`;
+      courses.forEach(c => {
+        sFilter.innerHTML += `<option value="${c.name}">${c.name}</option>`;
+      });
+
+      const iRes = await fetch(`${API}/internships`);
+      const internships = await iRes.json();
+      const iFilter = document.getElementById("internProgramFilter");
+      iFilter.innerHTML = `<option value="">All Internships</option>`;
+      internships.forEach(i => {
+        iFilter.innerHTML += `<option value="${i.intern_name}">${i.intern_name}</option>`;
+      });
+    }
+
+    async function deleteUser(userId) {
+      if (!confirm("Delete user?")) return;
+      await fetch(`${API}/auth/users/${userId}`, { method: "DELETE", headers: { Authorization: `Bearer ${token}` } });
+      loadUsers("STUDENT", "studentTable");
+      loadUsers("TRAINER", "trainerTable");
+      loadUsers("INTERN", "internUserTable");
+    }
+
+    function filterUserTable(tableId, query) {
+      const q = query.toLowerCase();
+      document.querySelectorAll(`#${tableId} tr`).forEach(row => {
+        if (!q) {
+          row.style.display = "";
+          return;
+        }
+        const programs = row.dataset.programs || "";
+        row.style.display = programs.includes(q) ? "" : "none";
+      });
+    }
+
+    function globalSearch() {
+      const query = document.getElementById("globalSearch").value.toLowerCase();
+      document.querySelectorAll("tbody tr").forEach(row => {
+        row.style.display = row.innerText.toLowerCase().includes(query) ? "" : "none";
+      });
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      loadDashboard();
+      loadUsers("STUDENT", "studentTable");
+      loadUsers("TRAINER", "trainerTable");
+      loadUsers("INTERN", "internUserTable");
+      loadCourses();
+      loadWorkshops();
+      loadInternships();
+      loadMentors();
+    });
+
+  </script>
+</body>
+
+</html>

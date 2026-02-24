@@ -1,0 +1,351 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Intern Dashboard - SkillTrack</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap');
+
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    .hide-scrollbar::-webkit-scrollbar {
+      display: none;
+    }
+
+    .hide-scrollbar {
+      -ms-overflow-style: none;
+      scrollbar-width: none;
+    }
+
+    .page {
+      display: none;
+      opacity: 0;
+      transition: opacity 0.3s ease-in-out;
+    }
+
+    .page.show {
+      display: block;
+      opacity: 1;
+    }
+
+    .glass-card {
+      background: rgba(255, 255, 255, 0.95);
+      backdrop-filter: blur(10px);
+    }
+
+    /* Celebration Animation */
+    .celebration-container {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+      z-index: 9999;
+      overflow: hidden;
+    }
+
+    @keyframes fall {
+      to {
+        transform: translateY(100vh);
+        opacity: 1;
+      }
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 text-[#172554]">
+
+  <div class="flex h-screen overflow-hidden">
+    <!-- Sidebar -->
+    <aside class="w-64 bg-[#172554] text-white flex flex-col shadow-2xl z-20">
+      <div class="p-6 border-b border-[#1e40af] flex items-center gap-3">
+        <div class="w-8 h-8 bg-blue-500 rounded-lg flex items-center justify-center transform rotate-3">
+          <img src="new_logo.jpg" alt="Logo" class="w-8 h-8 rounded-full object-contain">
+        </div>
+        <h1 class="text-xl font-bold tracking-tight">Intern<span class="text-blue-400">Track</span></h1>
+      </div>
+
+      <nav class="flex-1 p-4 space-y-2 overflow-y-auto">
+        <a class="nav active flex items-center gap-3 px-4 py-3 rounded-xl transition-all cursor-pointer text-slate-400 font-bold hover:bg-[#1e40af] hover:text-white hover:translate-x-1"
+          data-target="dashboard">
+          <i class="fa-solid fa-chart-pie w-5 text-center"></i> <span class="font-medium">Dashboard</span>
+        </a>
+        <a class="nav flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#1e40af] text-slate-400 hover:text-white transition-all cursor-pointer hover:translate-x-1"
+          data-target="tasks">
+          <i class="fa-solid fa-list-check w-5 text-center"></i> <span class="font-medium">Tasks</span>
+        </a>
+        <a class="nav flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#1e40af] text-slate-400 hover:text-white transition-all cursor-pointer hover:translate-x-1"
+          data-target="progress">
+          <i class="fa-solid fa-bars-progress w-5 text-center"></i> <span class="font-medium">Progress</span>
+        </a>
+        <a class="nav flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#1e40af] text-slate-400 hover:text-white transition-all cursor-pointer hover:translate-x-1"
+          data-target="mentor">
+          <i class="fa-solid fa-user-group w-5 text-center"></i> <span class="font-medium">Mentor</span>
+        </a>
+        <a class="nav flex items-center gap-3 px-4 py-3 rounded-xl hover:bg-[#1e40af] text-slate-400 hover:text-white transition-all cursor-pointer hover:translate-x-1"
+          data-target="internships">
+          <i class="fa-solid fa-briefcase w-5 text-center"></i> <span class="font-medium">Internships</span>
+        </a>
+      </nav>
+
+      <div class="p-4 border-t border-[#1e40af]">
+        <a id="logout-link"
+          class="flex items-center p-3 rounded-xl hover:bg-red-500/10 text-red-400 hover:text-red-400 transition-all cursor-pointer">
+          <i class="fa-solid fa-right-from-bracket w-8"></i> <span class="font-medium">Logout</span>
+        </a>
+      </div>
+    </aside>
+
+    <!-- Main Content -->
+    <main class="flex-1 overflow-y-auto relative scroll-smooth bg-slate-50">
+      <!-- Header -->
+      <header
+        class="bg-white/80 backdrop-blur-md sticky top-0 z-10 px-8 py-5 border-b border-slate-200 flex justify-between items-center">
+        <div>
+          <h2 id="welcome-message" class="text-2xl font-bold text-slate-900">Welcome Back ??</h2>
+          <p class="text-slate-500 text-sm">Here's what's happening today.</p>
+        </div>
+        <div class="flex items-center gap-4">
+          <div
+            class="px-4 py-2 bg-blue-100 text-blue-700 rounded-full text-xs font-bold uppercase tracking-wide flex items-center gap-2">
+            <span class="w-2 h-2 bg-blue-500 rounded-full animate-pulse"></span> Active Intern
+          </div>
+        </div>
+      </header>
+
+      <div class="p-8 max-w-7xl mx-auto min-h-screen">
+
+        <!-- DASHBOARD PAGE -->
+        <section id="dashboard" class="page show animate-in fade-in slide-in-from-bottom-4 duration-500">
+          <div class="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+            <!-- Stats Cards -->
+            <div
+              class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between hover:shadow-md transition-all relative overflow-hidden group">
+              <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
+              <div>
+                <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Tasks Completed</p>
+                <h3 id="stats-completed" class="text-3xl font-extrabold text-[#172554]">0</h3>
+              </div>
+              <div
+                class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                <i class="fa-solid fa-check-circle text-lg"></i>
+              </div>
+            </div>
+
+            <div
+              class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between hover:shadow-md transition-all relative overflow-hidden group">
+              <div class="absolute left-0 top-0 bottom-0 w-1 bg-amber-500"></div>
+              <div>
+                <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Pending Tasks</p>
+                <h3 id="stats-pending" class="text-3xl font-extrabold text-[#172554]">0</h3>
+              </div>
+              <div
+                class="w-10 h-10 bg-amber-50 rounded-full flex items-center justify-center text-amber-600 group-hover:scale-110 transition-transform">
+                <i class="fa-solid fa-clock text-lg"></i>
+              </div>
+            </div>
+
+            <div
+              class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between hover:shadow-md transition-all relative overflow-hidden group">
+              <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
+              <div>
+                <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Overall Progress</p>
+                <h3 id="stats-progress" class="text-3xl font-extrabold text-[#172554]">0%</h3>
+              </div>
+              <div
+                class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+                <i class="fa-solid fa-chart-pie text-lg"></i>
+              </div>
+            </div>
+
+            <div
+              class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 flex items-center justify-between hover:shadow-md transition-all relative overflow-hidden group">
+              <div class="absolute left-0 top-0 bottom-0 w-1 bg-rose-500"></div>
+              <div>
+                <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Internships</p>
+                <h3 id="internships-enrolled" class="text-3xl font-extrabold text-[#172554]">0</h3>
+              </div>
+              <div
+                class="w-10 h-10 bg-rose-50 rounded-full flex items-center justify-center text-rose-600 group-hover:scale-110 transition-transform">
+                <i class="fa-solid fa-briefcase text-lg"></i>
+              </div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 mb-8">
+            <!-- Today Summary -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-all">
+              <div class="flex items-center gap-2 mb-2">
+                <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-blue-600"><i
+                    class="fa-solid fa-list-check text-xs"></i></div>
+                <h3 class="font-bold text-[#172554] text-xs uppercase tracking-wide">Today's Focus</h3>
+              </div>
+              <h2 id="today-summary" class="text-lg font-bold text-[#172554] mb-1 truncate">Keep Going!</h2>
+              <small class="text-slate-500 text-[10px] font-medium"><i class="fa-regular fa-clock mr-1"></i> Stay
+                consistent</small>
+            </div>
+
+            <!-- Weekly Goal -->
+            <div class="bg-white p-4 rounded-xl shadow-sm border border-slate-100 hover:shadow-md transition-all">
+              <div class="flex items-center gap-2 mb-2">
+                <div class="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center text-blue-600"><i
+                    class="fa-solid fa-bullseye text-xs"></i></div>
+                <h3 class="font-bold text-[#172554] text-xs uppercase tracking-wide">Program Progress</h3>
+              </div>
+              <div class="flex justify-between items-end mb-1">
+                <h2 id="weekly-goal-text" class="text-lg font-bold text-[#172554]">0%</h2>
+                <span class="text-[10px] text-slate-400 font-bold uppercase">Completed</span>
+              </div>
+              <div class="w-full bg-slate-100 rounded-full h-1.5 overflow-hidden">
+                <div class="progress-fill bg-blue-500 h-1.5 rounded-full transition-all duration-500" style="width: 0%">
+                </div>
+              </div>
+            </div>
+
+            <!-- Streak -->
+            <div
+              class="bg-gradient-to-br from-blue-600 to-blue-700 p-4 rounded-xl shadow-lg shadow-blue-200 text-white relative overflow-hidden">
+              <i
+                class="fa-solid fa-fire absolute -bottom-4 -right-4 text-7xl text-white opacity-10 transform rotate-12"></i>
+              <div class="relative z-10">
+                <p class="text-blue-200 font-bold text-[10px] uppercase tracking-wide mb-1">Streak</p>
+                <h2 id="stats-streak" class="text-2xl font-extrabold">0 Days</h2>
+                <div class="flex mt-2 gap-1">
+                  <span class="w-1.5 h-1.5 rounded-full bg-white opacity-100"></span>
+                  <span class="w-1.5 h-1.5 rounded-full bg-white opacity-50"></span>
+                  <span class="w-1.5 h-1.5 rounded-full bg-white opacity-30"></span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Certificate Section -->
+          <div id="dashboard-certificate-section" class="hidden mb-12">
+            <div id="certificateContainer"
+              class="bg-blue-50/50 border-2 border-dashed border-blue-200 rounded-2xl p-8 text-center">
+              <div
+                class="w-16 h-16 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 text-blue-600 text-2xl">
+                <i class="fa-solid fa-graduation-cap"></i>
+              </div>
+              <h3 id="certHeader" class="text-xl font-bold text-[#172554] mb-2">Internship Certification</h3>
+              <p id="dashboard-cert-message" class="text-slate-500 mb-6 max-w-md mx-auto">Complete all tasks to unlock
+                your official internship completion certificate.</p>
+
+              <div id="dashboard-cert-result" class="mb-4"></div>
+
+              <button id="dashboard-download-cert-btn" disabled
+                class="bg-slate-200 text-slate-400 font-bold py-3 px-6 rounded-xl cursor-not-allowed transition-all">
+                <i class="fa-solid fa-lock mr-2"></i> Certificate Locked
+              </button>
+            </div>
+          </div>
+
+        </section>
+
+        <!-- TASKS PAGE -->
+        <section id="tasks" class="page max-w-5xl mx-auto">
+          <div class="flex justify-between items-center mb-8">
+            <div>
+              <h2 class="text-2xl font-bold text-slate-900">Internship Tasks</h2>
+              <p class="text-slate-500 text-sm">Manage and submit your assigned tasks.</p>
+            </div>
+            <div class="flex gap-2">
+              <span
+                class="px-3 py-1 bg-white border border-slate-200 rounded-lg text-xs font-bold text-slate-600 shadow-sm">All</span>
+              <span
+                class="px-3 py-1 hover:bg-white border border-transparent hover:border-slate-200 rounded-lg text-xs font-bold text-slate-400 cursor-pointer transition-all">Pending</span>
+            </div>
+          </div>
+          <div id="tasks-container" class="space-y-6">
+            <div class="animate-pulse space-y-4">
+              <div class="h-32 bg-slate-200 rounded-2xl"></div>
+              <div class="h-32 bg-slate-200 rounded-2xl"></div>
+            </div>
+          </div>
+        </section>
+
+        <!-- PROGRESS PAGE -->
+        <section id="progress" class="page max-w-5xl mx-auto">
+          <h2 class="text-2xl font-bold text-slate-900 mb-6">Detailed Progress</h2>
+          <div id="progress-container" class="grid grid-cols-1 gap-6">
+            <!-- Content loaded via JS -->
+          </div>
+        </section>
+
+        <!-- MENTOR PAGE -->
+        <section id="mentor" class="page max-w-3xl mx-auto">
+          <h2 class="text-2xl font-bold text-slate-900 mb-6">Your Mentors</h2>
+          <div id="mentor-list" class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <!-- Loaded via JS -->
+          </div>
+        </section>
+
+        <!-- INTERNSHIPS PAGE -->
+        <section id="internships" class="page max-w-5xl mx-auto">
+          <div class="mb-12">
+            <h2 class="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2"><i
+                class="fa-solid fa-circle-check text-blue-500"></i> Enrolled Internships</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="enrolled-internships">
+              <!-- JS Content -->
+            </div>
+          </div>
+
+          <div>
+            <h2 class="text-xl font-bold text-slate-900 mb-4 flex items-center gap-2"><i
+                class="fa-solid fa-layer-group text-slate-400"></i> Available Internships</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" id="available-internships">
+              <!-- JS Content -->
+            </div>
+          </div>
+        </section>
+
+      </div>
+    </main>
+  </div>
+
+  <!-- SUBMISSION MODAL -->
+  <div id="submission-modal"
+    class="fixed inset-0 z-50 hidden items-center justify-center bg-[#172554]/50 backdrop-blur-sm p-4">
+    <div class="bg-white rounded-2xl shadow-2xl w-full max-w-md overflow-hidden transform transition-all scale-100">
+      <div class="p-6 border-b border-slate-100 flex justify-between items-center text-[#172554]">
+        <h2 class="text-lg font-bold">Submit Task</h2>
+        <button onclick="closeSubmissionModal()" class="text-slate-400 hover:text-red-500 transition-colors"><i
+            class="fa-solid fa-xmark text-xl"></i></button>
+      </div>
+
+      <div class="p-6">
+        <div
+          class="mb-6 flex flex-col items-center justify-center border-2 border-dashed border-slate-300 rounded-xl p-8 bg-slate-50 hover:bg-blue-50 hover:border-blue-300 transition-colors group cursor-pointer relative">
+          <input type="file" id="submission-file" accept=".pdf,.zip,.doc,.docx,.txt,.ppt,.pptx,.xls,.xlsx"
+            class="absolute inset-0 opacity-0 cursor-pointer">
+          <div
+            class="w-12 h-12 bg-white rounded-full shadow-sm flex items-center justify-center mb-3 group-hover:scale-110 transition-transform">
+            <i class="fa-solid fa-cloud-arrow-up text-blue-500 text-xl"></i>
+          </div>
+          <p class="text-sm font-medium text-slate-700">Click to upload file</p>
+          <p class="text-xs text-slate-400 mt-1">PDF, ZIP, DOCX (Max 10MB)</p>
+        </div>
+
+        <div class="flex gap-3">
+          <button onclick="closeSubmissionModal()"
+            class="flex-1 py-3 px-4 bg-slate-100 hover:bg-slate-200 text-slate-600 font-bold rounded-xl transition-colors">Cancel</button>
+          <button onclick="submitTaskFile()"
+            class="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-lg shadow-blue-500/20 transition-all transform active:scale-95">Submit
+            Work</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="intern.js"></script>
+</body>
+
+</html>

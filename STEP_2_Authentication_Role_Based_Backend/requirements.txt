@@ -1,0 +1,12 @@
+Flask
+Flask-SQLAlchemy
+Flask-JWT-Extended
+Flask-Cors
+Werkzeug
+gunicorn
+flask-mail
+pymysql
+google-generativeai
+requests
+PyPDF2
+

@@ -1,0 +1,798 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Trainer Dashboard - SkillTrack</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+  <style>
+    body {
+      font-family: 'Inter', sans-serif;
+    }
+
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+
+    ::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    ::-webkit-scrollbar-thumb {
+      background: #cbd5e1;
+      border-radius: 3px;
+    }
+
+    ::-webkit-scrollbar-thumb:hover {
+      background: #94a3b8;
+    }
+
+    .fade-in {
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    @keyframes fadeIn {
+      from {
+        opacity: 0;
+        transform: translateY(5px);
+      }
+
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    /* Logic Preservers */
+    .section {
+      display: none;
+    }
+
+    .section:not(.hidden) {
+      display: block;
+    }
+
+    .tab-content {
+      display: none;
+    }
+
+    .tab-content.active {
+      display: block;
+      animation: fadeIn 0.3s ease-out;
+    }
+
+    .tab.active {
+      border-bottom: 2px solid #4f46e5;
+      color: #4f46e5;
+      font-weight: 600;
+    }
+  </style>
+</head>
+
+<body class="bg-blue-50 text-slate-800 h-screen flex overflow-hidden">
+
+  <!-- SIDEBAR -->
+  <aside class="w-64 bg-[#172554] border-r border-[#1e40af] flex-col hidden md:flex h-full flex-shrink-0">
+    <div class="p-6 border-b border-[#1e40af]">
+      <h2 class="text-xl font-bold text-white tracking-tight flex items-center gap-2">
+        <img src="new_logo.jpg" alt="Logo" class="w-8 h-8 rounded-full object-contain"> SkillTrack
+      </h2>
+      <p class="text-slate-500 text-xs mt-1 font-medium tracking-wider uppercase">Trainer Portal</p>
+    </div>
+
+    <nav class="flex-1 overflow-y-auto p-4 space-y-1">
+      <div class="text-xs font-bold text-slate-500 uppercase tracking-wider mb-3 ml-2">Main</div>
+      <a onclick="showSection('dashboard')"
+        class="nav-item active flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 font-medium hover:bg-[#1e40af] hover:text-white cursor-pointer transition-all">
+        <i class="fa-solid fa-chart-line w-5 text-center"></i> Dashboard
+      </a>
+      <a onclick="showSection('courses')"
+        class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 font-medium hover:bg-[#1e40af] hover:text-white cursor-pointer transition-all">
+        <i class="fa-solid fa-book-open w-5 text-center"></i> Courses
+      </a>
+      <a onclick="showSection('internships')"
+        class="nav-item flex items-center gap-3 px-4 py-3 rounded-xl text-slate-400 font-medium hover:bg-[#1e40af] hover:text-white cursor-pointer transition-all">
+        <i class="fa-solid fa-briefcase w-5 text-center"></i> Internships
+      </a>
+    </nav>
+
+    <div class="p-4 border-t border-[#1e40af]">
+      <button onclick="logout()"
+        class="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-rose-400 hover:bg-rose-500/10 hover:text-rose-300 font-medium transition-all">
+        <i class="fa-solid fa-right-from-bracket"></i> Logout
+      </button>
+    </div>
+  </aside>
+
+  <!-- MAIN CONTENT -->
+  <main class="flex-1 h-full overflow-y-auto relative w-full flex flex-col">
+
+    <!-- HEADER -->
+    <header
+      class="bg-white/80 backdrop-blur-sm border-b border-gray-200 sticky top-0 z-20 px-8 py-4 flex justify-between items-center">
+      <div>
+        <h2 class="text-xl font-bold text-slate-800">Trainer Dashboard</h2>
+        <p id="welcome" class="text-sm text-slate-500">Welcome, Trainer</p>
+      </div>
+      <div class="relative">
+        <button onclick="loadTrainerCourses()"
+          class="text-xs font-bold text-blue-600 bg-blue-50 hover:bg-sky-100 px-3 py-2 rounded-lg transition-colors"><i
+            class="fa-solid fa-rotate-right mr-1"></i> Refresh Data</button>
+      </div>
+    </header>
+
+    <div class="p-8 max-w-7xl mx-auto space-y-8 flex-1 w-full">
+
+
+      <!-- DASHBOARD SECTION -->
+      <section id="dashboard" class="section fade-in">
+
+
+
+        <!-- STATS GRID -->
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-10">
+
+          <!-- Total Courses -->
+          <div
+            class="bg-white p-4 rounded-xl shadow-sm border border-blue-100 flex items-center justify-between hover:shadow-md transition-all relative overflow-hidden group">
+            <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
+            <div>
+              <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Total Courses</p>
+              <h3 id="totalCourses" class="text-3xl font-extrabold text-slate-800">0</h3>
+            </div>
+            <div
+              class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+              <i class="fa-solid fa-book text-lg"></i>
+            </div>
+          </div>
+
+          <!-- Total Students -->
+          <div
+            class="bg-white p-4 rounded-xl shadow-sm border border-sky-100 flex items-center justify-between hover:shadow-md transition-all relative overflow-hidden group">
+            <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
+            <div>
+              <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Total Students</p>
+              <h3 id="totalStudents" class="text-3xl font-extrabold text-slate-800">0</h3>
+            </div>
+            <div
+              class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+              <i class="fa-solid fa-users text-lg"></i>
+            </div>
+          </div>
+
+          <!-- Internships -->
+          <div
+            class="bg-white p-4 rounded-xl shadow-sm border border-blue-100 flex items-center justify-between hover:shadow-md transition-all relative overflow-hidden group">
+            <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
+            <div>
+              <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Internships</p>
+              <h3 id="totalInternships" class="text-3xl font-extrabold text-slate-800">0</h3>
+            </div>
+            <div
+              class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+              <i class="fa-solid fa-briefcase text-lg"></i>
+            </div>
+          </div>
+
+          <!-- Total Interns -->
+          <div
+            class="bg-white p-4 rounded-xl shadow-sm border border-sky-100 flex items-center justify-between hover:shadow-md transition-all relative overflow-hidden group">
+            <div class="absolute left-0 top-0 bottom-0 w-1 bg-blue-500"></div>
+            <div>
+              <p class="text-slate-500 text-[10px] font-bold uppercase tracking-wider mb-1">Total Interns</p>
+              <h3 id="totalInterns" class="text-3xl font-extrabold text-slate-800">0</h3>
+            </div>
+            <div
+              class="w-10 h-10 bg-blue-50 rounded-full flex items-center justify-center text-blue-600 group-hover:scale-110 transition-transform">
+              <i class="fa-solid fa-user-tie text-lg"></i>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- QUICK ACTIONS & ACTIVITY -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          <!-- Quick Actions -->
+          <div class="col-span-1 bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 class="font-bold text-slate-800 mb-4">Quick Actions</h3>
+            <div class="space-y-4">
+              <button onclick="quickAction('course')"
+                class="w-full flex items-center justify-between p-4 rounded-xl bg-blue-50 hover:bg-white hover:shadow-md hover:border-sky-100 border border-transparent transition-all group">
+                <div class="flex items-center gap-4">
+                  <div
+                    class="w-10 h-10 rounded-full bg-green-100 text-green-600 flex items-center justify-center group-hover:bg-green-600 group-hover:text-white transition-colors">
+                    <i class="fa-solid fa-plus"></i>
+                  </div>
+                  <div class="text-left">
+                    <h4 class="font-bold text-slate-700">Create Assignment</h4>
+                    <p class="text-xs text-slate-500">Assign new work to students</p>
+                  </div>
+                </div>
+                <i class="fa-solid fa-chevron-right text-gray-300 group-hover:text-blue-400"></i>
+              </button>
+
+              <button onclick="quickAction('course')"
+                class="w-full flex items-center justify-between p-4 rounded-xl bg-blue-50 hover:bg-white hover:shadow-md hover:border-sky-100 border border-transparent transition-all group">
+                <div class="flex items-center gap-4">
+                  <div
+                    class="w-10 h-10 rounded-full bg-amber-100 text-amber-600 flex items-center justify-center group-hover:bg-amber-600 group-hover:text-white transition-colors">
+                    <i class="fa-solid fa-file-pen"></i>
+                  </div>
+                  <div class="text-left">
+                    <h4 class="font-bold text-slate-700">Grade Submissions</h4>
+                    <p class="text-xs text-slate-500">Review pending student work</p>
+                  </div>
+                </div>
+                <i class="fa-solid fa-chevron-right text-gray-300 group-hover:text-blue-400"></i>
+              </button>
+
+              <button onclick="quickAction('internship')"
+                class="w-full flex items-center justify-between p-4 rounded-xl bg-blue-50 hover:bg-white hover:shadow-md hover:border-sky-100 border border-transparent transition-all group">
+                <div class="flex items-center gap-4">
+                  <div
+                    class="w-10 h-10 rounded-full bg-purple-100 text-purple-600 flex items-center justify-center group-hover:bg-purple-600 group-hover:text-white transition-colors">
+                    <i class="fa-solid fa-check-double"></i>
+                  </div>
+                  <div class="text-left">
+                    <h4 class="font-bold text-slate-700">Check Intern Tasks</h4>
+                    <p class="text-xs text-slate-500">Verify intern daily logs</p>
+                  </div>
+                </div>
+                <i class="fa-solid fa-chevron-right text-gray-300 group-hover:text-blue-400"></i>
+              </button>
+            </div>
+          </div>
+
+          <!-- Placeholder for Chart or Recent Activity -->
+          <div
+            class="col-span-1 lg:col-span-2 bg-gradient-to-br from-sky-50 to-white rounded-2xl shadow-sm border border-gray-100 p-8 flex flex-col items-center justify-center text-center">
+            <div class="w-20 h-20 bg-white rounded-full flex items-center justify-center shadow-lg mb-4">
+              <i class="fa-solid fa-rocket text-3xl text-sky-500"></i>
+            </div>
+            <h3 class="text-xl font-bold text-slate-800 mb-2">Ready to Boost Productivity?</h3>
+            <p class="text-slate-500 max-w-md mb-6">Select a course or internship from the sidebar or quick actions to
+              start managing your students and curriculum.</p>
+            <p class="text-xs font-bold text-blue-400 uppercase tracking-widest ">SkillTrack Panel v2.0</p>
+          </div>
+        </div>
+      </section>
+
+      <!-- COURSES LIST SECTION -->
+      <section id="courses" class="section hidden fade-in">
+        <h2 class="text-2xl font-bold text-slate-800 mb-6">My Courses</h2>
+        <div id="trainerCourses" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <!-- INTERNSHIPS LIST SECTION -->
+      <section id="internships" class="section hidden fade-in">
+        <h2 class="text-2xl font-bold text-slate-800 mb-6">My Internships</h2>
+        <div id="trainerInternships" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <!-- Populated by JS -->
+        </div>
+      </section>
+
+      <!-- MANAGE COURSE SECTION -->
+      <section id="manageCourse" class="section hidden fade-in">
+        <button onclick="backToCourses()"
+          class="text-blue-600 font-bold hover:underline mb-4 flex items-center gap-1"><i
+            class="fa-solid fa-arrow-left"></i> Back to Courses</button>
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex items-center gap-4">
+            <h2 id="courseTitle" class="text-2xl font-bold text-slate-800">Course Management</h2>
+            <select id="manageCourseSelect"
+              class="px-3 py-1 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500"></select>
+          </div>
+        </div>
+
+        <!-- TABS -->
+        <div class="flex border-b border-gray-200 mb-6 gap-6">
+          <button onclick="switchTab('assignments')"
+            class="tab active pb-3 text-slate-500 hover:text-slate-700 font-medium transition-all">Assignments</button>
+          <button onclick="switchTab('quizzes')"
+            class="tab pb-3 text-slate-500 hover:text-slate-700 font-medium transition-all">Quizzes</button>
+          <button onclick="switchTab('submissions')"
+            class="tab pb-3 text-slate-500 hover:text-slate-700 font-medium transition-all">Submissions</button>
+          <button onclick="switchTab('resources')"
+            class="tab pb-3 text-slate-500 hover:text-slate-700 font-medium transition-all">Resources</button>
+        </div>
+
+        <!-- TAB: ASSIGNMENTS -->
+        <div id="assignments" class="tab-content active space-y-8">
+          <!-- ASSIGNMENT LIMIT SETTING -->
+          <div
+            class="bg-blue-50 rounded-2xl p-6 border border-blue-100 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+              <div class="bg-blue-600 text-white p-3 rounded-xl shadow-lg ring-4 ring-blue-100">
+                <i class="fa-solid fa-list-check"></i>
+              </div>
+              <div>
+                <h4 class="text-sm font-bold text-slate-800">Assignment Requirement</h4>
+                <p class="text-xs text-slate-500">How many total assignments are required for this course?</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <input type="number" id="settingAssignmentLimit" min="0" placeholder="e.g. 4"
+                class="w-24 px-4 py-2 border border-blue-200 rounded-xl text-sm font-bold text-center focus:ring-2 focus:ring-blue-500 outline-none">
+              <button onclick="saveCourseSettings('assignment')" id="saveAsgnLimitBtn"
+                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl transition-all text-xs shadow-md">
+                Set Limit
+              </button>
+            </div>
+          </div>
+
+          <!-- CREATE ASSIGNMENT -->
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 class="font-bold text-slate-800 mb-4">Create / Update Assignment</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <input id="assignmentTitle"
+                class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+                placeholder="Assignment Title (Assignment N: Title)">
+              <input type="date" id="assignmentDue"
+                class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+              <div class="flex gap-2">
+                <button id="saveAssignmentBtn" onclick="createAssignment()"
+                  class="flex-1 bg-blue-600 hover:bg-sky-700 text-white font-bold py-2 rounded-lg transition-colors text-sm shadow-md">Save</button>
+                <button id="cancelEditBtn" onclick="cancelEdit()"
+                  class="hidden bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Cancel</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <table class="w-full text-left text-sm text-slate-600">
+              <thead class="bg-blue-50 text-xs uppercase text-slate-500 font-semibold border-b border-gray-100">
+                <tr>
+                  <th class="py-3 px-6">Title</th>
+                  <th class="py-3 px-6">Due Date</th>
+                  <th class="py-3 px-6 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="assignmentTable" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB: QUIZZES -->
+        <div id="quizzes" class="tab-content space-y-8">
+          <!-- QUIZ LIMIT SETTING -->
+          <div
+            class="bg-purple-50 rounded-2xl p-6 border border-purple-100 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+              <div class="bg-purple-600 text-white p-3 rounded-xl shadow-lg ring-4 ring-purple-100">
+                <i class="fa-solid fa-brain"></i>
+              </div>
+              <div>
+                <h4 class="text-sm font-bold text-slate-800">Quiz Requirement</h4>
+                <p class="text-xs text-slate-500">How many total quizzes are required for this course?</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <input type="number" id="settingQuizLimit" min="0" placeholder="e.g. 2"
+                class="w-24 px-4 py-2 border border-purple-200 rounded-xl text-sm font-bold text-center focus:ring-2 focus:ring-purple-500 outline-none">
+              <button onclick="saveCourseSettings('quiz')" id="saveQuizLimitBtn"
+                class="bg-purple-600 hover:bg-purple-700 text-white font-bold py-2 px-6 rounded-xl transition-all text-xs shadow-md">
+                Set Limit
+              </button>
+            </div>
+          </div>
+
+          <!-- MANAGE QUIZZES -->
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 class="font-bold text-slate-800 mb-4">Smart Quiz Importer</h3>
+
+            <div class="p-6 bg-sky-50 rounded-2xl border border-sky-100 space-y-6">
+              <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div class="space-y-1">
+                  <label class="text-[10px] font-bold text-sky-700 uppercase tracking-wider ml-1">Quiz Title</label>
+                  <input id="quizTitle"
+                    class="w-full px-4 py-2 bg-white border border-sky-100 rounded-xl text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+                    placeholder="e.g. Mid-Term Assessment">
+                </div>
+                <div class="space-y-1">
+                  <label class="text-[10px] font-bold text-sky-700 uppercase tracking-wider ml-1">Deadline Date</label>
+                  <input type="date" id="quizDeadline"
+                    class="w-full px-4 py-2 bg-white border border-sky-100 rounded-xl text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+                </div>
+              </div>
+
+              <div class="space-y-4 pt-4 border-t border-sky-200/50">
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                  <!-- Link Import -->
+                  <div class="space-y-2">
+                    <h4 class="text-xs font-bold text-slate-700 flex items-center gap-2">
+                      <i class="fa-solid fa-link text-sky-500"></i> Import from Link
+                    </h4>
+                    <input id="aiQuizUrl"
+                      class="w-full px-4 py-2 bg-white border border-sky-100 rounded-xl text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+                      placeholder="Paste Drive, Sheet or Doc Link">
+                  </div>
+
+                  <!-- PDF Upload -->
+                  <div class="space-y-2">
+                    <h4 class="text-xs font-bold text-slate-700 flex items-center gap-2">
+                      <i class="fa-solid fa-file-pdf text-rose-500"></i> Upload PDF
+                    </h4>
+                    <input type="file" id="aiQuizFile" accept=".pdf"
+                      class="w-full px-3 py-1.5 bg-white border border-sky-100 rounded-xl text-xs text-slate-500 focus:ring-2 focus:ring-sky-500 outline-none file:mr-4 file:py-1 file:px-3 file:rounded-full file:border-0 file:text-[10px] file:font-bold file:bg-sky-100 file:text-sky-700 hover:file:bg-sky-200">
+                  </div>
+                </div>
+
+                <button onclick="importQuizAI()" id="aiImportBtn"
+                  class="w-full bg-slate-800 hover:bg-slate-700 text-white font-bold py-3 rounded-xl transition-all shadow-lg flex items-center justify-center gap-2 mt-4 group">
+                  <i class="fa-solid fa-wand-magic-sparkles group-hover:rotate-12 transition-transform"></i>
+                  Generate Smart Quiz
+                </button>
+              </div>
+
+              <p class="text-[10px] text-sky-600 font-medium text-center">
+                <i class="fa-solid fa-circle-info mr-1"></i>
+                The system will scan your link or PDF and automatically map questions, options, and answers.
+              </p>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <table class="w-full text-left text-sm text-slate-600">
+              <thead class="bg-blue-50 text-xs uppercase text-slate-500 font-semibold border-b border-gray-100">
+                <tr>
+                  <th class="py-3 px-6">Title</th>
+                  <th class="py-3 px-6">No.</th>
+                  <th class="py-3 px-6">Deadline</th>
+                  <th class="py-3 px-6">Qs</th>
+                  <th class="py-3 px-6 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="quizTable" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB: SUBMISSIONS -->
+        <div id="submissions" class="tab-content space-y-8">
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <table class="w-full text-left text-sm text-slate-600">
+              <thead class="bg-blue-50 text-xs uppercase text-slate-500 font-semibold border-b border-gray-100">
+                <tr>
+                  <th class="py-3 px-6">Student</th>
+                  <th class="py-3 px-6">Details</th>
+                  <th class="py-3 px-6">Grade</th>
+                  <th class="py-3 px-6">Feedback</th>
+                  <th class="py-3 px-6">Status / Actions</th>
+                </tr>
+              </thead>
+              <tbody id="submissionTable" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB: RESOURCES -->
+        <div id="resources" class="tab-content space-y-8">
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 class="font-bold text-slate-800 mb-4">Upload Resource</h3>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+              <input id="resourceTitle"
+                class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+                placeholder="Resource Title">
+              <select id="resourceType"
+                class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+                <option value="pdf">PDF</option>
+                <option value="doc">Word</option>
+                <option value="xls">Excel</option>
+                <option value="video">Video</option>
+              </select>
+              <input type="file" id="resourceFile"
+                class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none bg-white">
+              <button onclick="addResource()"
+                class="bg-blue-600 hover:bg-sky-700 text-white font-bold py-2 rounded-lg transition-colors text-sm shadow-md">Upload</button>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <table class="w-full text-left text-sm text-slate-600">
+              <thead class="bg-blue-50 text-xs uppercase text-slate-500 font-semibold border-b border-gray-100">
+                <tr>
+                  <th class="py-3 px-6">Title</th>
+                  <th class="py-3 px-6">Type</th>
+                  <th class="py-3 px-6 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="resourceTable" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+
+      <!-- MANAGE INTERNSHIP SECTION -->
+      <section id="manageInternship" class="section hidden fade-in">
+        <button onclick="showSection('internships')"
+          class="text-blue-600 font-bold hover:underline mb-4 flex items-center gap-1"><i
+            class="fa-solid fa-arrow-left"></i> Back to Internships</button>
+        <div class="flex items-center justify-between mb-6">
+          <div class="flex items-center gap-4">
+            <h2 id="internshipTitle" class="text-2xl font-bold text-slate-800">Internship Management</h2>
+            <select id="manageInternshipSelect"
+              class="px-3 py-1 bg-white border border-gray-200 rounded-lg text-sm font-semibold text-slate-600 focus:outline-none focus:ring-2 focus:ring-sky-500"></select>
+          </div>
+        </div>
+
+        <!-- TABS -->
+        <div class="flex border-b border-gray-200 mb-6 gap-6">
+          <button onclick="switchInternTab('internshipTasks')"
+            class="tab active pb-3 text-slate-500 hover:text-slate-700 font-medium transition-all">Tasks</button>
+          <button onclick="switchInternTab('internshipSubmissions')"
+            class="tab pb-3 text-slate-500 hover:text-slate-700 font-medium transition-all">Submissions</button>
+        </div>
+
+        <!-- TAB: TASKS -->
+        <div id="internshipTasks" class="tab-content active space-y-8">
+          <!-- INTERNSHIP TASK LIMIT SETTING -->
+          <div
+            class="bg-blue-50 rounded-2xl p-6 border border-blue-100 flex flex-col md:flex-row justify-between items-center gap-4">
+            <div class="flex items-center gap-4">
+              <div class="bg-blue-600 text-white p-3 rounded-xl shadow-lg ring-4 ring-blue-100">
+                <i class="fa-solid fa-list-check"></i>
+              </div>
+              <div>
+                <h4 class="text-sm font-bold text-slate-800">Task Requirement</h4>
+                <p class="text-xs text-slate-500">How many total tasks are required for this internship?</p>
+              </div>
+            </div>
+            <div class="flex items-center gap-3">
+              <input type="number" id="settingInternTaskLimit" min="0" placeholder="e.g. 4"
+                class="w-24 px-4 py-2 border border-blue-200 rounded-xl text-sm font-bold text-center focus:ring-2 focus:ring-blue-500 outline-none">
+              <button onclick="saveInternshipSettings()" id="saveInternLimitBtn"
+                class="bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 px-6 rounded-xl transition-all text-xs shadow-md">
+                Set Limit
+              </button>
+            </div>
+          </div>
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+            <h3 class="font-bold text-slate-800 mb-4">Assign Task</h3>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+              <input id="internTaskTitle"
+                class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none"
+                placeholder="Task Title">
+              <input type="date" id="internTaskDue"
+                class="px-4 py-2 border border-gray-200 rounded-lg text-sm focus:ring-2 focus:ring-sky-500 outline-none">
+              <div class="flex gap-2">
+                <button id="saveInternTaskBtn" onclick="createInternTask()"
+                  class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-bold py-2 rounded-lg transition-colors text-sm shadow-md">Assign</button>
+                <button id="cancelInternTaskEditBtn" onclick="cancelInternTaskEdit()"
+                  class="hidden bg-slate-500 hover:bg-slate-600 text-white font-bold py-2 px-4 rounded-lg transition-colors text-sm">Cancel</button>
+              </div>
+            </div>
+          </div>
+
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <table class="w-full text-left text-sm text-slate-600">
+              <thead class="bg-blue-50 text-xs uppercase text-slate-500 font-semibold border-b border-gray-100">
+                <tr>
+                  <th class="py-3 px-6">Title</th>
+                  <th class="py-3 px-6">Due Date</th>
+                  <th class="py-3 px-6 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody id="internTaskTable" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+        <!-- TAB: INTERN SUBMISSIONS -->
+        <div id="internshipSubmissions" class="tab-content space-y-8">
+          <div class="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <table class="w-full text-left text-sm text-slate-600">
+              <thead class="bg-blue-50 text-xs uppercase text-slate-500 font-semibold border-b border-gray-100">
+                <tr>
+                  <th class="py-3 px-6">Intern</th>
+                  <th class="py-3 px-6">Task</th>
+                  <th class="py-3 px-6">File</th>
+                  <th class="py-3 px-6">Grade</th>
+                  <th class="py-3 px-6">Feedback</th>
+                  <th class="py-3 px-6">Action</th>
+                </tr>
+              </thead>
+              <tbody id="internSubmissionTable" class="divide-y divide-gray-100"></tbody>
+            </table>
+          </div>
+        </div>
+
+      </section>
+
+    </div>
+  </main>
+
+  <script src="trainer.js"></script>
+  <!-- Add styles for dynamic JS content if needed, e.g. course cards created by JS -->
+  <style>
+    .course-card {
+      background: white;
+      padding: 1.5rem;
+      border-radius: 1rem;
+      border: 1px solid #f3f4f6;
+      box-shadow: 0 1px 2px 0 rgba(0, 0, 0, 0.05);
+      transition: all 0.2s;
+    }
+
+    .course-card:hover {
+      box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+      transform: translateY(-2px);
+    }
+
+    .course-card h3 {
+      font-weight: 700;
+      color: #1f2937;
+      font-size: 1.125rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .course-card p {
+      color: #6b7280;
+      font-size: 0.875rem;
+      margin-bottom: 1rem;
+    }
+
+    .course-card button {
+      width: 100%;
+      background-color: #4f46e5;
+      color: white;
+      font-weight: 600;
+      font-size: 0.875rem;
+      padding-top: 0.5rem;
+      padding-bottom: 0.5rem;
+      border-radius: 0.5rem;
+      transition: background-color 0.2s;
+    }
+
+    .course-card button:hover {
+      background-color: #4338ca;
+    }
+
+    /* Table Styles */
+    td {
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid #f3f4f6;
+      vertical-align: middle;
+    }
+
+    tr:last-child td {
+      border-bottom: none;
+    }
+
+    /* Dynamic Content Styles from trainer.js */
+    .btn-small {
+      padding: 0.375rem 0.875rem;
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: white;
+      background-color: #4f46e5;
+      margin-right: 0.5rem;
+      margin-bottom: 0.25rem;
+      display: inline-block;
+      transition: background 0.2s;
+    }
+
+    .btn-small:hover {
+      background-color: #4338ca;
+    }
+
+    .view-link {
+      color: #4f46e5;
+      font-weight: 600;
+      font-size: 0.875rem;
+      text-decoration: underline;
+    }
+
+    .feedback-input {
+      border: 1px solid #e2e8f0;
+      border-radius: 0.375rem;
+      padding: 0.25rem 0.5rem;
+      font-size: 0.875rem;
+      outline: none;
+      width: 100%;
+    }
+
+    .feedback-input:focus {
+      border-color: #4f46e5;
+    }
+
+    .approve-btn {
+      padding: 0.25rem 0.75rem;
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: white;
+      background-color: #2563EB;
+      /* blue-600 */
+      margin-right: 0.25rem;
+    }
+
+    .approve-btn:hover {
+      background-color: #047857;
+    }
+
+    .reject-btn {
+      padding: 0.25rem 0.75rem;
+      border-radius: 0.375rem;
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: white;
+      background-color: #e11d48;
+      /* rose-600 */
+    }
+
+    .reject-btn:hover {
+      background-color: #be123c;
+    }
+
+    .tag {
+      padding: 0.125rem 0.5rem;
+      border-radius: 0.25rem;
+      font-size: 0.75rem;
+      font-weight: 700;
+      color: white;
+      text-transform: uppercase;
+    }
+
+    .action-btns {
+      margin-bottom: 0.5rem;
+      display: flex;
+      gap: 0.25rem;
+    }
+
+    .status-text {
+      font-size: 0.75rem;
+      font-weight: 600;
+      color: #64748b;
+    }
+
+    /* Question UI */
+    .question-item {
+      background: #f8fafc;
+      padding: 1rem;
+      border-radius: 0.5rem;
+      border: 1px solid #e2e8f0;
+      margin-bottom: 1rem;
+    }
+
+    .options-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 0.5rem;
+      margin-top: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .options-grid input {
+      padding: 0.5rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+    }
+
+    .q-text {
+      padding: 0.5rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.375rem;
+      font-size: 0.875rem;
+      margin-top: 0.5rem;
+    }
+
+    .q-correct {
+      padding: 0.5rem;
+      border: 1px solid #e2e8f0;
+      border-radius: 0.375rem;
+      background: white;
+      font-size: 0.875rem;
+    }
+  </style>
+</body>
+
+</html>
